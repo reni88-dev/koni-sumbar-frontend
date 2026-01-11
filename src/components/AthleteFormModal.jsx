@@ -125,14 +125,14 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
 
   const fetchCabors = async () => {
     try {
-      const res = await api.get('/api/master/cabors/all');
+      const res = await api.get('/api/cabors/all');
       setCabors(res.data);
     } catch (e) { console.error(e); }
   };
 
   const fetchEducationLevels = async () => {
     try {
-      const res = await api.get('/api/master/education-levels/all');
+      const res = await api.get('/api/education-levels/all');
       setEducationLevels(res.data);
     } catch (e) { console.error(e); }
   };
@@ -143,7 +143,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       return;
     }
     try {
-      const res = await api.get('/api/master/competition-classes/all', {
+      const res = await api.get('/api/competition-classes/all', {
         params: { cabor_id: caborId }
       });
       setCompetitionClasses(res.data);
