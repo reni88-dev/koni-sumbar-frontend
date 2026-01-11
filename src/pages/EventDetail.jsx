@@ -107,19 +107,19 @@ export function EventDetailPage() {
     }
   };
 
-  const updateStatus = async (athleteId, status) => {
+  const updateStatus = async (eventAthleteId, status) => {
     try {
-      await updateStatusMutation.mutateAsync({ eventId: id, athleteId, status });
+      await updateStatusMutation.mutateAsync({ eventId: id, eventAthleteId, status });
       fetchAthletes();
     } catch (error) {
       console.error('Failed to update status:', error);
     }
   };
 
-  const removeAthlete = async (athleteId) => {
-    if (!confirm('Hapus atlet dari event ini?')) return;
+  const removeAthlete = async (eventAthleteId) => {
+    if (!confirm('Hapus registrasi atlet dari event ini?')) return;
     try {
-      await removeAthleteMutation.mutateAsync({ eventId: id, athleteId });
+      await removeAthleteMutation.mutateAsync({ eventId: id, eventAthleteId });
       fetchAthletes();
       refetchEvent();
     } catch (error) {
@@ -289,7 +289,7 @@ export function EventDetailPage() {
                       <div className="flex items-center justify-end gap-2">
                         {ea.status !== 'verified' && (
                           <button
-                            onClick={() => updateStatus(ea.athlete_id, 'verified')}
+                            onClick={() => updateStatus(ea.id, 'verified')}
                             className="p-1.5 hover:bg-green-50 rounded-lg text-slate-500 hover:text-green-600 transition-colors"
                             title="Verifikasi"
                           >
@@ -298,7 +298,7 @@ export function EventDetailPage() {
                         )}
                         {ea.status !== 'rejected' && (
                           <button
-                            onClick={() => updateStatus(ea.athlete_id, 'rejected')}
+                            onClick={() => updateStatus(ea.id, 'rejected')}
                             className="p-1.5 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
                             title="Tolak"
                           >
@@ -306,7 +306,7 @@ export function EventDetailPage() {
                           </button>
                         )}
                         <button
-                          onClick={() => removeAthlete(ea.athlete_id)}
+                          onClick={() => removeAthlete(ea.id)}
                           className="p-1.5 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
                           title="Hapus"
                         >

@@ -132,8 +132,8 @@ export function useUpdateAthleteStatus() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ eventId, athleteId, status }) => {
-      const response = await api.put(`/api/events/${eventId}/athletes/${athleteId}`, { status });
+    mutationFn: async ({ eventId, eventAthleteId, status }) => {
+      const response = await api.put(`/api/events/${eventId}/athletes/${eventAthleteId}`, { status });
       return response.data;
     },
     onSuccess: (_, { eventId }) => {
@@ -142,13 +142,13 @@ export function useUpdateAthleteStatus() {
   });
 }
 
-// Remove athlete from event
+// Remove athlete registration from event
 export function useRemoveAthleteFromEvent() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ eventId, athleteId }) => {
-      await api.delete(`/api/events/${eventId}/athletes/${athleteId}`);
+    mutationFn: async ({ eventId, eventAthleteId }) => {
+      await api.delete(`/api/events/${eventId}/athletes/${eventAthleteId}`);
     },
     onSuccess: (_, { eventId }) => {
       queryClient.invalidateQueries({ queryKey: eventKeys.athletes(eventId) });
