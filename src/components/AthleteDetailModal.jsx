@@ -136,7 +136,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Kelas Pertandingan</p>
-                    <p className="font-medium text-slate-800">{athlete.competition_class || '-'}</p>
+                    <p className="font-medium text-slate-800">{athlete.competition_class?.name || '-'}</p>
                   </div>
                 </div>
               </div>
