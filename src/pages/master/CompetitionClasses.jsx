@@ -6,21 +6,27 @@ import {
   Edit2, 
   Trash2, 
   Medal,
-  Loader2,
   AlertCircle,
-  Filter
+  Filter,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Loader2
 } from 'lucide-react';
-import api from '../../api/axios';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { CompetitionClassFormModal } from '../../components/CompetitionClassFormModal';
+import { useCaborsAll } from '../../hooks/queries/useCabors';
+import { 
+  useCompetitionClasses, 
+  useDeleteCompetitionClass 
+} from '../../hooks/queries/useMasterData';
 
 export function CompetitionClassesPage() {
-  const [competitionClasses, setCompetitionClasses] = useState([]);
-  const [cabors, setCabors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterCabor, setFilterCabor] = useState('');
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [page, setPage] = useState(1);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -28,79 +34,64 @@ export function CompetitionClassesPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [classToDelete, setClassToDelete] = useState(null);
 
-  // Fetch cabors for dropdown
-  const fetchCabors = async () => {
-    try {
-      const response = await api.get('/api/master/cabors/all');
-      setCabors(response.data);
-    } catch (error) {
-      console.error('Failed to fetch cabors:', error);
-    }
+  // TanStack Query hooks
+  const { data: cabors = [] } = useCaborsAll();
+  const { 
+    data: classesData, 
+    isLoading: loading,
+    refetch 
+  } = useCompetitionClasses({ 
+    page, 
+    search: debouncedSearch, 
+    caborId: filterCabor 
+  });
+  const deleteMutation = useDeleteCompetitionClass();
+
+  const competitionClasses = classesData?.data || [];
+  const pagination = {
+    current_page: classesData?.current_page || 1,
+    last_page: classesData?.last_page || 1,
+    total: classesData?.total || 0
   };
 
-  // Fetch competition classes
-  const fetchCompetitionClasses = async (page = 1) => {
-    setLoading(true);
-    try {
-      const params = { page, search, per_page: 20 };
-      if (filterCabor) params.cabor_id = filterCabor;
-      
-      const response = await api.get('/api/master/competition-classes', { params });
-      setCompetitionClasses(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        total: response.data.total
-      });
-    } catch (error) {
-      console.error('Failed to fetch competition classes:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCabors();
-    fetchCompetitionClasses();
-  }, []);
-
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchCompetitionClasses(1);
+      setDebouncedSearch(search);
+      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, filterCabor]);
+  }, [search]);
 
-  // Open modal for create
+  // Reset page when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [filterCabor]);
+
   const openCreateModal = () => {
     setSelectedClass(null);
     setIsModalOpen(true);
   };
 
-  // Open modal for edit
   const openEditModal = (item) => {
     setSelectedClass(item);
     setIsModalOpen(true);
   };
 
-  // Handle modal close
   const handleModalClose = () => {
     setIsModalOpen(false);
     setSelectedClass(null);
   };
 
-  // Handle successful save
   const handleSaveSuccess = () => {
-    fetchCompetitionClasses(pagination.current_page);
+    refetch();
   };
 
-  // Handle delete
   const handleDelete = async () => {
     try {
-      await api.delete(`/api/master/competition-classes/${classToDelete.id}`);
+      await deleteMutation.mutateAsync(classToDelete.id);
       setIsDeleteModalOpen(false);
       setClassToDelete(null);
-      fetchCompetitionClasses(pagination.current_page);
     } catch (error) {
       console.error('Failed to delete competition class:', error);
       alert(error.response?.data?.message || 'Gagal menghapus data');
@@ -236,28 +227,107 @@ export function CompetitionClassesPage() {
         </div>
 
         {/* Pagination */}
-        {pagination.last_page > 1 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              Menampilkan {competitionClasses.length} dari {pagination.total} data
-            </p>
-            <div className="flex gap-2">
-              {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map(page => (
+        {
+          pagination.last_page > 1 && (
+            <div className="px-6 py-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-slate-500">
+                Menampilkan <span className="font-medium text-slate-900">{competitionClasses.length}</span> dari <span className="font-medium text-slate-900">{pagination.total}</span> data
+              </p>
+              
+              <div className="flex items-center gap-1">
+                {/* First Page */}
                 <button
-                  key={page}
-                  onClick={() => fetchCompetitionClasses(page)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    page === pagination.current_page
-                      ? 'bg-red-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
+                  onClick={() => setPage(1)}
+                  disabled={pagination.current_page === 1}
+                  className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600"
+                  title="Halaman Pertama"
                 >
-                  {page}
+                  <ChevronsLeft className="w-5 h-5" />
                 </button>
-              ))}
+
+                {/* Previous Page */}
+                <button
+                  onClick={() => setPage(Math.max(1, pagination.current_page - 1))}
+                  disabled={pagination.current_page === 1}
+                  className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600"
+                  title="Sebelumnya"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                {/* Page Numbers */}
+                <div className="flex items-center gap-1 mx-2">
+                  {(() => {
+                    const current = pagination.current_page;
+                    const last = pagination.last_page;
+                    const delta = 1;
+                    const left = current - delta;
+                    const right = current + delta + 1;
+                    const range = [];
+                    const rangeWithDots = [];
+                    let l;
+
+                    for (let i = 1; i <= last; i++) {
+                      if (i === 1 || i === last || (i >= left && i < right)) {
+                        range.push(i);
+                      }
+                    }
+
+                    for (const i of range) {
+                      if (l) {
+                        if (i - l === 2) {
+                          rangeWithDots.push(l + 1);
+                        } else if (i - l !== 1) {
+                          rangeWithDots.push('...');
+                        }
+                      }
+                      rangeWithDots.push(i);
+                      l = i;
+                    }
+
+                    return rangeWithDots.map((pageNum, idx) => (
+                      pageNum === '...' ? (
+                        <span key={`dots-${idx}`} className="px-2 text-slate-400">...</span>
+                      ) : (
+                        <button
+                          key={pageNum}
+                          onClick={() => setPage(pageNum)}
+                          className={`min-w-[36px] h-9 px-3 rounded-lg text-sm font-medium transition-colors ${
+                            pageNum === pagination.current_page
+                              ? 'bg-red-600 text-white shadow-md shadow-red-500/20'
+                              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      )
+                    ));
+                  })()}
+                </div>
+
+                {/* Next Page */}
+                <button
+                  onClick={() => setPage(Math.min(pagination.last_page, pagination.current_page + 1))}
+                  disabled={pagination.current_page === pagination.last_page}
+                  className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600"
+                  title="Selanjutnya"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+
+                {/* Last Page */}
+                <button
+                  onClick={() => setPage(pagination.last_page)}
+                  disabled={pagination.current_page === pagination.last_page}
+                  className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-slate-600"
+                  title="Halaman Terakhir"
+                >
+                  <ChevronsRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )
+        }
       </div>
 
       {/* Create/Edit Modal */}
@@ -269,7 +339,7 @@ export function CompetitionClassesPage() {
         onSuccess={handleSaveSuccess}
       />
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
@@ -303,9 +373,10 @@ export function CompetitionClassesPage() {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    disabled={deleteMutation.isPending}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    Hapus
+                    {deleteMutation.isPending ? 'Menghapus...' : 'Hapus'}
                   </button>
                 </div>
               </div>

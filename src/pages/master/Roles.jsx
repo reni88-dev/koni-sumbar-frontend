@@ -12,13 +12,17 @@ import {
   Check,
   Users
 } from 'lucide-react';
-import api from '../../api/axios';
 import { DashboardLayout } from '../../components/DashboardLayout';
+import { 
+  useRoles, 
+  usePermissionsGrouped, 
+  useCreateRole, 
+  useUpdateRole, 
+  useDeleteRole,
+  useUpdateRolePermissions 
+} from '../../hooks/queries/useMasterData';
 
 export function RolesPage() {
-  const [roles, setRoles] = useState([]);
-  const [permissions, setPermissions] = useState({});
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   
   // Modal states
@@ -32,47 +36,24 @@ export function RolesPage() {
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
-  const [permissionLoading, setPermissionLoading] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({ name: '', display_name: '', description: '' });
   const [formErrors, setFormErrors] = useState({});
-  const [formLoading, setFormLoading] = useState(false);
 
-  // Fetch roles
-  const fetchRoles = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/master/roles');
-      setRoles(response.data);
-    } catch (error) {
-      console.error('Failed to fetch roles:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch permissions
-  const fetchPermissions = async () => {
-    try {
-      const response = await api.get('/api/master/permissions');
-      setPermissions(response.data);
-    } catch (error) {
-      console.error('Failed to fetch permissions:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchRoles();
-    fetchPermissions();
-  }, []);
+  // TanStack Query hooks
+  const { data: roles = [], isLoading: loading } = useRoles();
+  const { data: permissions = {} } = usePermissionsGrouped();
+  const createRoleMutation = useCreateRole();
+  const updateRoleMutation = useUpdateRole();
+  const deleteRoleMutation = useDeleteRole();
+  const updatePermissionsMutation = useUpdateRolePermissions();
 
   const filteredRoles = roles.filter(role => 
     role.name.toLowerCase().includes(search.toLowerCase()) ||
     role.display_name.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Open modal for create
   const openCreateModal = () => {
     setModalMode('create');
     setFormData({ name: '', display_name: '', description: '' });
@@ -80,7 +61,6 @@ export function RolesPage() {
     setIsModalOpen(true);
   };
 
-  // Open modal for edit
   const openEditModal = (role) => {
     setModalMode('edit');
     setSelectedRole(role);
@@ -93,53 +73,42 @@ export function RolesPage() {
     setIsModalOpen(true);
   };
 
-  // Open permission editor
   const openPermissionEditor = (role) => {
     setEditingRole(role);
     setSelectedPermissions(role.permissions?.map(p => p.id) || []);
     setIsPermissionModalOpen(true);
   };
 
-  // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormLoading(true);
     setFormErrors({});
 
     try {
       if (modalMode === 'create') {
-        await api.post('/api/master/roles', formData);
+        await createRoleMutation.mutateAsync(formData);
       } else {
-        await api.put(`/api/master/roles/${selectedRole.id}`, formData);
+        await updateRoleMutation.mutateAsync({ id: selectedRole.id, data: formData });
       }
       setIsModalOpen(false);
-      fetchRoles();
     } catch (error) {
       if (error.response?.status === 422) {
         setFormErrors(error.response.data.errors || {});
       }
-    } finally {
-      setFormLoading(false);
     }
   };
 
-  // Handle permission update
   const handlePermissionUpdate = async () => {
-    setPermissionLoading(true);
     try {
-      await api.put(`/api/master/roles/${editingRole.id}/permissions`, {
-        permissions: selectedPermissions
+      await updatePermissionsMutation.mutateAsync({ 
+        roleId: editingRole.id, 
+        permissions: selectedPermissions 
       });
       setIsPermissionModalOpen(false);
-      fetchRoles();
     } catch (error) {
       console.error('Failed to update permissions:', error);
-    } finally {
-      setPermissionLoading(false);
     }
   };
 
-  // Toggle permission
   const togglePermission = (permissionId) => {
     setSelectedPermissions(prev => 
       prev.includes(permissionId)
@@ -148,7 +117,6 @@ export function RolesPage() {
     );
   };
 
-  // Toggle all permissions in a group
   const toggleGroup = (groupPermissions) => {
     const groupIds = groupPermissions.map(p => p.id);
     const allSelected = groupIds.every(id => selectedPermissions.includes(id));
@@ -160,17 +128,17 @@ export function RolesPage() {
     }
   };
 
-  // Handle delete
   const handleDelete = async () => {
     try {
-      await api.delete(`/api/master/roles/${roleToDelete.id}`);
+      await deleteRoleMutation.mutateAsync(roleToDelete.id);
       setIsDeleteModalOpen(false);
       setRoleToDelete(null);
-      fetchRoles();
     } catch (error) {
       console.error('Failed to delete role:', error);
     }
   };
+
+  const formLoading = createRoleMutation.isPending || updateRoleMutation.isPending;
 
   return (
     <DashboardLayout title="Data Role" subtitle="Kelola role dan hak akses pengguna">
@@ -215,14 +183,10 @@ export function RolesPage() {
             >
               <div className="flex items-start justify-between mb-4">
                 <div className={`p-3 rounded-xl ${
-                  role.name === 'super_admin' 
-                    ? 'bg-purple-100' 
-                    : 'bg-blue-100'
+                  role.name === 'super_admin' ? 'bg-purple-100' : 'bg-blue-100'
                 }`}>
                   <Shield className={`w-6 h-6 ${
-                    role.name === 'super_admin' 
-                      ? 'text-purple-600' 
-                      : 'text-blue-600'
+                    role.name === 'super_admin' ? 'text-purple-600' : 'text-blue-600'
                   }`} />
                 </div>
                 {role.name !== 'super_admin' && (
@@ -443,10 +407,10 @@ export function RolesPage() {
                   </button>
                   <button
                     onClick={handlePermissionUpdate}
-                    disabled={permissionLoading}
+                    disabled={updatePermissionsMutation.isPending}
                     className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {permissionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {updatePermissionsMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                     Simpan Permission
                   </button>
                 </div>
@@ -456,7 +420,7 @@ export function RolesPage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
@@ -490,9 +454,10 @@ export function RolesPage() {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    disabled={deleteRoleMutation.isPending}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    Hapus
+                    {deleteRoleMutation.isPending ? 'Menghapus...' : 'Hapus'}
                   </button>
                 </div>
               </div>

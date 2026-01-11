@@ -13,48 +13,44 @@ import {
   FileText
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
-import api from '../api/axios';
+import { useFormBuilderTemplate, useFormBuilderSubmissions, useDeleteFormBuilderSubmission } from '../hooks/queries/useFormBuilder';
 
 export function FormSubmissionsPage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const [loading, setLoading] = useState(true);
-  const [template, setTemplate] = useState(null);
-  const [submissions, setSubmissions] = useState([]);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteModal, setDeleteModal] = useState({ open: false, submission: null });
   const [viewModal, setViewModal] = useState({ open: false, submission: null });
 
-  useEffect(() => {
-    fetchData();
-  }, [id, search]);
+  // TanStack Query hooks
+  const { data: template, isLoading: templateLoading } = useFormBuilderTemplate(id);
+  const { 
+    data: submissionsData, 
+    isLoading: submissionsLoading,
+    refetch: refetchSubmissions
+  } = useFormBuilderSubmissions(id, { search: debouncedSearch });
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [templateRes, submissionsRes] = await Promise.all([
-        api.get(`/api/form-builder/templates/${id}`),
-        api.get(`/api/form-builder/templates/${id}/submissions`, {
-          params: { search, per_page: 20 }
-        }),
-      ]);
-      setTemplate(templateRes.data);
-      setSubmissions(submissionsRes.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteSubmissionMutation = useDeleteFormBuilderSubmission();
+
+  const submissions = submissionsData?.data || [];
+  const loading = templateLoading || submissionsLoading;
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const handleDelete = async () => {
     if (!deleteModal.submission) return;
     
     try {
-      await api.delete(`/api/form-builder/submissions/${deleteModal.submission.id}`);
+      await deleteSubmissionMutation.mutateAsync(deleteModal.submission.id);
       setDeleteModal({ open: false, submission: null });
-      fetchData();
     } catch (error) {
       console.error('Failed to delete submission:', error);
     }
@@ -255,9 +251,10 @@ export function FormSubmissionsPage() {
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700"
+                disabled={deleteSubmissionMutation.isPending}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50"
               >
-                Hapus
+                {deleteSubmissionMutation.isPending ? 'Menghapus...' : 'Hapus'}
               </button>
             </div>
           </motion.div>

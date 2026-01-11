@@ -16,14 +16,12 @@ import {
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { useEvent, useEventAthletes, useRegisterAthlete, useUpdateAthleteStatus, useRemoveAthleteFromEvent } from '../hooks/queries/useEvents';
+import { useCaborsAll } from '../hooks/queries/useCabors';
+import { useCompetitionClassesByCabor } from '../hooks/queries/useMasterData';
 
 export function EventDetailPage() {
   const { id } = useParams();
-  const [event, setEvent] = useState(null);
-  const [athletes, setAthletes] = useState([]);
-  const [cabors, setCabors] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [athletesLoading, setAthletesLoading] = useState(false);
   
   // Filter
   const [filterCabor, setFilterCabor] = useState('');
@@ -32,9 +30,7 @@ export function EventDetailPage() {
   // Register Modal
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [availableAthletes, setAvailableAthletes] = useState([]);
-  const [competitionClasses, setCompetitionClasses] = useState([]);
   const [registerForm, setRegisterForm] = useState({ athlete_id: '', cabor_id: '', competition_class_id: '', notes: '' });
-  const [registerLoading, setRegisterLoading] = useState(false);
   const [registerError, setRegisterError] = useState('');
 
   const statusColors = {
@@ -44,14 +40,18 @@ export function EventDetailPage() {
   };
   const statusLabels = { registered: 'Terdaftar', verified: 'Terverifikasi', rejected: 'Ditolak' };
 
-  const fetchEvent = async () => {
-    try {
-      const response = await api.get(`/api/events/${id}`);
-      setEvent(response.data);
-    } catch (error) {
-      console.error('Failed to fetch event:', error);
-    }
-  };
+  // TanStack Query hooks
+  const { data: event, isLoading: eventLoading, refetch: refetchEvent } = useEvent(id);
+  const { data: cabors = [] } = useCaborsAll();
+  const { data: competitionClasses = [] } = useCompetitionClassesByCabor(registerForm.cabor_id);
+  
+  // For athletes, we still use custom fetch because of filter params
+  const [athletes, setAthletes] = useState([]);
+  const [athletesLoading, setAthletesLoading] = useState(false);
+  
+  const registerAthleteMutation = useRegisterAthlete();
+  const updateStatusMutation = useUpdateAthleteStatus();
+  const removeAthleteMutation = useRemoveAthleteFromEvent();
 
   const fetchAthletes = async () => {
     setAthletesLoading(true);
@@ -67,15 +67,6 @@ export function EventDetailPage() {
     }
   };
 
-  const fetchCabors = async () => {
-    try {
-      const response = await api.get('/api/master/cabors/all');
-      setCabors(response.data);
-    } catch (error) {
-      console.error('Failed to fetch cabors:', error);
-    }
-  };
-
   const fetchAvailableAthletes = async () => {
     try {
       const response = await api.get('/api/athletes/all');
@@ -85,70 +76,40 @@ export function EventDetailPage() {
     }
   };
 
-  const fetchCompetitionClasses = async (caborId) => {
-    if (!caborId) {
-      setCompetitionClasses([]);
-      return;
-    }
-    try {
-      const response = await api.get('/api/master/competition-classes/all', {
-        params: { cabor_id: caborId }
-      });
-      setCompetitionClasses(response.data);
-    } catch (error) {
-      console.error('Failed to fetch competition classes:', error);
-      setCompetitionClasses([]);
-    }
-  };
-
   useEffect(() => {
-    const init = async () => {
-      setLoading(true);
-      await fetchEvent();
-      await fetchAthletes();
-      await fetchCabors();
-      setLoading(false);
-    };
-    init();
-  }, [id]);
-
-  useEffect(() => {
-    if (!loading) fetchAthletes();
-  }, [filterCabor, filterStatus]);
+    if (id) {
+      fetchAthletes();
+    }
+  }, [id, filterCabor, filterStatus]);
 
   const openRegisterModal = async () => {
     await fetchAvailableAthletes();
-    setCompetitionClasses([]);
     setRegisterForm({ athlete_id: '', cabor_id: '', competition_class_id: '', notes: '' });
     setRegisterError('');
     setIsRegisterModalOpen(true);
   };
 
-  const handleCaborChange = async (caborId) => {
+  const handleCaborChange = (caborId) => {
     setRegisterForm({ ...registerForm, cabor_id: caborId, competition_class_id: '' });
-    await fetchCompetitionClasses(caborId);
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setRegisterLoading(true);
     setRegisterError('');
 
     try {
-      await api.post(`/api/events/${id}/athletes`, registerForm);
+      await registerAthleteMutation.mutateAsync({ eventId: id, data: registerForm });
       setIsRegisterModalOpen(false);
       fetchAthletes();
-      fetchEvent();
+      refetchEvent();
     } catch (error) {
       setRegisterError(error.response?.data?.message || 'Gagal mendaftarkan atlet');
-    } finally {
-      setRegisterLoading(false);
     }
   };
 
   const updateStatus = async (athleteId, status) => {
     try {
-      await api.put(`/api/events/${id}/athletes/${athleteId}`, { status });
+      await updateStatusMutation.mutateAsync({ eventId: id, athleteId, status });
       fetchAthletes();
     } catch (error) {
       console.error('Failed to update status:', error);
@@ -158,9 +119,9 @@ export function EventDetailPage() {
   const removeAthlete = async (athleteId) => {
     if (!confirm('Hapus atlet dari event ini?')) return;
     try {
-      await api.delete(`/api/events/${id}/athletes/${athleteId}`);
+      await removeAthleteMutation.mutateAsync({ eventId: id, athleteId });
       fetchAthletes();
-      fetchEvent();
+      refetchEvent();
     } catch (error) {
       console.error('Failed to remove athlete:', error);
     }
@@ -171,7 +132,7 @@ export function EventDetailPage() {
     return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  if (loading) {
+  if (eventLoading) {
     return (
       <DashboardLayout title="Loading...">
         <div className="flex items-center justify-center py-12">
@@ -450,10 +411,10 @@ export function EventDetailPage() {
                     </button>
                     <button
                       type="submit"
-                      disabled={registerLoading}
+                      disabled={registerAthleteMutation.isPending}
                       className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
-                      {registerLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {registerAthleteMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                       Daftarkan
                     </button>
                   </div>

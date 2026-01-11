@@ -12,19 +12,18 @@ import {
   Filter,
   Eye
 } from 'lucide-react';
-import api from '../api/axios';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AthleteFormModal } from '../components/AthleteFormModal';
 import { AthleteDetailModal } from '../components/AthleteDetailModal';
+import { useAthletes, useDeleteAthlete } from '../hooks/queries/useAthletes';
+import { useCaborsAll } from '../hooks/queries/useCabors';
 
 export function AthletesPage() {
-  const [athletes, setAthletes] = useState([]);
-  const [cabors, setCabors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterCabor, setFilterCabor] = useState('');
   const [filterGender, setFilterGender] = useState('');
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [page, setPage] = useState(1);
   
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -35,43 +34,41 @@ export function AthletesPage() {
 
   const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 
-  const fetchAthletes = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/athletes', {
-        params: { page, search, cabor_id: filterCabor || undefined, gender: filterGender || undefined, per_page: 10 }
-      });
-      setAthletes(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        total: response.data.total
-      });
-    } catch (error) {
-      console.error('Failed to fetch athletes:', error);
-    } finally {
-      setLoading(false);
-    }
+  // TanStack Query hooks
+  const { data: cabors = [] } = useCaborsAll();
+  const { 
+    data: athletesData, 
+    isLoading: loading,
+    refetch: refetchAthletes 
+  } = useAthletes({ 
+    page, 
+    search: debouncedSearch, 
+    caborId: filterCabor, 
+    gender: filterGender 
+  });
+  
+  const deleteAthleteMutation = useDeleteAthlete();
+
+  const athletes = athletesData?.data || [];
+  const pagination = {
+    current_page: athletesData?.current_page || 1,
+    last_page: athletesData?.last_page || 1,
+    total: athletesData?.total || 0
   };
 
-  const fetchCabors = async () => {
-    try {
-      const response = await api.get('/api/master/cabors/all');
-      setCabors(response.data);
-    } catch (error) {
-      console.error('Failed to fetch cabors:', error);
-    }
-  };
-
+  // Debounce search
   useEffect(() => {
-    fetchCabors();
-    fetchAthletes();
-  }, []);
-
-  useEffect(() => {
-    const timer = setTimeout(() => fetchAthletes(1), 300);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [search, filterCabor, filterGender]);
+  }, [search]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [filterCabor, filterGender]);
 
   const openCreateModal = () => {
     setSelectedAthlete(null);
@@ -90,15 +87,14 @@ export function AthletesPage() {
 
   const handleFormSuccess = () => {
     setIsFormModalOpen(false);
-    fetchAthletes(pagination.current_page);
+    refetchAthletes();
   };
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/api/athletes/${athleteToDelete.id}`);
+      await deleteAthleteMutation.mutateAsync(athleteToDelete.id);
       setIsDeleteModalOpen(false);
       setAthleteToDelete(null);
-      fetchAthletes(pagination.current_page);
     } catch (error) {
       console.error('Failed to delete athlete:', error);
     }
@@ -267,7 +263,7 @@ export function AthletesPage() {
           {Array.from({ length: Math.min(pagination.last_page, 10) }, (_, i) => (
             <button
               key={i}
-              onClick={() => fetchAthletes(i + 1)}
+              onClick={() => setPage(i + 1)}
               className={`w-10 h-10 rounded-xl font-medium transition-colors ${
                 pagination.current_page === i + 1
                   ? 'bg-red-600 text-white'
@@ -329,9 +325,10 @@ export function AthletesPage() {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    disabled={deleteAthleteMutation.isPending}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    Hapus
+                    {deleteAthleteMutation.isPending ? 'Menghapus...' : 'Hapus'}
                   </button>
                 </div>
               </div>

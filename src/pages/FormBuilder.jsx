@@ -14,39 +14,37 @@ import {
   ClipboardList
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
-import api from '../api/axios';
+import { useFormBuilderTemplates, useDeleteFormBuilderTemplate } from '../hooks/queries/useFormBuilder';
 
 export function FormBuilderPage() {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [deleteModal, setDeleteModal] = useState({ open: false, template: null });
 
-  useEffect(() => {
-    fetchTemplates();
-  }, [search]);
+  // TanStack Query hooks
+  const { 
+    data: templatesData, 
+    isLoading: loading 
+  } = useFormBuilderTemplates({ search: debouncedSearch });
 
-  const fetchTemplates = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/api/form-builder/templates', {
-        params: { search, per_page: 20 }
-      });
-      setTemplates(res.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch templates:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const deleteTemplateMutation = useDeleteFormBuilderTemplate();
+
+  const templates = templatesData?.data || [];
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const handleDelete = async () => {
     if (!deleteModal.template) return;
     
     try {
-      await api.delete(`/api/form-builder/templates/${deleteModal.template.id}`);
+      await deleteTemplateMutation.mutateAsync(deleteModal.template.id);
       setDeleteModal({ open: false, template: null });
-      fetchTemplates();
     } catch (error) {
       console.error('Failed to delete template:', error);
     }
@@ -205,9 +203,10 @@ export function FormBuilderPage() {
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700"
+                disabled={deleteTemplateMutation.isPending}
+                className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 disabled:opacity-50"
               >
-                Hapus
+                {deleteTemplateMutation.isPending ? 'Menghapus...' : 'Hapus'}
               </button>
             </div>
           </motion.div>

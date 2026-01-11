@@ -15,15 +15,14 @@ import {
   Upload
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import api from '../api/axios';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { useEvents, useCreateEvent, useUpdateEvent, useDeleteEvent } from '../hooks/queries/useEvents';
 
 export function EventsPage() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterType, setFilterType] = useState('');
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [page, setPage] = useState(1);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,7 +40,6 @@ export function EventsPage() {
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [formErrors, setFormErrors] = useState({});
-  const [formLoading, setFormLoading] = useState(false);
 
   const typeLabels = { provincial: 'Provinsi', national: 'Nasional', international: 'Internasional' };
   const typeColors = { 
@@ -50,36 +48,40 @@ export function EventsPage() {
     international: 'bg-purple-100 text-purple-700' 
   };
 
-  // Fetch events
-  const fetchEvents = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/events', {
-        params: { page, search, type: filterType, per_page: 9 }
-      });
-      setEvents(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        total: response.data.total
-      });
-    } catch (error) {
-      console.error('Failed to fetch events:', error);
-    } finally {
-      setLoading(false);
-    }
+  // TanStack Query hooks
+  const { 
+    data: eventsData, 
+    isLoading: loading 
+  } = useEvents({ 
+    page, 
+    search: debouncedSearch, 
+    perPage: 9 
+  });
+
+  const createEventMutation = useCreateEvent();
+  const updateEventMutation = useUpdateEvent();
+  const deleteEventMutation = useDeleteEvent();
+
+  const events = eventsData?.data || [];
+  const pagination = {
+    current_page: eventsData?.current_page || 1,
+    last_page: eventsData?.last_page || 1,
+    total: eventsData?.total || 0
   };
 
-  useEffect(() => {
-    fetchEvents();
-  }, []);
-
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchEvents(1);
+      setDebouncedSearch(search);
+      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
-  }, [search, filterType]);
+  }, [search]);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [filterType]);
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
@@ -132,7 +134,6 @@ export function EventsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormLoading(true);
     setFormErrors({});
 
     try {
@@ -145,28 +146,23 @@ export function EventsPage() {
       if (logoFile) data.append('logo', logoFile);
 
       if (modalMode === 'create') {
-        await api.post('/api/events', data, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await createEventMutation.mutateAsync(data);
       } else {
-        data.append('_method', 'PUT');
-        await api.post(`/api/events/${selectedEvent.id}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
+        await updateEventMutation.mutateAsync({ id: selectedEvent.id, formData: data });
       }
       setIsModalOpen(false);
-      fetchEvents(pagination.current_page);
     } catch (error) {
       if (error.response?.status === 422) {
         setFormErrors(error.response.data.errors || {});
       }
-    } finally {
-      setFormLoading(false);
     }
   };
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/api/events/${eventToDelete.id}`);
+      await deleteEventMutation.mutateAsync(eventToDelete.id);
       setIsDeleteModalOpen(false);
       setEventToDelete(null);
-      fetchEvents(pagination.current_page);
     } catch (error) {
       console.error('Failed to delete event:', error);
     }
@@ -176,6 +172,8 @@ export function EventsPage() {
     if (!dateStr) return '-';
     return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
+
+  const formLoading = createEventMutation.isPending || updateEventMutation.isPending;
 
   return (
     <DashboardLayout title="Event Olahraga" subtitle="Kelola event dan pertandingan olahraga">
@@ -291,7 +289,7 @@ export function EventsPage() {
           {Array.from({ length: pagination.last_page }, (_, i) => (
             <button
               key={i}
-              onClick={() => fetchEvents(i + 1)}
+              onClick={() => setPage(i + 1)}
               className={`w-10 h-10 rounded-xl font-medium transition-colors ${
                 pagination.current_page === i + 1
                   ? 'bg-red-600 text-white'
@@ -522,9 +520,10 @@ export function EventsPage() {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    disabled={deleteEventMutation.isPending}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    Hapus
+                    {deleteEventMutation.isPending ? 'Menghapus...' : 'Hapus'}
                   </button>
                 </div>
               </div>

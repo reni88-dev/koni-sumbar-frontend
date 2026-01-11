@@ -12,14 +12,13 @@ import {
   Users,
   Upload
 } from 'lucide-react';
-import api from '../../api/axios';
 import { DashboardLayout } from '../../components/DashboardLayout';
+import { useCabors, useCreateCabor, useUpdateCabor, useDeleteCabor } from '../../hooks/queries/useCabors';
 
 export function CaborsPage() {
-  const [cabors, setCabors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,40 +32,29 @@ export function CaborsPage() {
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [formErrors, setFormErrors] = useState({});
-  const [formLoading, setFormLoading] = useState(false);
 
-  // Fetch cabors
-  const fetchCabors = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/master/cabors', {
-        params: { page, search, per_page: 12 }
-      });
-      setCabors(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        total: response.data.total
-      });
-    } catch (error) {
-      console.error('Failed to fetch cabors:', error);
-    } finally {
-      setLoading(false);
-    }
+  // TanStack Query hooks
+  const { data: caborsData, isLoading: loading } = useCabors({ page, search: debouncedSearch, perPage: 12 });
+  const createCaborMutation = useCreateCabor();
+  const updateCaborMutation = useUpdateCabor();
+  const deleteCaborMutation = useDeleteCabor();
+
+  const cabors = caborsData?.data || [];
+  const pagination = {
+    current_page: caborsData?.current_page || 1,
+    last_page: caborsData?.last_page || 1,
+    total: caborsData?.total || 0
   };
 
-  useEffect(() => {
-    fetchCabors();
-  }, []);
-
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchCabors(1);
+      setDebouncedSearch(search);
+      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Handle logo file selection
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -75,7 +63,6 @@ export function CaborsPage() {
     }
   };
 
-  // Open modal for create
   const openCreateModal = () => {
     setModalMode('create');
     setFormData({ name: '', description: '', federation: '', is_active: true });
@@ -85,7 +72,6 @@ export function CaborsPage() {
     setIsModalOpen(true);
   };
 
-  // Open modal for edit
   const openEditModal = (cabor) => {
     setModalMode('edit');
     setSelectedCabor(cabor);
@@ -101,10 +87,8 @@ export function CaborsPage() {
     setIsModalOpen(true);
   };
 
-  // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormLoading(true);
     setFormErrors({});
 
     try {
@@ -118,38 +102,30 @@ export function CaborsPage() {
       }
 
       if (modalMode === 'create') {
-        await api.post('/api/master/cabors', data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        await createCaborMutation.mutateAsync(data);
       } else {
-        data.append('_method', 'PUT');
-        await api.post(`/api/master/cabors/${selectedCabor.id}`, data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        await updateCaborMutation.mutateAsync({ id: selectedCabor.id, formData: data });
       }
       setIsModalOpen(false);
-      fetchCabors(pagination.current_page);
     } catch (error) {
       if (error.response?.status === 422) {
         setFormErrors(error.response.data.errors || {});
       }
-    } finally {
-      setFormLoading(false);
     }
   };
 
-  // Handle delete
   const handleDelete = async () => {
     try {
-      await api.delete(`/api/master/cabors/${caborToDelete.id}`);
+      await deleteCaborMutation.mutateAsync(caborToDelete.id);
       setIsDeleteModalOpen(false);
       setCaborToDelete(null);
-      fetchCabors(pagination.current_page);
     } catch (error) {
       console.error('Failed to delete cabor:', error);
       alert(error.response?.data?.message || 'Gagal menghapus cabor');
     }
   };
+
+  const formLoading = createCaborMutation.isPending || updateCaborMutation.isPending;
 
   return (
     <DashboardLayout title="Master Cabang Olahraga" subtitle="Kelola data cabang olahraga">
@@ -247,7 +223,7 @@ export function CaborsPage() {
           {Array.from({ length: pagination.last_page }, (_, i) => (
             <button
               key={i}
-              onClick={() => fetchCabors(i + 1)}
+              onClick={() => setPage(i + 1)}
               className={`w-10 h-10 rounded-xl font-medium transition-colors ${
                 pagination.current_page === i + 1
                   ? 'bg-red-600 text-white'
@@ -287,7 +263,6 @@ export function CaborsPage() {
                   </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                  {/* Logo Upload */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">Logo</label>
                     <div className="flex items-center gap-4">
@@ -376,7 +351,7 @@ export function CaborsPage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
@@ -410,9 +385,10 @@ export function CaborsPage() {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    disabled={deleteCaborMutation.isPending}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    Hapus
+                    {deleteCaborMutation.isPending ? 'Menghapus...' : 'Hapus'}
                   </button>
                 </div>
               </div>

@@ -11,14 +11,18 @@ import {
   AlertCircle,
   GripVertical
 } from 'lucide-react';
-import api from '../../api/axios';
 import { DashboardLayout } from '../../components/DashboardLayout';
+import { 
+  useEducationLevels, 
+  useCreateEducationLevel, 
+  useUpdateEducationLevel, 
+  useDeleteEducationLevel 
+} from '../../hooks/queries/useMasterData';
 
 export function EducationLevelsPage() {
-  const [educationLevels, setEducationLevels] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,40 +34,29 @@ export function EducationLevelsPage() {
   // Form states
   const [formData, setFormData] = useState({ name: '', code: '', order: 0, is_active: true });
   const [formErrors, setFormErrors] = useState({});
-  const [formLoading, setFormLoading] = useState(false);
 
-  // Fetch education levels
-  const fetchEducationLevels = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/master/education-levels', {
-        params: { page, search, per_page: 20 }
-      });
-      setEducationLevels(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        total: response.data.total
-      });
-    } catch (error) {
-      console.error('Failed to fetch education levels:', error);
-    } finally {
-      setLoading(false);
-    }
+  // TanStack Query hooks
+  const { data: levelsData, isLoading: loading } = useEducationLevels({ page, search: debouncedSearch });
+  const createMutation = useCreateEducationLevel();
+  const updateMutation = useUpdateEducationLevel();
+  const deleteMutation = useDeleteEducationLevel();
+
+  const educationLevels = levelsData?.data || [];
+  const pagination = {
+    current_page: levelsData?.current_page || 1,
+    last_page: levelsData?.last_page || 1,
+    total: levelsData?.total || 0
   };
 
-  useEffect(() => {
-    fetchEducationLevels();
-  }, []);
-
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchEducationLevels(1);
+      setDebouncedSearch(search);
+      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Open modal for create
   const openCreateModal = () => {
     setModalMode('create');
     setFormData({ name: '', code: '', order: educationLevels.length, is_active: true });
@@ -71,7 +64,6 @@ export function EducationLevelsPage() {
     setIsModalOpen(true);
   };
 
-  // Open modal for edit
   const openEditModal = (level) => {
     setModalMode('edit');
     setSelectedLevel(level);
@@ -85,40 +77,35 @@ export function EducationLevelsPage() {
     setIsModalOpen(true);
   };
 
-  // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormLoading(true);
     setFormErrors({});
 
     try {
       if (modalMode === 'create') {
-        await api.post('/api/master/education-levels', formData);
+        await createMutation.mutateAsync(formData);
       } else {
-        await api.put(`/api/master/education-levels/${selectedLevel.id}`, formData);
+        await updateMutation.mutateAsync({ id: selectedLevel.id, data: formData });
       }
       setIsModalOpen(false);
-      fetchEducationLevels(pagination.current_page);
     } catch (error) {
       if (error.response?.status === 422) {
         setFormErrors(error.response.data.errors || {});
       }
-    } finally {
-      setFormLoading(false);
     }
   };
 
-  // Handle delete
   const handleDelete = async () => {
     try {
-      await api.delete(`/api/master/education-levels/${levelToDelete.id}`);
+      await deleteMutation.mutateAsync(levelToDelete.id);
       setIsDeleteModalOpen(false);
       setLevelToDelete(null);
-      fetchEducationLevels(pagination.current_page);
     } catch (error) {
       console.error('Failed to delete education level:', error);
     }
   };
+
+  const formLoading = createMutation.isPending || updateMutation.isPending;
 
   return (
     <DashboardLayout title="Jenjang Pendidikan" subtitle="Kelola data jenjang pendidikan">
@@ -325,7 +312,7 @@ export function EducationLevelsPage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
@@ -359,9 +346,10 @@ export function EducationLevelsPage() {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    disabled={deleteMutation.isPending}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    Hapus
+                    {deleteMutation.isPending ? 'Menghapus...' : 'Hapus'}
                   </button>
                 </div>
               </div>

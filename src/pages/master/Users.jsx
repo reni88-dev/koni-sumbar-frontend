@@ -11,17 +11,16 @@ import {
   Loader2,
   AlertCircle
 } from 'lucide-react';
-import api from '../../api/axios';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../../hooks/queries/useMasterData';
+import { useRolesAll } from '../../hooks/queries/useMasterData';
 
 export function UsersPage() {
-  const { user } = useAuth();
-  const [users, setUsers] = useState([]);
-  const [roles, setRoles] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user: currentUser } = useAuth();
   const [search, setSearch] = useState('');
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, total: 0 });
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,51 +32,30 @@ export function UsersPage() {
   // Form states
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role_id: '' });
   const [formErrors, setFormErrors] = useState({});
-  const [formLoading, setFormLoading] = useState(false);
 
-  // Fetch users
-  const fetchUsers = async (page = 1) => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/master/users', {
-        params: { page, search, per_page: 10 }
-      });
-      setUsers(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        total: response.data.total
-      });
-    } catch (error) {
-      console.error('Failed to fetch users:', error);
-    } finally {
-      setLoading(false);
-    }
+  // TanStack Query hooks
+  const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch });
+  const { data: roles = [] } = useRolesAll();
+  const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const deleteUserMutation = useDeleteUser();
+
+  const users = usersData?.data || [];
+  const pagination = {
+    current_page: usersData?.current_page || 1,
+    last_page: usersData?.last_page || 1,
+    total: usersData?.total || 0
   };
 
-  // Fetch roles
-  const fetchRoles = async () => {
-    try {
-      const response = await api.get('/api/master/roles');
-      setRoles(response.data);
-    } catch (error) {
-      console.error('Failed to fetch roles:', error);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-    fetchRoles();
-  }, []);
-
+  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchUsers(1);
+      setDebouncedSearch(search);
+      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Open modal for create
   const openCreateModal = () => {
     setModalMode('create');
     setFormData({ name: '', email: '', password: '', role_id: '' });
@@ -85,66 +63,64 @@ export function UsersPage() {
     setIsModalOpen(true);
   };
 
-  // Open modal for edit
   const openEditModal = (user) => {
     setModalMode('edit');
     setSelectedUser(user);
     setFormData({ 
       name: user.name, 
       email: user.email, 
-      password: '', 
-      role_id: user.role_id || '' 
+      password: '',
+      role_id: user.role_id || ''
     });
     setFormErrors({});
     setIsModalOpen(true);
   };
 
-  // Handle form submit
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormLoading(true);
     setFormErrors({});
 
     try {
+      const data = { ...formData };
+      if (modalMode === 'edit' && !data.password) {
+        delete data.password;
+      }
+
       if (modalMode === 'create') {
-        await api.post('/api/master/users', formData);
+        await createUserMutation.mutateAsync(data);
       } else {
-        const updateData = { ...formData };
-        if (!updateData.password) delete updateData.password;
-        await api.put(`/api/master/users/${selectedUser.id}`, updateData);
+        await updateUserMutation.mutateAsync({ id: selectedUser.id, data });
       }
       setIsModalOpen(false);
-      fetchUsers(pagination.current_page);
     } catch (error) {
       if (error.response?.status === 422) {
         setFormErrors(error.response.data.errors || {});
       }
-    } finally {
-      setFormLoading(false);
     }
   };
 
-  // Handle delete
   const handleDelete = async () => {
     try {
-      await api.delete(`/api/master/users/${userToDelete.id}`);
+      await deleteUserMutation.mutateAsync(userToDelete.id);
       setIsDeleteModalOpen(false);
       setUserToDelete(null);
-      fetchUsers(pagination.current_page);
     } catch (error) {
       console.error('Failed to delete user:', error);
+      alert(error.response?.data?.message || 'Gagal menghapus user');
     }
   };
 
+  const formLoading = createUserMutation.isPending || updateUserMutation.isPending;
+
   return (
-    <DashboardLayout title="Data User" subtitle="Kelola data pengguna sistem">
+    <DashboardLayout title="Master Users" subtitle="Kelola data pengguna sistem">
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="relative max-w-md">
           <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
           <input
             type="text"
-            placeholder="Cari nama atau email..."
+            placeholder="Cari user..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
@@ -159,7 +135,7 @@ export function UsersPage() {
         </button>
       </div>
 
-      {/* Table */}
+      {/* Users Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -185,38 +161,36 @@ export function UsersPage() {
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                users.map((user) => (
+                  <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white text-sm font-bold">
-                          {u.name.charAt(0).toUpperCase()}
+                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-medium">
+                          {user.name?.charAt(0) || '?'}
                         </div>
-                        <span className="font-medium text-slate-800">{u.name}</span>
+                        <span className="font-medium text-slate-800">{user.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600">{u.email}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
                     <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        u.role?.name === 'super_admin' 
-                          ? 'bg-purple-100 text-purple-700' 
-                          : 'bg-blue-100 text-blue-700'
-                      }`}>
-                        {u.role?.display_name || '-'}
+                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                        {user.role?.name || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => openEditModal(u)}
+                          onClick={() => openEditModal(user)}
                           className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                          title="Edit"
                         >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        {u.id !== user?.id && (
+                        {user.id !== currentUser?.id && (
                           <button
-                            onClick={() => { setUserToDelete(u); setIsDeleteModalOpen(true); }}
+                            onClick={() => { setUserToDelete(user); setIsDeleteModalOpen(true); }}
                             className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+                            title="Hapus"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -229,35 +203,40 @@ export function UsersPage() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {pagination.last_page > 1 && (
-          <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-sm text-slate-500">
-              Total {pagination.total} data
-            </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => fetchUsers(pagination.current_page - 1)}
-                disabled={pagination.current_page === 1}
-                className="p-2 hover:bg-slate-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <span className="text-sm text-slate-600">
-                {pagination.current_page} / {pagination.last_page}
-              </span>
-              <button
-                onClick={() => fetchUsers(pagination.current_page + 1)}
-                disabled={pagination.current_page === pagination.last_page}
-                className="p-2 hover:bg-slate-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Pagination */}
+      {pagination.last_page > 1 && (
+        <div className="flex items-center justify-center gap-2 mt-6">
+          <button
+            onClick={() => setPage(Math.max(1, page - 1))}
+            disabled={page === 1}
+            className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          {Array.from({ length: Math.min(pagination.last_page, 5) }, (_, i) => (
+            <button
+              key={i}
+              onClick={() => setPage(i + 1)}
+              className={`w-10 h-10 rounded-xl font-medium transition-colors ${
+                pagination.current_page === i + 1
+                  ? 'bg-red-600 text-white'
+                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+              }`}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <button
+            onClick={() => setPage(Math.min(pagination.last_page, page + 1))}
+            disabled={page === pagination.last_page}
+            className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-50"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       <AnimatePresence>
@@ -297,6 +276,7 @@ export function UsersPage() {
                     />
                     {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name[0]}</p>}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
                     <input
@@ -308,34 +288,35 @@ export function UsersPage() {
                     />
                     {formErrors.email && <p className="text-red-500 text-xs mt-1">{formErrors.email[0]}</p>}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                      Password {modalMode === 'edit' && <span className="font-normal text-slate-400">(Kosongkan jika tidak diubah)</span>}
+                      Password {modalMode === 'edit' && <span className="text-slate-400">(kosongkan jika tidak diubah)</span>}
                     </label>
                     <input
                       type="password"
                       value={formData.password}
                       onChange={e => setFormData({...formData, password: e.target.value})}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      {...(modalMode === 'create' ? { required: true } : {})}
+                      required={modalMode === 'create'}
                     />
                     {formErrors.password && <p className="text-red-500 text-xs mt-1">{formErrors.password[0]}</p>}
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
                     <select
                       value={formData.role_id}
                       onChange={e => setFormData({...formData, role_id: e.target.value})}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      required
                     >
-                      <option value="">Pilih Role</option>
+                      <option value="">-- Pilih Role --</option>
                       {roles.map(role => (
-                        <option key={role.id} value={role.id}>{role.display_name}</option>
+                        <option key={role.id} value={role.id}>{role.name}</option>
                       ))}
                     </select>
-                    {formErrors.role_id && <p className="text-red-500 text-xs mt-1">{formErrors.role_id[0]}</p>}
                   </div>
+                  
                   <div className="flex gap-3 pt-4">
                     <button
                       type="button"
@@ -360,7 +341,7 @@ export function UsersPage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
@@ -383,7 +364,7 @@ export function UsersPage() {
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-2">Hapus User?</h3>
                 <p className="text-slate-500 text-sm mb-6">
-                  Anda yakin ingin menghapus user <strong>{userToDelete?.name}</strong>? Aksi ini tidak dapat dibatalkan.
+                  Anda yakin ingin menghapus user <strong>{userToDelete?.name}</strong>?
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -394,9 +375,10 @@ export function UsersPage() {
                   </button>
                   <button
                     onClick={handleDelete}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                    disabled={deleteUserMutation.isPending}
+                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    Hapus
+                    {deleteUserMutation.isPending ? 'Menghapus...' : 'Hapus'}
                   </button>
                 </div>
               </div>
