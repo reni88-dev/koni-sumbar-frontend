@@ -49,9 +49,9 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+        className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-16 overflow-y-auto"
       >
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8" onClick={e => e.stopPropagation()}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-4 max-h-[calc(100vh-6rem)] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
           {/* Header with Photo */}
           <div className="relative h-32 bg-gradient-to-r from-red-500 to-red-600 rounded-t-2xl">
             <button 
@@ -76,7 +76,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
           </div>
 
           {/* Content */}
-          <div className="pt-16 pb-6 px-6">
+          <div className="pt-16 pb-6 px-6 overflow-y-auto flex-1">
             {/* Name & Cabor */}
             <div className="mb-6">
               <h2 className="text-xl font-bold text-slate-800">{athlete.name}</h2>
