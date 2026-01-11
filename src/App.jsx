@@ -5,6 +5,7 @@ import { UsersPage } from './pages/master/Users';
 import { RolesPage } from './pages/master/Roles';
 import { CaborsPage } from './pages/master/Cabors';
 import { EducationLevelsPage } from './pages/master/EducationLevels';
+import { CompetitionClassesPage } from './pages/master/CompetitionClasses';
 import { EventsPage } from './pages/Events';
 import { EventDetailPage } from './pages/EventDetail';
 import { AthletesPage } from './pages/Athletes';
@@ -130,6 +131,14 @@ function App() {
         element={
           <ProtectedRoute>
             <EducationLevelsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/competition-classes"
+        element={
+          <ProtectedRoute>
+            <CompetitionClassesPage />
           </ProtectedRoute>
         }
       />

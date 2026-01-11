@@ -26,18 +26,35 @@ const MARITAL_STATUSES = [
   { value: 'widowed', label: 'Duda/Janda' }
 ];
 
+// Helper to format date for input type="date" (YYYY-MM-DD)
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  // If already in YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return dateString;
+  }
+  // Handle ISO format (2000-01-15T00:00:00.000000Z) - extract date part directly
+  // This avoids timezone conversion issues
+  const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) {
+    return match[1];
+  }
+  return '';
+};
+
 export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const formContainerRef = useRef(null);
   const [step, setStep] = useState(1);
   const [cabors, setCabors] = useState([]);
   const [educationLevels, setEducationLevels] = useState([]);
+  const [competitionClasses, setCompetitionClasses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   
   const [formData, setFormData] = useState({
-    cabor_id: '', education_level_id: '', name: '', nik: '', no_kk: '',
-    competition_class: '', birth_place: '', birth_date: '', gender: '',
+    cabor_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
+    birth_place: '', birth_date: '', gender: '',
     religion: '', address: '', blood_type: '', occupation: '',
     marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
     career_start_year: '', injury_illness_history: '',
@@ -55,15 +72,19 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       setErrors({});
       
       if (athlete) {
+        // Fetch competition classes for the athlete's cabor
+        if (athlete.cabor_id) {
+          fetchCompetitionClasses(athlete.cabor_id);
+        }
         setFormData({
           cabor_id: athlete.cabor_id || '',
           education_level_id: athlete.education_level_id || '',
+          competition_class_id: athlete.competition_class_id || '',
           name: athlete.name || '',
           nik: athlete.nik || '',
           no_kk: athlete.no_kk || '',
-          competition_class: athlete.competition_class || '',
           birth_place: athlete.birth_place || '',
-          birth_date: athlete.birth_date || '',
+          birth_date: formatDateForInput(athlete.birth_date),
           gender: athlete.gender || '',
           religion: athlete.religion || '',
           address: athlete.address || '',
@@ -86,9 +107,10 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         });
         setPhotoPreview(athlete.photo ? `${import.meta.env.VITE_API_URL}/storage/${athlete.photo}` : null);
       } else {
+        setCompetitionClasses([]);
         setFormData({
-          cabor_id: '', education_level_id: '', name: '', nik: '', no_kk: '',
-          competition_class: '', birth_place: '', birth_date: '', gender: '',
+          cabor_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
+          birth_place: '', birth_date: '', gender: '',
           religion: '', address: '', blood_type: '', occupation: '',
           marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
           career_start_year: '', injury_illness_history: '',
@@ -113,6 +135,26 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       const res = await api.get('/api/master/education-levels/all');
       setEducationLevels(res.data);
     } catch (e) { console.error(e); }
+  };
+
+  const fetchCompetitionClasses = async (caborId) => {
+    if (!caborId) {
+      setCompetitionClasses([]);
+      return;
+    }
+    try {
+      const res = await api.get('/api/master/competition-classes/all', {
+        params: { cabor_id: caborId }
+      });
+      setCompetitionClasses(res.data);
+    } catch (e) { console.error(e); }
+  };
+
+  // Handle cabor change - fetch competition classes for selected cabor
+  const handleCaborChange = (caborId) => {
+    updateField('cabor_id', caborId);
+    updateField('competition_class_id', ''); // Reset competition class
+    fetchCompetitionClasses(caborId);
   };
 
   const handlePhotoChange = (e) => {
@@ -146,7 +188,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         formData.gender !== '' &&
         formData.religion !== '' &&
         formData.cabor_id !== '' &&
-        formData.competition_class.trim() !== '' &&
+        formData.competition_class_id !== '' &&
         formData.address.trim() !== ''
       );
     }
@@ -423,7 +465,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Cabang Olahraga</label>
                     <select
                       value={formData.cabor_id}
-                      onChange={e => updateField('cabor_id', e.target.value)}
+                      onChange={e => handleCaborChange(e.target.value)}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
                     >
                       <option value="">Pilih Cabor</option>
@@ -432,13 +474,15 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Kelas Pertandingan</label>
-                    <input
-                      type="text"
-                      value={formData.competition_class}
-                      onChange={e => updateField('competition_class', e.target.value)}
+                    <select
+                      value={formData.competition_class_id}
+                      onChange={e => updateField('competition_class_id', e.target.value)}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Contoh: 80kg, U-21, dll"
-                    />
+                      disabled={!formData.cabor_id}
+                    >
+                      <option value="">{formData.cabor_id ? 'Pilih Kelas' : 'Pilih Cabor terlebih dahulu'}</option>
+                      {competitionClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
+                    </select>
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Alamat</label>

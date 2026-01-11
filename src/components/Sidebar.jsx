@@ -98,7 +98,7 @@ function SidebarContent({ onNavigate }) {
     { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
     
     // Master Data Menu - Based on permissions
-    ...(hasPermission('users.view') || hasPermission('roles.view') || hasPermission('cabors.view') || hasPermission('education_levels.view') ? [
+    ...(hasPermission('users.view') || hasPermission('roles.view') || hasPermission('cabors.view') || hasPermission('education_levels.view') || hasPermission('competition_classes.view') ? [
       { 
         icon: Database, 
         label: 'Master Data', 
@@ -108,6 +108,7 @@ function SidebarContent({ onNavigate }) {
           ...(hasPermission('roles.view') ? [{ icon: Shield, label: 'Data Role', path: '/master/roles' }] : []),
           ...(hasPermission('cabors.view') ? [{ icon: Trophy, label: 'Master Cabor', path: '/master/cabors' }] : []),
           ...(hasPermission('education_levels.view') ? [{ icon: GraduationCap, label: 'Jenjang Pendidikan', path: '/master/education-levels' }] : []),
+          ...(hasPermission('competition_classes.view') ? [{ icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes' }] : []),
         ].filter(Boolean)
       }
     ] : []),
