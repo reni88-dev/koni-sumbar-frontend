@@ -13,7 +13,7 @@ export const formBuilderKeys = {
   modelFields: (model) => [...formBuilderKeys.all, 'modelFields', model],
 };
 
-// Fetch form templates
+// Fetch form templates (paginated)
 export function useFormBuilderTemplates({ search = '', perPage = 20 } = {}) {
   return useQuery({
     queryKey: formBuilderKeys.templateList({ search, perPage }),
@@ -23,6 +23,20 @@ export function useFormBuilderTemplates({ search = '', perPage = 20 } = {}) {
       });
       return response.data;
     },
+  });
+}
+
+// Fetch all active form templates (for dropdowns/lists)
+export function useFormBuilderTemplatesAll() {
+  return useQuery({
+    queryKey: [...formBuilderKeys.templates(), 'all'],
+    queryFn: async () => {
+      const response = await api.get('/api/form-builder/templates', {
+        params: { per_page: 100 } // Get all templates
+      });
+      return response.data.data || [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
 
@@ -84,12 +98,16 @@ export function useDeleteFormBuilderTemplate() {
 }
 
 // Fetch form submissions
-export function useFormBuilderSubmissions(templateId, { search = '', perPage = 20 } = {}) {
+export function useFormBuilderSubmissions(templateId, { search = '', eventId = '', perPage = 20 } = {}) {
   return useQuery({
-    queryKey: formBuilderKeys.submissionList(templateId, { search, perPage }),
+    queryKey: formBuilderKeys.submissionList(templateId, { search, eventId, perPage }),
     queryFn: async () => {
       const response = await api.get(`/api/form-builder/templates/${templateId}/submissions`, {
-        params: { search: search || undefined, per_page: perPage }
+        params: { 
+          search: search || undefined, 
+          event_id: eventId || undefined,
+          per_page: perPage 
+        }
       });
       return response.data;
     },

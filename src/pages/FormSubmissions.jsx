@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -18,6 +18,8 @@ import { useFormBuilderTemplate, useFormBuilderSubmissions, useDeleteFormBuilder
 export function FormSubmissionsPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const eventId = searchParams.get('event_id');
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -30,7 +32,7 @@ export function FormSubmissionsPage() {
     data: submissionsData, 
     isLoading: submissionsLoading,
     refetch: refetchSubmissions
-  } = useFormBuilderSubmissions(id, { search: debouncedSearch });
+  } = useFormBuilderSubmissions(id, { search: debouncedSearch, eventId: eventId || '' });
 
   const deleteSubmissionMutation = useDeleteFormBuilderSubmission();
 
@@ -77,7 +79,7 @@ export function FormSubmissionsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/form-builder')}
+              onClick={() => navigate(eventId ? `/events/${eventId}` : '/form-builder')}
               className="p-2 hover:bg-slate-100 rounded-lg"
             >
               <ArrowLeft className="w-5 h-5 text-slate-600" />

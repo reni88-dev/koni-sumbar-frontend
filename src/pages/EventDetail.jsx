@@ -11,7 +11,10 @@ import {
   Search,
   Check,
   XCircle,
-  Clock
+  Clock,
+  FileText,
+  ClipboardList,
+  Edit2
 } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
@@ -19,6 +22,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { useEvent, useEventAthletes, useRegisterAthlete, useUpdateAthleteStatus, useRemoveAthleteFromEvent } from '../hooks/queries/useEvents';
 import { useCaborsAll } from '../hooks/queries/useCabors';
 import { useCompetitionClassesByCabor } from '../hooks/queries/useMasterData';
+import { useFormBuilderTemplatesAll } from '../hooks/queries/useFormBuilder';
 
 export function EventDetailPage() {
   const { id } = useParams();
@@ -33,6 +37,9 @@ export function EventDetailPage() {
   const [registerForm, setRegisterForm] = useState({ athlete_id: '', cabor_id: '', competition_class_id: '', notes: '' });
   const [registerError, setRegisterError] = useState('');
 
+  // Tab navigation
+  const [activeTab, setActiveTab] = useState('athletes');
+
   const statusColors = {
     registered: 'bg-yellow-100 text-yellow-700',
     verified: 'bg-green-100 text-green-700',
@@ -44,6 +51,7 @@ export function EventDetailPage() {
   const { data: event, isLoading: eventLoading, refetch: refetchEvent } = useEvent(id);
   const { data: cabors = [] } = useCaborsAll();
   const { data: competitionClasses = [] } = useCompetitionClassesByCabor(registerForm.cabor_id);
+  const { data: formTemplates = [], isLoading: formsLoading } = useFormBuilderTemplatesAll();
   
   // For athletes, we still use custom fetch because of filter params
   const [athletes, setAthletes] = useState([]);
@@ -203,8 +211,55 @@ export function EventDetailPage() {
         </div>
       </div>
 
-      {/* Athletes Section */}
-      <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+      {/* Tab Navigation */}
+      <div className="bg-white rounded-t-2xl border border-b-0 border-slate-100">
+        <div className="flex border-b border-slate-100">
+          <button
+            onClick={() => setActiveTab('athletes')}
+            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors relative ${
+              activeTab === 'athletes'
+                ? 'text-red-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            <span>Daftar Atlet</span>
+            <span className="ml-1 px-2 py-0.5 bg-slate-100 rounded-full text-xs font-semibold text-slate-600">
+              {athletes.length}
+            </span>
+            {activeTab === 'athletes' && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600"
+              />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('forms')}
+            className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors relative ${
+              activeTab === 'forms'
+                ? 'text-red-600'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            <span>Formulir</span>
+            <span className="ml-1 px-2 py-0.5 bg-slate-100 rounded-full text-xs font-semibold text-slate-600">
+              {formTemplates.filter(t => t.is_active).length}
+            </span>
+            {activeTab === 'forms' && (
+              <motion.div
+                layoutId="activeTab"
+                className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600"
+              />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'athletes' && (
+        <div className="bg-white rounded-b-2xl border border-t-0 border-slate-100 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h2 className="text-lg font-bold text-slate-800">Daftar Atlet</h2>
           <div className="flex flex-wrap gap-3">
@@ -321,6 +376,67 @@ export function EventDetailPage() {
           </table>
         </div>
       </div>
+      )}
+
+      {activeTab === 'forms' && (
+        <div className="bg-white rounded-b-2xl border border-t-0 border-slate-100 overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-800">Formulir Event</h2>
+          <p className="text-sm text-slate-500 mt-1">Isi formulir untuk atlet yang terdaftar di event ini</p>
+        </div>
+        
+        <div className="p-6">
+          {formsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            </div>
+          ) : formTemplates.length === 0 ? (
+            <div className="text-center py-8 text-slate-500">
+              <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+              <p>Belum ada formulir tersedia</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {formTemplates.filter(t => t.is_active).map((template) => (
+                <div
+                  key={template.id}
+                  className="border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <FileText className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-slate-800 truncate">{template.name}</h3>
+                      <p className="text-xs text-slate-500 line-clamp-2">
+                        {template.description || 'Tidak ada deskripsi'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <Link
+                      to={`/form-builder/${template.id}/fill?event_id=${id}`}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Isi Form
+                    </Link>
+                    <Link
+                      to={`/form-builder/${template.id}/submissions?event_id=${id}`}
+                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700"
+                      title="Lihat Submission"
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+      )}
 
       {/* Register Modal */}
       <AnimatePresence>

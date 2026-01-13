@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -14,6 +14,8 @@ import api from '../api/axios';
 export function FormFillPage() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const eventId = searchParams.get('event_id');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -159,11 +161,14 @@ export function FormFillPage() {
 
       await api.post(`/api/form-builder/templates/${id}/submissions`, {
         reference_id: selectedReference || null,
+        event_id: eventId || null,
         values,
       });
 
       setSuccess(true);
-      setTimeout(() => navigate('/form-builder'), 1500);
+      // Navigate back to event page if came from event, otherwise to form-builder
+      const redirectUrl = eventId ? `/events/${eventId}` : '/form-builder';
+      setTimeout(() => navigate(redirectUrl), 1500);
     } catch (error) {
       console.error('Failed to submit form:', error);
       alert('Gagal submit form: ' + (error.response?.data?.message || error.message));
