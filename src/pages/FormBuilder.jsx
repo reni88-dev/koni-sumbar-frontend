@@ -11,7 +11,8 @@ import {
   MoreVertical,
   Copy,
   Loader2,
-  ClipboardList
+  ClipboardList,
+  Calendar
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useFormBuilderTemplates, useDeleteFormBuilderTemplate } from '../hooks/queries/useFormBuilder';
@@ -63,13 +64,22 @@ export function FormBuilderPage() {
             <h1 className="text-2xl font-bold text-slate-800">Form Builder</h1>
             <p className="text-slate-500 mt-1">Buat dan kelola formulir dinamis</p>
           </div>
-          <Link
-            to="/form-builder/create"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/25"
-          >
-            <Plus className="w-5 h-5" />
-            Buat Form Baru
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              to="/events"
+              className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-colors"
+            >
+              <Calendar className="w-5 h-5" />
+              Events
+            </Link>
+            <Link
+              to="/form-builder/create"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-600/25"
+            >
+              <Plus className="w-5 h-5" />
+              Buat Form Baru
+            </Link>
+          </div>
         </div>
 
         {/* Search */}
