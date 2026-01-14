@@ -66,7 +66,7 @@ export function FormBuilderPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
-              to="/events"
+              to="/event"
               className="inline-flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-semibold hover:bg-slate-50 transition-colors"
             >
               <Calendar className="w-5 h-5" />

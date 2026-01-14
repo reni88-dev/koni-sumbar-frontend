@@ -181,7 +181,7 @@ export function FormFillPage() {
 
       setSuccess(true);
       // Navigate back to event page if came from event, otherwise to form-builder
-      const redirectUrl = eventId ? `/events/${eventId}` : '/form-builder';
+      const redirectUrl = eventId ? `/event/${eventId}` : '/form-builder';
       setTimeout(() => navigate(redirectUrl), 1500);
     } catch (error) {
       console.error('Failed to submit form:', error);
@@ -232,7 +232,7 @@ export function FormFillPage() {
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => navigate(eventId ? `/events/${eventId}` : '/form-builder')}
+                onClick={() => navigate(eventId ? `/event/${eventId}` : '/form-builder')}
                 className="p-2 hover:bg-slate-100 rounded-lg"
               >
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
