@@ -232,7 +232,7 @@ export function FormFillPage() {
             <div className="flex items-center gap-4">
               <button
                 type="button"
-                onClick={() => navigate('/form-builder')}
+                onClick={() => navigate(eventId ? `/events/${eventId}` : '/form-builder')}
                 className="p-2 hover:bg-slate-100 rounded-lg"
               >
                 <ArrowLeft className="w-5 h-5 text-slate-600" />
