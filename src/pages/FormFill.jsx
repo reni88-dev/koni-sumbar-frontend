@@ -39,7 +39,12 @@ export function FormFillPage() {
       // Fetch reference options if template has reference model
       if (res.data.reference_model) {
         try {
-          const recordsRes = await api.get(`/api/form-builder/models/${res.data.reference_model}/records`);
+          // Build URL with event_id filter for athletes if form is opened from event context
+          let recordsUrl = `/api/form-builder/models/${res.data.reference_model}/records`;
+          if (eventId && res.data.reference_model === 'athlete') {
+            recordsUrl += `?event_id=${eventId}`;
+          }
+          const recordsRes = await api.get(recordsUrl);
           setReferenceOptions(recordsRes.data || []);
         } catch (err) {
           console.error('Failed to fetch reference records:', err);
@@ -56,16 +61,20 @@ export function FormFillPage() {
     setSelectedReference(refId);
     if (!refId) {
       setReferenceData(null);
-      // Clear only model_reference fields that match template.reference_model
+      // Clear model_reference fields and linked fields
       const newValues = { ...formValues };
       template?.sections.forEach(section => {
         section.fields.forEach(field => {
+          // Clear model_reference fields that match template's reference_model
           if (field.type === 'model_reference') {
-            // Only clear if field has no specific source model, or matches template's reference_model
             const fieldSourceModel = field.data_source_model || template.reference_model;
             if (!field.data_source_model || field.data_source_model === template.reference_model) {
               delete newValues[field.id];
             }
+          }
+          // Clear linked fields
+          if (field.linked_to_reference_field) {
+            delete newValues[field.id];
           }
         });
       });
@@ -77,12 +86,11 @@ export function FormFillPage() {
       const res = await api.get(`/api/form-builder/templates/${id}/reference/${refId}`);
       setReferenceData(res.data);
 
-      // Auto-populate ONLY model_reference fields that:
-      // 1. Have no specific data_source_model (inherit from template.reference_model)
-      // 2. OR have data_source_model matching template.reference_model
+      // Auto-populate fields based on reference data
       const newValues = { ...formValues };
       template.sections.forEach(section => {
         section.fields.forEach(field => {
+          // Handle model_reference fields (existing logic)
           if (field.type === 'model_reference') {
             // Skip fields that have a different data_source_model
             if (field.data_source_model && field.data_source_model !== template.reference_model) {
@@ -94,6 +102,12 @@ export function FormFillPage() {
             if (res.data[refField] !== undefined) {
               newValues[field.id] = res.data[refField];
             }
+          }
+          
+          // Handle linked fields (select/radio from database with linked_to_reference_field)
+          // Example: Cabor dropdown linked to 'cabor_id' from Athlete
+          if (field.linked_to_reference_field && res.data[field.linked_to_reference_field] !== undefined) {
+            newValues[field.id] = String(res.data[field.linked_to_reference_field]);
           }
         });
       });

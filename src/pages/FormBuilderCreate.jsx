@@ -141,6 +141,7 @@ export function FormBuilderCreatePage() {
             data_source_value_field: field.data_source_value_field || 'id',
             data_source_label_field: field.data_source_label_field || 'name',
             reference_field: field.reference_field || '',
+            linked_to_reference_field: field.linked_to_reference_field || '',
             is_readonly: field.is_readonly || false,
             calculation_formula: field.calculation_formula || '',
             calculation_dependencies: field.calculation_dependencies || [],
@@ -228,6 +229,7 @@ export function FormBuilderCreatePage() {
       data_source_value_field: 'id',
       data_source_label_field: 'name',
       reference_field: '',
+      linked_to_reference_field: '',
       is_readonly: false,
       calculation_formula: '',
       calculation_dependencies: [],
@@ -592,6 +594,20 @@ export function FormBuilderCreatePage() {
                                             <option key={m.key} value={m.key}>{m.name}</option>
                                           ))}
                                         </select>
+                                        {/* Linked Field - auto-fill dari reference model */}
+                                        {formData.reference_model && field.data_source_model && (
+                                          <select
+                                            value={field.linked_to_reference_field || ''}
+                                            onChange={(e) => updateField(sectionIndex, fieldIndex, { linked_to_reference_field: e.target.value })}
+                                            className="px-3 py-2 border border-blue-200 rounded-lg text-sm bg-blue-50"
+                                            title="Link ke field reference model"
+                                          >
+                                            <option value="">-- Link otomatis (opsional) --</option>
+                                            {(modelFields[formData.reference_model] || []).map(f => (
+                                              <option key={f} value={f}>{f}</option>
+                                            ))}
+                                          </select>
+                                        )}
                                       </>
                                     )}
                                   </div>
