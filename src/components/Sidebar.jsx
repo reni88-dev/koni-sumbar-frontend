@@ -15,7 +15,8 @@ import {
   ChevronRight,
   Shield,
   GraduationCap,
-  FileText
+  FileText,
+  History
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -88,6 +89,11 @@ function SidebarContent({ onNavigate }) {
     return user.permissions?.includes(permission) ?? false;
   };
 
+  // Check if user is Super Admin
+  const isSuperAdmin = () => {
+    return user?.permissions?.includes('*') || user?.role?.name === 'super_admin';
+  };
+
   // Build navItems based on permissions
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permission: 'dashboard.view' },
@@ -111,6 +117,11 @@ function SidebarContent({ onNavigate }) {
           ...(hasPermission('competition_classes.view') ? [{ icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes' }] : []),
         ].filter(Boolean)
       }
+    ] : []),
+
+    // Activity Logs - Super Admin only
+    ...(isSuperAdmin() ? [
+      { icon: History, label: 'Activity Log', path: '/activity-logs' }
     ] : []),
 
     { icon: Settings, label: 'Pengaturan', path: '/settings', permission: 'settings.view' },

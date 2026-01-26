@@ -13,6 +13,7 @@ import { FormBuilderPage } from './pages/FormBuilder';
 import { FormBuilderCreatePage } from './pages/FormBuilderCreate';
 import { FormFillPage } from './pages/FormFill';
 import { FormSubmissionsPage } from './pages/FormSubmissions';
+import { ActivityLogsPage } from './pages/ActivityLogs';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 function App() {
@@ -139,6 +140,16 @@ function App() {
         element={
           <ProtectedRoute>
             <CompetitionClassesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Activity Logs Route (Super Admin only - enforced on backend) */}
+      <Route
+        path="/activity-logs"
+        element={
+          <ProtectedRoute>
+            <ActivityLogsPage />
           </ProtectedRoute>
         }
       />
