@@ -10,13 +10,18 @@ import {
   Loader2,
   AlertCircle,
   Filter,
-  Eye
+  Eye,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  ChevronDown
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AthleteFormModal } from '../components/AthleteFormModal';
 import { AthleteDetailModal } from '../components/AthleteDetailModal';
 import { useAthletes, useDeleteAthlete } from '../hooks/queries/useAthletes';
 import { useCaborsAll } from '../hooks/queries/useCabors';
+import api from '../api/axios';
 
 export function AthletesPage() {
   const [search, setSearch] = useState('');
@@ -31,6 +36,10 @@ export function AthletesPage() {
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [athleteToDelete, setAthleteToDelete] = useState(null);
+
+  // Export states
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 
@@ -105,6 +114,37 @@ export function AthletesPage() {
     return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  const handleExport = async (type) => {
+    setIsExporting(true);
+    setIsExportMenuOpen(false);
+    
+    try {
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      if (filterCabor) params.append('cabor_id', filterCabor);
+      if (filterGender) params.append('gender', filterGender);
+      
+      const response = await api.get(`/api/athletes/export/${type}?${params.toString()}`, {
+        responseType: 'blob',
+      });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `data_atlet_koni_${new Date().toISOString().split('T')[0]}.${type}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Gagal mengekspor data. Silakan coba lagi.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <DashboardLayout title="Data Atlet" subtitle="Kelola data atlet dan informasi lengkapnya">
       {/* Action Bar */}
@@ -138,13 +178,57 @@ export function AthletesPage() {
             <option value="female">Perempuan</option>
           </select>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Atlet</span>
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Export Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              disabled={isExporting}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors"
+            >
+              {isExporting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Download className="w-5 h-5" />
+              )}
+              <span>Export</span>
+              <ChevronDown className="w-4 h-4" />
+            </button>
+            {isExportMenuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setIsExportMenuOpen(false)} 
+                />
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-20">
+                  <button
+                    onClick={() => handleExport('xlsx')}
+                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
+                  >
+                    <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                    <span className="text-sm font-medium">Excel (.xlsx)</span>
+                  </button>
+                  <button
+                    onClick={() => handleExport('pdf')}
+                    className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
+                  >
+                    <FileText className="w-5 h-5 text-red-600" />
+                    <span className="text-sm font-medium">PDF (.pdf)</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Add Athlete Button */}
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Atlet</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}
