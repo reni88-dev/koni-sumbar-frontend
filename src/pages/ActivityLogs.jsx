@@ -37,6 +37,7 @@ import {
   useErrorLogs,
   useErrorLogStats,
   useResolveError,
+  useUserActivity,
 } from '../hooks/queries/useActivityLogs';
 
 // Action badge colors
@@ -411,7 +412,7 @@ function ErrorLogItem({ log, onResolve }) {
 
 // Main Activity Logs Page with Tabs
 export function ActivityLogsPage() {
-  const [activeTab, setActiveTab] = useState('activity'); // 'activity' or 'error'
+  const [activeTab, setActiveTab] = useState('activity'); // 'activity', 'error', or 'users'
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({});
   const [selectedLog, setSelectedLog] = useState(null);
@@ -427,6 +428,9 @@ export function ActivityLogsPage() {
   const { data: errorData, isLoading: errorLoading } = useErrorLogs({ ...filters, page, per_page: 15 });
   const { data: errorStats } = useErrorLogStats();
   const resolveErrorMutation = useResolveError();
+
+  // User Activity Hooks
+  const { data: userActivityData, isLoading: userActivityLoading } = useUserActivity();
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }));
@@ -520,6 +524,17 @@ export function ActivityLogsPage() {
                 {errorStats.unresolved}
               </span>
             )}
+          </button>
+          <button
+            onClick={() => { setActiveTab('users'); setPage(1); setFilters({}); }}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              activeTab === 'users' 
+                ? 'bg-white text-slate-800 shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            User Activity
           </button>
         </div>
 
@@ -643,6 +658,101 @@ export function ActivityLogsPage() {
               errorData?.data?.map((log) => (
                 <ErrorLogItem key={log.id} log={log} onResolve={handleResolveError} />
               ))
+            )}
+          </div>
+        )}
+
+        {/* User Activity List */}
+        {activeTab === 'users' && (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            {userActivityLoading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-slate-500">Memuat data...</p>
+              </div>
+            ) : userActivityData?.length === 0 ? (
+              <div className="text-center py-12">
+                <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                <p className="text-slate-500">Tidak ada user ditemukan</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Active</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Aktivitas</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {userActivityData?.map((user) => {
+                    // Format time ago
+                    const formatTimeAgo = (dateStr) => {
+                      if (!dateStr) return 'Belum pernah aktif';
+                      const date = new Date(dateStr);
+                      const now = new Date();
+                      const diff = Math.floor((now - date) / 1000);
+                      if (diff < 60) return `${diff} detik lalu`;
+                      if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
+                      if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+                      if (diff < 604800) return `${Math.floor(diff / 86400)} hari lalu`;
+                      return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+                    };
+
+                    return (
+                      <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-800 rounded-full flex items-center justify-center text-white font-semibold shrink-0">
+                              {user.name?.[0]?.toUpperCase() || '?'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-slate-800">{user.name}</p>
+                              <p className="text-sm text-slate-500">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
+                            {user.role_display}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <Clock className="w-4 h-4 text-slate-400" />
+                            {formatTimeAgo(user.last_active_at)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-medium text-slate-700">
+                            {user.total_activities?.toLocaleString() || 0}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {user.is_online ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
+                              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                              Online
+                            </span>
+                          ) : user.last_active_at ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
+                              <span className="w-2 h-2 bg-slate-400 rounded-full"></span>
+                              Offline
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-medium">
+                              <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
+                              Never
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
         )}

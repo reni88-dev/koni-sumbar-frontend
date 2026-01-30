@@ -189,3 +189,29 @@ export const useResolveError = () => {
     },
   });
 };
+
+// ==========================================
+// USER ACTIVITY HOOKS
+// ==========================================
+
+/**
+ * Query keys for user activity
+ */
+export const userActivityKeys = {
+  all: ['userActivity'],
+  list: () => [...userActivityKeys.all, 'list'],
+};
+
+/**
+ * Hook to fetch user activity / last login data
+ */
+export const useUserActivity = () => {
+  return useQuery({
+    queryKey: userActivityKeys.list(),
+    queryFn: async () => {
+      const { data } = await api.get('/api/activity-logs/user-activity');
+      return data;
+    },
+  });
+};
+
