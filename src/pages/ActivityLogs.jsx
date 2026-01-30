@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  LogIn,
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
@@ -681,6 +682,7 @@ export function ActivityLogsPage() {
                   <tr>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Login</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Last Active</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Aktivitas</th>
                     <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
@@ -718,6 +720,12 @@ export function ActivityLogsPage() {
                           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
                             {user.role_display}
                           </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2 text-sm text-slate-600">
+                            <LogIn className="w-4 h-4 text-slate-400" />
+                            {user.last_login_ago || 'Belum pernah login'}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 text-sm text-slate-600">
