@@ -244,7 +244,7 @@ export function AthletesPage() {
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Atlet</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">NIK</th>
+                {/* <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">NIK</th> */}
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">TTL</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gender</th>
@@ -255,13 +255,13 @@ export function AthletesPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                   </td>
                 </tr>
               ) : athletes.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                     Tidak ada data atlet
                   </td>
                 </tr>
@@ -289,9 +289,9 @@ export function AthletesPage() {
                         <span className="font-medium text-slate-800">{athlete.name}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
+                    {/* <td className="px-6 py-4">
                       <span className="font-mono text-sm text-slate-600">{athlete.nik || '-'}</span>
-                    </td>
+                    </td> */}
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm">
                         {athlete.cabor?.name || '-'}
