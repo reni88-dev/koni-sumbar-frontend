@@ -19,6 +19,7 @@ import {
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AthleteFormModal } from '../components/AthleteFormModal';
 import { AthleteDetailModal } from '../components/AthleteDetailModal';
+import { ProtectedImage } from '../components/ProtectedImage';
 import { useAthletes, useDeleteAthlete } from '../hooks/queries/useAthletes';
 import { useCaborsAll } from '../hooks/queries/useCabors';
 import api from '../api/axios';
@@ -270,10 +271,15 @@ export function AthletesPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {athlete.photo ? (
-                          <img 
-                            src={`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/storage/${athlete.photo}`}
+                          <ProtectedImage 
+                            src={`/storage/${athlete.photo}`}
                             alt={athlete.name}
                             className="w-10 h-10 rounded-full object-cover"
+                            fallback={
+                              <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-medium">
+                                {athlete.name?.charAt(0) || '?'}
+                              </div>
+                            }
                           />
                         ) : (
                           <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-medium">
