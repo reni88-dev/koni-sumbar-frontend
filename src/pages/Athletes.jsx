@@ -272,7 +272,7 @@ export function AthletesPage() {
                       <div className="flex items-center gap-3">
                         {athlete.photo ? (
                           <ProtectedImage 
-                            src={`/storage/${athlete.photo}`}
+                            src={`/api/storage/${athlete.photo}`}
                             alt={athlete.name}
                             className="w-10 h-10 rounded-full object-cover"
                             fallback={
