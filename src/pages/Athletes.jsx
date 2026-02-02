@@ -271,7 +271,7 @@ export function AthletesPage() {
                       <div className="flex items-center gap-3">
                         {athlete.photo ? (
                           <img 
-                            src={`${import.meta.env.VITE_API_URL}/storage/${athlete.photo}`}
+                            src={`${import.meta.env.VITE_API_URL?.replace(/\/$/, '')}/storage/${athlete.photo}`}
                             alt={athlete.name}
                             className="w-10 h-10 rounded-full object-cover"
                           />
