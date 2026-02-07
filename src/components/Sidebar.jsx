@@ -98,9 +98,9 @@ function SidebarContent({ onNavigate }) {
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permission: 'dashboard.view' },
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
-    { icon: Trophy, label: 'Cabor & Prestasi', path: '/cabor', permission: 'cabor.view' },
+    // { icon: Trophy, label: 'Cabor & Prestasi', path: '/cabor', permission: 'cabor.view' },
     { icon: Calendar, label: 'Event Olahraga', path: '/event', permission: 'events.view' },
-    { icon: Activity, label: 'Monitoring', path: '/monitoring', permission: 'monitoring.view' },
+    // { icon: Activity, label: 'Monitoring', path: '/monitoring', permission: 'monitoring.view' },
     { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
     
     // Master Data Menu - Based on permissions

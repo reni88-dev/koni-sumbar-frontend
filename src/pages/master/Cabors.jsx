@@ -13,6 +13,7 @@ import {
   Upload
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
+import { ProtectedImage } from '../../components/ProtectedImage';
 import { useCabors, useCreateCabor, useUpdateCabor, useDeleteCabor } from '../../hooks/queries/useCabors';
 
 export function CaborsPage() {
@@ -32,6 +33,7 @@ export function CaborsPage() {
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [formErrors, setFormErrors] = useState({});
+  const [deleteError, setDeleteError] = useState(null);
 
   // TanStack Query hooks
   const { data: caborsData, isLoading: loading } = useCabors({ page, search: debouncedSearch, perPage: 12 });
@@ -82,7 +84,7 @@ export function CaborsPage() {
       is_active: cabor.is_active
     });
     setLogoFile(null);
-    setLogoPreview(cabor.logo ? `${import.meta.env.VITE_API_URL}/storage/${cabor.logo}` : null);
+    setLogoPreview(cabor.logo ? `/api/storage/${cabor.logo}` : null);
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -115,13 +117,14 @@ export function CaborsPage() {
   };
 
   const handleDelete = async () => {
+    setDeleteError(null);
     try {
       await deleteCaborMutation.mutateAsync(caborToDelete.id);
       setIsDeleteModalOpen(false);
       setCaborToDelete(null);
     } catch (error) {
       console.error('Failed to delete cabor:', error);
-      alert(error.response?.data?.message || 'Gagal menghapus cabor');
+      setDeleteError(error.response?.data?.error || error.response?.data?.message || 'Gagal menghapus cabor');
     }
   };
 
@@ -170,10 +173,11 @@ export function CaborsPage() {
             >
               <div className="h-32 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
                 {cabor.logo ? (
-                  <img 
-                    src={`${import.meta.env.VITE_API_URL}/storage/${cabor.logo}`}
+                  <ProtectedImage 
+                    src={`/api/storage/${cabor.logo}`}
                     alt={cabor.name}
                     className="h-20 w-20 object-contain"
+                    fallback={<Trophy className="w-12 h-12 text-slate-300" />}
                   />
                 ) : (
                   <Trophy className="w-12 h-12 text-slate-300" />
@@ -268,7 +272,16 @@ export function CaborsPage() {
                     <div className="flex items-center gap-4">
                       <div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-300">
                         {logoPreview ? (
-                          <img src={logoPreview} alt="Preview" className="w-full h-full object-contain" />
+                          logoPreview.startsWith('/api/') ? (
+                            <ProtectedImage 
+                              src={logoPreview} 
+                              alt="Preview" 
+                              className="w-full h-full object-contain"
+                              fallback={<Trophy className="w-8 h-8 text-slate-400" />}
+                            />
+                          ) : (
+                            <img src={logoPreview} alt="Preview" className="w-full h-full object-contain" />
+                          )
                         ) : (
                           <Trophy className="w-8 h-8 text-slate-400" />
                         )}
@@ -360,7 +373,7 @@ export function CaborsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
-              onClick={() => setIsDeleteModalOpen(false)}
+              onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -373,12 +386,20 @@ export function CaborsPage() {
                   <AlertCircle className="w-8 h-8 text-red-600" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-2">Hapus Cabor?</h3>
-                <p className="text-slate-500 text-sm mb-6">
+                <p className="text-slate-500 text-sm mb-4">
                   Anda yakin ingin menghapus cabor <strong>{caborToDelete?.name}</strong>?
                 </p>
+                {deleteError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-700 text-left">{deleteError}</p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setIsDeleteModalOpen(false)}
+                    onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }}
                     className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
                   >
                     Batal

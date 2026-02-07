@@ -2,7 +2,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export function ProtectedRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const location = useLocation();
 
   // Show loading while checking auth
@@ -19,5 +19,11 @@ export function ProtectedRoute({ children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Redirect to reset password if user must reset password
+  if (user?.must_reset_password && location.pathname !== '/reset-password') {
+    return <Navigate to="/reset-password" replace />;
+  }
+
   return children;
 }
+

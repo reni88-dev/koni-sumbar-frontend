@@ -11,6 +11,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import api from '../api/axios';
+import ProtectedImage from './ProtectedImage';
 
 const STEPS = [
   { id: 1, title: 'Data Pribadi' },
@@ -76,10 +77,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         if (athlete.cabor_id) {
           fetchCompetitionClasses(athlete.cabor_id);
         }
+        
         setFormData({
-          cabor_id: athlete.cabor_id || '',
-          education_level_id: athlete.education_level_id || '',
-          competition_class_id: athlete.competition_class_id || '',
+          cabor_id: athlete.cabor_id?.toString() || '',
+          education_level_id: athlete.education_level_id?.toString() || '',
+          competition_class_id: athlete.competition_class_id?.toString() || '',
           name: athlete.name || '',
           nik: athlete.nik || '',
           no_kk: athlete.no_kk || '',
@@ -105,7 +107,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           ],
           is_active: athlete.is_active ?? true
         });
-        setPhotoPreview(athlete.photo ? `${import.meta.env.VITE_API_URL}/storage/${athlete.photo}` : null);
+        setPhotoPreview(athlete.photo || null);
       } else {
         setCompetitionClasses([]);
         setFormData({
@@ -126,15 +128,25 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const fetchCabors = async () => {
     try {
       const res = await api.get('/api/cabors/all');
-      setCabors(res.data);
-    } catch (e) { console.error(e); }
+      // Ensure data is array and has valid IDs
+      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
+      setCabors(data);
+    } catch (e) { 
+      console.error('Failed to fetch cabors:', e);
+      setCabors([]);
+    }
   };
 
   const fetchEducationLevels = async () => {
     try {
       const res = await api.get('/api/education-levels/all');
-      setEducationLevels(res.data);
-    } catch (e) { console.error(e); }
+      // Ensure data is array and has valid IDs
+      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
+      setEducationLevels(data);
+    } catch (e) { 
+      console.error('Failed to fetch education levels:', e);
+      setEducationLevels([]);
+    }
   };
 
   const fetchCompetitionClasses = async (caborId) => {
@@ -143,11 +155,15 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       return;
     }
     try {
-      const res = await api.get('/api/competition-classes/all', {
-        params: { cabor_id: caborId }
-      });
-      setCompetitionClasses(res.data);
-    } catch (e) { console.error(e); }
+      // Use query string directly to ensure parameter is sent
+      const res = await api.get(`/api/competition-classes/all?cabor_id=${caborId}`);
+      // Ensure data is an array and filter out any items without valid id
+      const data = Array.isArray(res.data) ? res.data.filter(c => c && c.id) : [];
+      setCompetitionClasses(data);
+    } catch (e) { 
+      console.error('Failed to fetch competition classes:', e);
+      setCompetitionClasses([]);
+    }
   };
 
   // Handle cabor change - fetch competition classes for selected cabor
@@ -292,7 +308,8 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
         }, 50);
       } else {
-        setErrorMessage(error.response?.data?.message || 'Terjadi kesalahan server');
+        // Backend sends {error: "message"}, not {message: "..."}
+        setErrorMessage(error.response?.data?.error || error.response?.data?.message || 'Terjadi kesalahan server');
       }
     } finally {
       setLoading(false);
@@ -304,6 +321,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   return (
     <AnimatePresence>
       <motion.div
+        key="backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -311,6 +329,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         onClick={onClose}
       />
       <motion.div
+        key="modal-content"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -372,7 +391,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
                     {photoPreview ? (
-                      <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      photoPreview.startsWith('blob:') ? (
+                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      ) : (
+                        <ProtectedImage src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                      )
                     ) : (
                       <User className="w-8 h-8 text-slate-400" />
                     )}

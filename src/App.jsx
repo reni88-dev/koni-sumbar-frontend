@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
+import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { UsersPage } from './pages/master/Users';
 import { RolesPage } from './pages/master/Roles';
@@ -21,8 +22,7 @@ function App() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
-
-      {/* Protected Routes */}
+      <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />      {/* Protected Routes */}
       <Route
         path="/dashboard"
         element={

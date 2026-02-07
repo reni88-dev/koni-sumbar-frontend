@@ -85,14 +85,30 @@ export function AthletesPage() {
     setIsFormModalOpen(true);
   };
 
-  const openEditModal = (athlete) => {
-    setSelectedAthlete(athlete);
-    setIsFormModalOpen(true);
+  const openEditModal = async (athlete) => {
+    try {
+      // Fetch complete athlete data from API
+      const response = await api.get(`/api/athletes/${athlete.id}`);
+      setSelectedAthlete(response.data);
+      setIsFormModalOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch athlete details:', error);
+      // Fallback to list data if API fails
+      setSelectedAthlete(athlete);
+      setIsFormModalOpen(true);
+    }
   };
 
-  const openDetailModal = (athlete) => {
-    setSelectedAthlete(athlete);
-    setIsDetailModalOpen(true);
+  const openDetailModal = async (athlete) => {
+    try {
+      const response = await api.get(`/api/athletes/${athlete.id}`);
+      setSelectedAthlete(response.data);
+      setIsDetailModalOpen(true);
+    } catch (error) {
+      console.error('Failed to fetch athlete details:', error);
+      setSelectedAthlete(athlete);
+      setIsDetailModalOpen(true);
+    }
   };
 
   const handleFormSuccess = () => {
@@ -272,7 +288,7 @@ export function AthletesPage() {
                       <div className="flex items-center gap-3">
                         {athlete.photo ? (
                           <ProtectedImage 
-                            src={`/api/storage/${athlete.photo}`}
+                            src={athlete.photo}
                             alt={athlete.name}
                             className="w-10 h-10 rounded-full object-cover"
                             fallback={
@@ -293,7 +309,7 @@ export function AthletesPage() {
                       <span className="font-mono text-sm text-slate-600">{athlete.nik || '-'}</span>
                     </td> */}
                     <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm">
+                      <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm whitespace-nowrap">
                         {athlete.cabor?.name || '-'}
                       </span>
                     </td>
@@ -301,7 +317,7 @@ export function AthletesPage() {
                       {athlete.birth_place ? `${athlete.birth_place}, ` : ''}{formatDate(athlete.birth_date)}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-lg text-xs font-medium ${
+                      <span className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${
                         athlete.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
                       }`}>
                         {genderLabels[athlete.gender] || '-'}
@@ -386,6 +402,7 @@ export function AthletesPage() {
         {isDeleteModalOpen && (
           <>
             <motion.div
+              key="delete-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -393,6 +410,7 @@ export function AthletesPage() {
               onClick={() => setIsDeleteModalOpen(false)}
             />
             <motion.div
+              key="delete-content"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}

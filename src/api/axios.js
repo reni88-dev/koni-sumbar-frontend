@@ -1,25 +1,19 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
-  withCredentials: true,
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
 });
 
-// Request interceptor to add XSRF token
+// Request interceptor to add JWT Bearer token
 api.interceptors.request.use((config) => {
-  const token = document.cookie
-    .split('; ')
-    .find(row => row.startsWith('XSRF-TOKEN='))
-    ?.split('=')[1];
-
+  const token = localStorage.getItem('token');
   if (token) {
-    config.headers['X-XSRF-TOKEN'] = decodeURIComponent(token);
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
-
   return config;
 });
 
@@ -29,16 +23,8 @@ api.interceptors.response.use(
   (error) => {
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-      // Clear any local auth state if needed
+      localStorage.removeItem('token');
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-    }
-
-    // Handle 419 CSRF token mismatch
-    if (error.response?.status === 419) {
-      // Refresh CSRF token and retry
-      return api.get('/sanctum/csrf-cookie').then(() => {
-        return api.request(error.config);
-      });
     }
 
     // Handle 429 Too Many Requests

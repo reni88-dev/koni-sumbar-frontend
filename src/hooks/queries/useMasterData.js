@@ -255,10 +255,10 @@ export function useCompetitionClassesByCabor(caborId) {
   return useQuery({
     queryKey: competitionClassKeys.byCabor(caborId),
     queryFn: async () => {
-      const response = await api.get('/api/master/competition-classes/all', {
+      const response = await api.get('/api/competition-classes/all', {
         params: { cabor_id: caborId }
       });
-      return response.data;
+      return Array.isArray(response.data) ? response.data.filter(c => c && c.id) : [];
     },
     enabled: !!caborId,
   });

@@ -9,26 +9,32 @@ export function AuthProvider({ children }) {
 
   // Fetch current user
   const fetchUser = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setUser(null);
+      return null;
+    }
+
     try {
       const response = await api.get('/api/user');
       setUser(response.data);
       return response.data;
     } catch (error) {
+      localStorage.removeItem('token');
       setUser(null);
       return null;
     }
   }, []);
 
-  // Get CSRF cookie
-  const getCsrfCookie = async () => {
-    await api.get('/sanctum/csrf-cookie');
-  };
-
   // Login
   const login = async (email, password) => {
-    await getCsrfCookie();
     const response = await api.post('/api/login', { email, password });
-    setUser(response.data.user);
+    const { token, user: userData } = response.data;
+    
+    // Store JWT token
+    localStorage.setItem('token', token);
+    setUser(userData);
+    
     return response.data;
   };
 
@@ -37,20 +43,25 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/api/logout');
     } finally {
+      localStorage.removeItem('token');
       setUser(null);
     }
   };
 
   // Register
   const register = async (name, email, password, password_confirmation) => {
-    await getCsrfCookie();
     const response = await api.post('/api/register', {
       name,
       email,
       password,
       password_confirmation,
     });
-    setUser(response.data.user);
+    
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      setUser(response.data.user);
+    }
+    
     return response.data;
   };
 
@@ -58,7 +69,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        await getCsrfCookie();
         await fetchUser();
       } catch {
         setUser(null);
@@ -71,6 +81,7 @@ export function AuthProvider({ children }) {
 
     // Listen for unauthorized events
     const handleUnauthorized = () => {
+      localStorage.removeItem('token');
       setUser(null);
     };
 

@@ -1,20 +1,46 @@
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { 
   Medal,
   Trophy,
   Calendar,
   Users,
-  Activity
+  Activity,
+  Loader2
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import api from '../api/axios';
 
 export function Dashboard() {
-  const stats = [
-    { label: 'Total Atlet', value: '1,240', change: '+12%', icon: Users, color: 'bg-blue-500' },
-    { label: 'Cabang Olahraga', value: '48', change: '+2', icon: Trophy, color: 'bg-yellow-500' },
-    { label: 'Medali Emas', value: '86', change: '+5%', icon: Medal, color: 'bg-red-500' },
-    { label: 'Event Aktif', value: '3', change: 'Running', icon: Calendar, color: 'bg-green-500' },
-  ];
+  const [stats, setStats] = useState([
+    { label: 'Total Atlet', value: '-', change: '', icon: Users, color: 'bg-blue-500' },
+    { label: 'Cabang Olahraga', value: '-', change: '', icon: Trophy, color: 'bg-yellow-500' },
+    { label: 'Medali Emas', value: '-', change: '', icon: Medal, color: 'bg-red-500' },
+    { label: 'Event Aktif', value: '-', change: '', icon: Calendar, color: 'bg-green-500' },
+  ]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await api.get('/api/dashboard/stats');
+        const data = response.data;
+        
+        setStats([
+          { label: 'Total Atlet', value: data.total_athletes.toLocaleString('id-ID'), change: 'Aktif', icon: Users, color: 'bg-blue-500' },
+          { label: 'Cabang Olahraga', value: data.total_cabor.toString(), change: 'Cabor', icon: Trophy, color: 'bg-yellow-500' },
+          { label: 'Medali Emas', value: data.gold_medals.toString(), change: '-', icon: Medal, color: 'bg-red-500' },
+          { label: 'Event Aktif', value: data.active_events.toString(), change: 'Running', icon: Calendar, color: 'bg-green-500' },
+        ]);
+      } catch (error) {
+        console.error('Failed to fetch dashboard stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   return (
     <DashboardLayout 

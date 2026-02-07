@@ -27,8 +27,8 @@ export function useCaborsAll() {
   return useQuery({
     queryKey: caborKeys.allDropdown(),
     queryFn: async () => {
-      const response = await api.get('/api/master/cabors/all');
-      return response.data;
+      const response = await api.get('/api/cabors/all');
+      return Array.isArray(response.data) ? response.data.filter(c => c && c.id) : [];
     },
     staleTime: 10 * 60 * 1000, // 10 minutes - dropdown data doesn't change often
   });

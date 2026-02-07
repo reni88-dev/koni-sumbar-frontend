@@ -32,8 +32,9 @@ export function EducationLevelsPage() {
   const [levelToDelete, setLevelToDelete] = useState(null);
 
   // Form states
-  const [formData, setFormData] = useState({ name: '', code: '', order: 0, is_active: true });
+  const [formData, setFormData] = useState({ name: '', level_order: 0, is_active: true });
   const [formErrors, setFormErrors] = useState({});
+  const [deleteError, setDeleteError] = useState(null);
 
   // TanStack Query hooks
   const { data: levelsData, isLoading: loading } = useEducationLevels({ page, search: debouncedSearch });
@@ -59,7 +60,7 @@ export function EducationLevelsPage() {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setFormData({ name: '', code: '', order: educationLevels.length, is_active: true });
+    setFormData({ name: '', level_order: educationLevels.length, is_active: true });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -69,8 +70,7 @@ export function EducationLevelsPage() {
     setSelectedLevel(level);
     setFormData({ 
       name: level.name, 
-      code: level.code,
-      order: level.order,
+      level_order: level.level_order,
       is_active: level.is_active
     });
     setFormErrors({});
@@ -96,12 +96,14 @@ export function EducationLevelsPage() {
   };
 
   const handleDelete = async () => {
+    setDeleteError(null);
     try {
       await deleteMutation.mutateAsync(levelToDelete.id);
       setIsDeleteModalOpen(false);
       setLevelToDelete(null);
     } catch (error) {
       console.error('Failed to delete education level:', error);
+      setDeleteError(error.response?.data?.error || error.response?.data?.message || 'Gagal menghapus jenjang pendidikan');
     }
   };
 
@@ -137,7 +139,6 @@ export function EducationLevelsPage() {
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-16">Urutan</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kode</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nama Jenjang</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
@@ -162,13 +163,8 @@ export function EducationLevelsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2 text-slate-400">
                         <GripVertical className="w-4 h-4" />
-                        <span className="font-medium">{level.order}</span>
+                        <span className="font-medium">{level.level_order}</span>
                       </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-3 py-1 bg-slate-100 rounded-lg font-mono text-sm font-medium text-slate-700">
-                        {level.code}
-                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -238,32 +234,6 @@ export function EducationLevelsPage() {
                   </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Kode</label>
-                      <input
-                        type="text"
-                        value={formData.code}
-                        onChange={e => setFormData({...formData, code: e.target.value.toUpperCase()})}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none font-mono"
-                        placeholder="SD"
-                        maxLength={10}
-                        required
-                      />
-                      {formErrors.code && <p className="text-red-500 text-xs mt-1">{formErrors.code[0]}</p>}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Urutan</label>
-                      <input
-                        type="number"
-                        value={formData.order}
-                        onChange={e => setFormData({...formData, order: parseInt(e.target.value) || 0})}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                        min={0}
-                      />
-                    </div>
-                  </div>
-                  
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nama Jenjang</label>
                     <input
@@ -275,6 +245,17 @@ export function EducationLevelsPage() {
                       required
                     />
                     {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name[0]}</p>}
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Urutan</label>
+                    <input
+                      type="number"
+                      value={formData.level_order}
+                      onChange={e => setFormData({...formData, level_order: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      min={0}
+                    />
                   </div>
                   
                   <div className="flex items-center gap-3">
@@ -321,7 +302,7 @@ export function EducationLevelsPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
-              onClick={() => setIsDeleteModalOpen(false)}
+              onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }}
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -334,12 +315,20 @@ export function EducationLevelsPage() {
                   <AlertCircle className="w-8 h-8 text-red-600" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-2">Hapus Jenjang?</h3>
-                <p className="text-slate-500 text-sm mb-6">
+                <p className="text-slate-500 text-sm mb-4">
                   Anda yakin ingin menghapus jenjang <strong>{levelToDelete?.name}</strong>?
                 </p>
+                {deleteError && (
+                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-700 text-left">{deleteError}</p>
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
-                    onClick={() => setIsDeleteModalOpen(false)}
+                    onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }}
                     className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
                   >
                     Batal

@@ -12,6 +12,7 @@ import {
   Heart,
   Droplet
 } from 'lucide-react';
+import { ProtectedImage } from './ProtectedImage';
 
 export function AthleteDetailModal({ isOpen, onClose, athlete }) {
   if (!isOpen || !athlete) return null;
@@ -24,14 +25,14 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
     return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   };
 
-  const InfoItem = ({ icon: Icon, label, value }) => (
+  const InfoItem = ({ icon: Icon, label, value, className = '' }) => (
     <div className="flex items-start gap-3">
-      <div className="p-2 bg-slate-100 rounded-lg">
+      <div className="p-2 bg-slate-100 rounded-lg shrink-0">
         <Icon className="w-4 h-4 text-slate-600" />
       </div>
-      <div>
+      <div className="min-w-0 flex-1">
         <p className="text-xs text-slate-500">{label}</p>
-        <p className="text-sm font-medium text-slate-800">{value || '-'}</p>
+        <p className={`text-sm font-medium text-slate-800 break-words ${className}`}>{value || '-'}</p>
       </div>
     </div>
   );
@@ -60,14 +61,14 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
             >
               <X className="w-5 h-5 text-white" />
             </button>
-            <div className="absolute -bottom-12 left-6">
-              {athlete.photo ? (
-                <img 
-                  src={`${import.meta.env.VITE_API_URL}/storage/${athlete.photo}`}
-                  alt={athlete.name}
-                  className="w-24 h-24 rounded-2xl border-4 border-white object-cover shadow-lg"
-                />
-              ) : (
+              <div className="absolute -bottom-12 left-6">
+                {athlete.photo ? (
+                  <ProtectedImage 
+                    src={athlete.photo}
+                    alt={athlete.name}
+                    className="w-24 h-24 rounded-2xl border-4 border-white object-cover shadow-lg"
+                  />
+                ) : (
                 <div className="w-24 h-24 rounded-2xl border-4 border-white bg-slate-100 flex items-center justify-center shadow-lg">
                   <User className="w-10 h-10 text-slate-400" />
                 </div>
@@ -103,7 +104,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
               <InfoItem icon={Activity} label="Tinggi/Berat" value={`${athlete.height || '-'} cm / ${athlete.weight || '-'} kg`} />
               <InfoItem icon={Briefcase} label="Pekerjaan" value={athlete.occupation} />
               <InfoItem icon={Phone} label="Telepon" value={athlete.phone} />
-              <InfoItem icon={Mail} label="Email" value={athlete.email} />
+              <InfoItem icon={Mail} label="Email" value={athlete.email} className="break-all" />
               <InfoItem icon={MapPin} label="Alamat" value={athlete.address} />
             </div>
 
