@@ -87,26 +87,110 @@ function StatsCard({ label, value, icon: Icon, color = 'blue' }) {
   );
 }
 
+// Field label mappings for human-readable display
+const FIELD_LABELS = {
+  id: 'ID',
+  name: 'Nama',
+  email: 'Email',
+  phone: 'Telepon',
+  address: 'Alamat',
+  birth_date: 'Tanggal Lahir',
+  birth_place: 'Tempat Lahir',
+  gender: 'Jenis Kelamin',
+  blood_type: 'Golongan Darah',
+  height: 'Tinggi Badan (cm)',
+  weight: 'Berat Badan (kg)',
+  religion: 'Agama',
+  occupation: 'Pekerjaan',
+  hobby: 'Hobi',
+  marital_status: 'Status Pernikahan',
+  photo: 'Foto',
+  cabor_id: 'Cabang Olahraga',
+  competition_class_id: 'Kelas Pertandingan',
+  education_level_id: 'Tingkat Pendidikan',
+  user_id: 'User ID',
+  career_start_year: 'Tahun Mulai Karir',
+  is_active: 'Status Aktif',
+  created_at: 'Dibuat',
+  updated_at: 'Diperbarui',
+  injury_illness_history: 'Riwayat Cedera/Penyakit',
+  display_name: 'Nama Tampilan',
+  description: 'Deskripsi',
+  type: 'Tipe',
+  year: 'Tahun',
+  location: 'Lokasi',
+  start_date: 'Tanggal Mulai',
+  end_date: 'Tanggal Selesai',
+};
+
+// Fields to skip (internal or sensitive)
+const SKIP_FIELDS = ['updated_at', 'created_at', 'user_id', 'id'];
+
 // Data Diff Viewer Component
-function DataDiffViewer({ oldValues, newValues, changedFields }) {
-  if (!changedFields || changedFields.length === 0) {
-    return <p className="text-sm text-slate-500 italic">Tidak ada perubahan data</p>;
+function DataDiffViewer({ oldValues, newValues, changedFields, resolveValue }) {
+  // Filter out internal fields
+  const displayFields = changedFields?.filter(f => !SKIP_FIELDS.includes(f)) || [];
+  
+  if (displayFields.length === 0) {
+    return <p className="text-sm text-slate-500 italic">Tidak ada perubahan data signifikan</p>;
   }
+
+  const formatValue = (field, value) => {
+    if (value === null || value === undefined) return '-';
+    
+    // Use resolver for foreign key fields
+    if (resolveValue && (field.endsWith('_id') || field === 'cabor_id')) {
+      const resolved = resolveValue(field, value);
+      if (resolved) return resolved;
+    }
+    
+    // Format boolean
+    if (typeof value === 'boolean') {
+      return value ? 'Ya' : 'Tidak';
+    }
+    
+    // Format gender
+    if (field === 'gender') {
+      return value === 'male' ? 'Laki-laki' : value === 'female' ? 'Perempuan' : value;
+    }
+    
+    // Format marital status
+    if (field === 'marital_status') {
+      const statuses = { single: 'Belum Menikah', married: 'Menikah', divorced: 'Cerai', widowed: 'Janda/Duda' };
+      return statuses[value] || value;
+    }
+    
+    // Format date strings
+    if (field.includes('date') || field.includes('_at')) {
+      try {
+        const date = new Date(value);
+        if (!isNaN(date)) {
+          return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    
+    return String(value);
+  };
 
   return (
     <div className="bg-slate-50 rounded-lg p-4 space-y-3">
       <h4 className="text-sm font-semibold text-slate-700 mb-3">Perubahan Data:</h4>
       <div className="space-y-2">
-        {changedFields.map((field) => (
+        {displayFields.map((field) => (
           <div key={field} className="flex items-start gap-4 text-sm">
-            <span className="font-medium text-slate-600 w-32 shrink-0">{field}:</span>
-            <div className="flex-1 flex gap-2">
+            <span className="font-medium text-slate-600 w-40 shrink-0">
+              {FIELD_LABELS[field] || field}:
+            </span>
+            <div className="flex-1 flex gap-2 items-center flex-wrap">
               <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded line-through">
-                {JSON.stringify(oldValues?.[field]) ?? 'null'}
+                {formatValue(field, oldValues?.[field])}
               </span>
               <span className="text-slate-400">→</span>
               <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded">
-                {JSON.stringify(newValues?.[field]) ?? 'null'}
+                {formatValue(field, newValues?.[field])}
               </span>
             </div>
           </div>
@@ -431,7 +515,7 @@ export function ActivityLogsPage() {
   const resolveErrorMutation = useResolveError();
 
   // User Activity Hooks
-  const { data: userActivityData, isLoading: userActivityLoading } = useUserActivity();
+  const { data: userActivityData, isLoading: userActivityLoading } = useUserActivity(filters.search);
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }));
@@ -566,7 +650,11 @@ export function ActivityLogsPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder={activeTab === 'activity' ? "Cari nama record atau user..." : "Cari error..."}
+                placeholder={
+                  activeTab === 'activity' ? "Cari nama record atau user..." : 
+                  activeTab === 'error' ? "Cari error..." : 
+                  "Cari user..."
+                }
                 value={filters.search || ''}
                 onChange={(e) => handleFilterChange('search', e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -577,11 +665,11 @@ export function ActivityLogsPage() {
               <>
                 <select value={filters.user_id || ''} onChange={(e) => handleFilterChange('user_id', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg">
                   <option value="">Semua User</option>
-                  {users.map((user) => (<option key={user.id} value={user.id}>{user.name}</option>))}
+                  {Array.isArray(users) && users.map((user) => (<option key={user.id} value={user.id}>{user.name}</option>))}
                 </select>
                 <select value={filters.model || ''} onChange={(e) => handleFilterChange('model', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg">
                   <option value="">Semua Model</option>
-                  {stats?.models?.map((model) => (<option key={model} value={model}>{model}</option>))}
+                  {Array.isArray(stats?.models) && stats.models.map((model) => (<option key={model} value={model}>{model}</option>))}
                 </select>
                 <select value={filters.action || ''} onChange={(e) => handleFilterChange('action', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg">
                   <option value="">Semua Aksi</option>
@@ -666,6 +754,7 @@ export function ActivityLogsPage() {
         {/* User Activity List */}
         {activeTab === 'users' && (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="overflow-x-auto">
             {userActivityLoading ? (
               <div className="text-center py-12">
                 <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
@@ -718,13 +807,13 @@ export function ActivityLogsPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
-                            {user.role_display}
+                            {user.role}
                           </span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2 text-sm text-slate-600">
                             <LogIn className="w-4 h-4 text-slate-400" />
-                            {user.last_login_ago || 'Belum pernah login'}
+                            {user.last_login_at ? formatTimeAgo(user.last_login_at) : 'Belum pernah login'}
                           </div>
                         </td>
                         <td className="px-6 py-4">
@@ -752,7 +841,7 @@ export function ActivityLogsPage() {
                           ) : (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-yellow-50 text-yellow-700 rounded-full text-xs font-medium">
                               <span className="w-2 h-2 bg-yellow-500 rounded-full"></span>
-                              Never
+                              Belum Ada Aktivitas
                             </span>
                           )}
                         </td>
@@ -762,6 +851,7 @@ export function ActivityLogsPage() {
                 </tbody>
               </table>
             )}
+            </div>
           </div>
         )}
 

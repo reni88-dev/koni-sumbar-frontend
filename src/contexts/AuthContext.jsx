@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/axios';
 
 export const AuthContext = createContext(null);
@@ -6,6 +7,7 @@ export const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Fetch current user
   const fetchUser = useCallback(async () => {
@@ -35,6 +37,9 @@ export function AuthProvider({ children }) {
     localStorage.setItem('token', token);
     setUser(userData);
     
+    // Clear any cached data from previous user
+    queryClient.clear();
+    
     return response.data;
   };
 
@@ -45,6 +50,8 @@ export function AuthProvider({ children }) {
     } finally {
       localStorage.removeItem('token');
       setUser(null);
+      // Clear all cached queries to prevent stale data
+      queryClient.clear();
     }
   };
 

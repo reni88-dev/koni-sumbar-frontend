@@ -10,12 +10,34 @@ import { CompetitionClassesPage } from './pages/master/CompetitionClasses';
 import { EventsPage } from './pages/Events';
 import { EventDetailPage } from './pages/EventDetail';
 import { AthletesPage } from './pages/Athletes';
+import { CoachesPage } from './pages/Coaches';
 import { FormBuilderPage } from './pages/FormBuilder';
 import { FormBuilderCreatePage } from './pages/FormBuilderCreate';
 import { FormFillPage } from './pages/FormFill';
 import { FormSubmissionsPage } from './pages/FormSubmissions';
 import { ActivityLogsPage } from './pages/ActivityLogs';
+import { AthletePortal } from './pages/AthletePortal';
+import { CoachPortal } from './pages/CoachPortal';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { useAuth } from './hooks/useAuth';
+
+// Smart Dashboard that redirects based on user role
+function SmartDashboard() {
+  const { user } = useAuth();
+  
+  // Redirect athletes to their portal
+  if (user?.role?.name === 'athlete') {
+    return <Navigate to="/portal/atlet" replace />;
+  }
+  
+  // Redirect coaches to their portal
+  if (user?.role?.name === 'coach') {
+    return <Navigate to="/portal/pelatih" replace />;
+  }
+  
+  // For admins and other roles, show the regular dashboard
+  return <Dashboard />;
+}
 
 function App() {
   return (
@@ -27,7 +49,25 @@ function App() {
         path="/dashboard"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <SmartDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Portal Routes */}
+      <Route
+        path="/portal/atlet"
+        element={
+          <ProtectedRoute>
+            <AthletePortal />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/portal/pelatih"
+        element={
+          <ProtectedRoute>
+            <CoachPortal />
           </ProtectedRoute>
         }
       />
@@ -38,6 +78,16 @@ function App() {
         element={
           <ProtectedRoute>
             <AthletesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Coaches Route */}
+      <Route
+        path="/pelatih"
+        element={
+          <ProtectedRoute>
+            <CoachesPage />
           </ProtectedRoute>
         }
       />
@@ -164,3 +214,4 @@ function App() {
 }
 
 export default App;
+

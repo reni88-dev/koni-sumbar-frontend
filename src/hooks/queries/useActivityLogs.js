@@ -34,6 +34,8 @@ export const useActivityLogs = (filters = {}) => {
       const { data } = await api.get(`/api/activity-logs?${params.toString()}`);
       return data;
     },
+    staleTime: 0, // Always fetch fresh data
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -47,6 +49,8 @@ export const useActivityLogStats = () => {
       const { data } = await api.get('/api/activity-logs/stats');
       return data;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -60,6 +64,7 @@ export const useActivityLogUsers = () => {
       const { data } = await api.get('/api/activity-logs/users');
       return data;
     },
+    staleTime: 5 * 60 * 1000, // Users list is less dynamic
   });
 };
 
@@ -74,6 +79,7 @@ export const useActivityLogDetail = (id) => {
       return data;
     },
     enabled: !!id,
+    staleTime: 0,
   });
 };
 
@@ -108,6 +114,9 @@ export const exportActivityLogs = async (filters = {}) => {
 
   const response = await api.get(`/api/activity-logs/export?${params.toString()}`, {
     responseType: 'blob',
+    headers: {
+        'Accept': 'text/csv',
+    }
   });
 
   // Create download link
@@ -157,6 +166,8 @@ export const useErrorLogs = (filters = {}) => {
       const { data } = await api.get(`/api/error-logs?${params.toString()}`);
       return data;
     },
+    staleTime: 0, // Always fetch fresh data
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -170,6 +181,8 @@ export const useErrorLogStats = () => {
       const { data } = await api.get('/api/error-logs/stats');
       return data;
     },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -205,13 +218,17 @@ export const userActivityKeys = {
 /**
  * Hook to fetch user activity / last login data
  */
-export const useUserActivity = () => {
+export const useUserActivity = (search) => {
   return useQuery({
-    queryKey: userActivityKeys.list(),
+    queryKey: [...userActivityKeys.list(), search],
     queryFn: async () => {
-      const { data } = await api.get('/api/activity-logs/user-activity');
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      const { data } = await api.get(`/api/users/activity-stats?${params.toString()}`);
       return data;
     },
+    staleTime: 0, // Real-time status is important
+    refetchOnWindowFocus: true,
   });
 };
 

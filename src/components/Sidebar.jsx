@@ -16,7 +16,9 @@ import {
   Shield,
   GraduationCap,
   FileText,
-  History
+  History,
+  User,
+  UserCheck
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -94,9 +96,32 @@ function SidebarContent({ onNavigate }) {
     return user?.permissions?.includes('*') || user?.role?.name === 'super_admin';
   };
 
+  // Check if user is Athlete
+  const isAthlete = () => {
+    return user?.role?.name === 'athlete';
+  };
+
+  // Check if user is Coach
+  const isCoach = () => {
+    return user?.role?.name === 'coach';
+  };
+
   // Build navItems based on permissions
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', permission: 'dashboard.view' },
+    // Dashboard only visible for non-athlete/coach users (admins)
+    ...(!isAthlete() && !isCoach() ? [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }
+    ] : []),
+    
+    // Portal Menu Items - Only for Athletes and Coaches (as their main dashboard)
+    ...(isAthlete() ? [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/portal/atlet' }
+    ] : []),
+    ...(isCoach() ? [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/portal/pelatih' }
+    ] : []),
+    
+    { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
     // { icon: Trophy, label: 'Cabor & Prestasi', path: '/cabor', permission: 'cabor.view' },
     { icon: Calendar, label: 'Event Olahraga', path: '/event', permission: 'events.view' },

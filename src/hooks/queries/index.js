@@ -1,6 +1,9 @@
 // Athletes queries
 export * from './useAthletes';
 
+// Coaches queries
+export * from './useCoaches';
+
 // Cabors queries
 export * from './useCabors';
 
@@ -15,4 +18,8 @@ export * from './useFormBuilder';
 
 // Master Data queries
 export * from './useMasterData';
+
+// Portal queries
+export * from './usePortal';
+
 

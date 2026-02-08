@@ -32,12 +32,14 @@ export function Login() {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
-      if (err.response?.status === 422) {
+      if (err.response?.status === 401) {
+        setError('Email atau password salah.');
+      } else if (err.response?.status === 422) {
         setError(err.response.data.message || 'Invalid credentials.');
       } else if (err.response?.status === 429) {
         setError('Too many login attempts. Please wait a moment.');
       } else {
-        setError('An error occurred. Please try again.');
+        setError('Terjadi kesalahan. Silakan coba lagi.');
       }
     } finally {
       setIsLoading(false);
