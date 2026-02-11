@@ -7,6 +7,9 @@ import { RolesPage } from './pages/master/Roles';
 import { CaborsPage } from './pages/master/Cabors';
 import { EducationLevelsPage } from './pages/master/EducationLevels';
 import { CompetitionClassesPage } from './pages/master/CompetitionClasses';
+import { RegionsPage } from './pages/master/Regions';
+import { OrganizationsPage } from './pages/master/Organizations';
+import { CoachAthletesPage } from './pages/CoachAthletes';
 import { EventsPage } from './pages/Events';
 import { EventDetailPage } from './pages/EventDetail';
 import { AthletesPage } from './pages/Athletes';
@@ -88,6 +91,16 @@ function App() {
         element={
           <ProtectedRoute>
             <CoachesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Coach-Athletes Route */}
+      <Route
+        path="/coach-athletes"
+        element={
+          <ProtectedRoute>
+            <CoachAthletesPage />
           </ProtectedRoute>
         }
       />
@@ -190,6 +203,22 @@ function App() {
         element={
           <ProtectedRoute>
             <CompetitionClassesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/regions"
+        element={
+          <ProtectedRoute>
+            <RegionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/organizations"
+        element={
+          <ProtectedRoute>
+            <OrganizationsPage />
           </ProtectedRoute>
         }
       />

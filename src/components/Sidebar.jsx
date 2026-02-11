@@ -18,7 +18,9 @@ import {
   FileText,
   History,
   User,
-  UserCheck
+  UserCheck,
+  MapPin,
+  Building2
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -123,13 +125,12 @@ function SidebarContent({ onNavigate }) {
     
     { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
-    // { icon: Trophy, label: 'Cabor & Prestasi', path: '/cabor', permission: 'cabor.view' },
+    { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },
     { icon: Calendar, label: 'Event Olahraga', path: '/event', permission: 'events.view' },
-    // { icon: Activity, label: 'Monitoring', path: '/monitoring', permission: 'monitoring.view' },
     { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
     
     // Master Data Menu - Based on permissions
-    ...(hasPermission('users.view') || hasPermission('roles.view') || hasPermission('cabors.view') || hasPermission('education_levels.view') || hasPermission('competition_classes.view') ? [
+    ...(hasPermission('users.view') || hasPermission('roles.view') || hasPermission('cabors.view') || hasPermission('education_levels.view') || hasPermission('competition_classes.view') || hasPermission('regions.view') || hasPermission('organizations.view') ? [
       { 
         icon: Database, 
         label: 'Master Data', 
@@ -138,6 +139,8 @@ function SidebarContent({ onNavigate }) {
           ...(hasPermission('users.view') ? [{ icon: Users, label: 'Data User', path: '/master/users' }] : []),
           ...(hasPermission('roles.view') ? [{ icon: Shield, label: 'Data Role', path: '/master/roles' }] : []),
           ...(hasPermission('cabors.view') ? [{ icon: Trophy, label: 'Master Cabor', path: '/master/cabors' }] : []),
+          ...(hasPermission('regions.view') ? [{ icon: MapPin, label: 'Wilayah', path: '/master/regions' }] : []),
+          ...(hasPermission('organizations.view') ? [{ icon: Building2, label: 'Organisasi', path: '/master/organizations' }] : []),
           ...(hasPermission('education_levels.view') ? [{ icon: GraduationCap, label: 'Jenjang Pendidikan', path: '/master/education-levels' }] : []),
           ...(hasPermission('competition_classes.view') ? [{ icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes' }] : []),
         ].filter(Boolean)
