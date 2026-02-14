@@ -42,8 +42,12 @@ function SmartDashboard() {
   return <Dashboard />;
 }
 
+import { VersionChecker } from './components/VersionChecker';
+
 function App() {
   return (
+    <>
+    <VersionChecker />
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
@@ -239,6 +243,7 @@ function App() {
       {/* 404 - Redirect to dashboard */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    </>
   );
 }
 

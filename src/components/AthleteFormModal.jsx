@@ -8,7 +8,9 @@ import {
   ChevronRight,
   ChevronLeft,
   Check,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import api from '../api/axios';
 import ProtectedImage from './ProtectedImage';
@@ -66,6 +68,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+
+  // Phone validation state
+  const [phoneStatus, setPhoneStatus] = useState('idle'); // idle | checking | valid | invalid
+  const [phoneMessage, setPhoneMessage] = useState('');
+  const phoneCheckRef = useRef(null); // AbortController ref
 
   useEffect(() => {
     if (isOpen) {
@@ -196,6 +203,62 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     }
   };
 
+  // Debounced phone validation via n8n webhook
+  useEffect(() => {
+    const phone = formData.phone?.trim();
+    
+    // Reset if phone is empty or too short
+    if (!phone || phone.length < 8) {
+      setPhoneStatus('idle');
+      setPhoneMessage('');
+      return;
+    }
+
+    setPhoneStatus('checking');
+    setPhoneMessage('Memeriksa nomor...');
+
+    // Cancel previous request
+    if (phoneCheckRef.current) {
+      phoneCheckRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    phoneCheckRef.current = controller;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get(`/api/check-phone?phone=${encodeURIComponent(phone)}`, {
+          signal: controller.signal
+        });
+        const data = res.data;
+
+        if (data.numberExists) {
+          // Extract number from chatId (remove @c.us)
+          const normalizedPhone = data.chatId?.replace('@c.us', '') || phone;
+          setPhoneStatus('valid');
+          setPhoneMessage(`WhatsApp aktif`);
+          // Update phone field with normalized number
+          if (normalizedPhone !== phone) {
+            setFormData(prev => ({ ...prev, phone: normalizedPhone }));
+          }
+        } else {
+          setPhoneStatus('invalid');
+          setPhoneMessage('Nomor tidak terdaftar di WhatsApp');
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
+          setPhoneStatus('idle');
+          setPhoneMessage('');
+        }
+      }
+    }, 800);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [formData.phone]);
+
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -233,7 +296,8 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         formData.occupation.trim() !== '' &&
         formData.marital_status !== '' &&
         formData.phone.trim() !== '' &&
-        formData.email.trim() !== ''
+        formData.email.trim() !== '' &&
+        phoneStatus === 'valid' // WhatsApp number must be validated
       );
     }
     // Step 3: Karir & Prestasi (prestasi optional)
@@ -262,6 +326,13 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   };
 
   const handleSubmit = async () => {
+    // Safety check: ensure phone is WhatsApp-validated
+    if (phoneStatus !== 'valid') {
+      setErrors({ phone: 'Nomor WhatsApp harus valid sebelum menyimpan data' });
+      setStep(2);
+      return;
+    }
+
     setLoading(true);
     setErrors({});
     setErrorMessage('');
@@ -617,14 +688,33 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">No. Telepon</label>
-                    <input
-                      type="text"
-                      value={formData.phone}
-                      onChange={e => updateField('phone', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="08xxxxxxxxxx"
-                    />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">No. Whatsapp</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.phone}
+                        onChange={e => updateField('phone', e.target.value)}
+                        className={`w-full px-4 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none transition-colors ${
+                          phoneStatus === 'valid' ? 'border-green-400 focus:ring-green-100 focus:border-green-500' :
+                          phoneStatus === 'invalid' ? 'border-red-400 focus:ring-red-100 focus:border-red-500' :
+                          'border-slate-200 focus:ring-red-100 focus:border-red-500'
+                        }`}
+                        placeholder="08xxxxxxxxxx"
+                      />
+                      {/* Status indicator */}
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {phoneStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
+                        {phoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {phoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
+                      </div>
+                    </div>
+                    {phoneMessage && (
+                      <p className={`text-xs mt-1 ${
+                        phoneStatus === 'valid' ? 'text-green-600' :
+                        phoneStatus === 'invalid' ? 'text-red-500' :
+                        'text-slate-400'
+                      }`}>{phoneMessage}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>

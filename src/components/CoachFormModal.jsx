@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   Loader2, 
   Upload,
   User,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import api from '../api/axios';
 import { SearchableSelect } from './SearchableSelect';
@@ -55,6 +57,11 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
   const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Phone validation state
+  const [phoneStatus, setPhoneStatus] = useState('idle'); // idle | checking | valid | invalid
+  const [phoneMessage, setPhoneMessage] = useState('');
+  const phoneCheckRef = useRef(null);
 
   // Reset form when modal opens
   useEffect(() => {
@@ -149,8 +156,67 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  // Debounced phone validation via n8n webhook
+  useEffect(() => {
+    const phone = formData.phone?.trim();
+
+    if (!phone || phone.length < 8) {
+      setPhoneStatus('idle');
+      setPhoneMessage('');
+      return;
+    }
+
+    setPhoneStatus('checking');
+    setPhoneMessage('Memeriksa nomor...');
+
+    if (phoneCheckRef.current) {
+      phoneCheckRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    phoneCheckRef.current = controller;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get(`/api/check-phone?phone=${encodeURIComponent(phone)}`, {
+          signal: controller.signal
+        });
+        const data = res.data;
+
+        if (data.numberExists) {
+          const normalizedPhone = data.chatId?.replace('@c.us', '') || phone;
+          setPhoneStatus('valid');
+          setPhoneMessage('WhatsApp aktif');
+          if (normalizedPhone !== phone) {
+            setFormData(prev => ({ ...prev, phone: normalizedPhone }));
+          }
+        } else {
+          setPhoneStatus('invalid');
+          setPhoneMessage('Nomor tidak terdaftar di WhatsApp');
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
+          setPhoneStatus('idle');
+          setPhoneMessage('');
+        }
+      }
+    }, 800);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [formData.phone]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Block submit if phone is not WhatsApp-validated
+    if (formData.phone?.trim() && phoneStatus !== 'valid') {
+      setError('Nomor WhatsApp harus valid sebelum menyimpan data');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -360,13 +426,31 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
 
               {/* Phone */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">No. Telepon</label>
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => updateField('phone', e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                />
+                <label className="block text-sm font-medium text-slate-700 mb-1">No. WhatsApp</label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => updateField('phone', e.target.value)}
+                    className={`w-full px-4 py-2.5 pr-10 border rounded-lg focus:ring-2 outline-none transition-colors ${
+                      phoneStatus === 'valid' ? 'border-green-400 focus:ring-green-100 focus:border-green-500' :
+                      phoneStatus === 'invalid' ? 'border-red-400 focus:ring-red-100 focus:border-red-500' :
+                      'border-slate-200 focus:ring-red-100 focus:border-red-500'
+                    }`}
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {phoneStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
+                    {phoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                    {phoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
+                  </div>
+                </div>
+                {phoneMessage && (
+                  <p className={`text-xs mt-1 ${
+                    phoneStatus === 'valid' ? 'text-green-600' :
+                    phoneStatus === 'invalid' ? 'text-red-500' :
+                    'text-slate-400'
+                  }`}>{phoneMessage}</p>
+                )}
               </div>
 
               {/* Email */}
@@ -479,7 +563,7 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
               </button>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (formData.phone?.trim() && phoneStatus !== 'valid')}
                 className="px-6 py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:shadow-lg transition-all disabled:opacity-50 flex items-center gap-2"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}

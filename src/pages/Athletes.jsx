@@ -241,11 +241,11 @@ export function AthletesPage() {
                 />
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-20">
                   <button
-                    onClick={() => handleExport('xlsx')}
+                    onClick={() => handleExport('csv')}
                     className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
                   >
                     <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium">Excel (.xlsx)</span>
+                    <span className="text-sm font-medium">Excel / CSV (.csv)</span>
                   </button>
                   <button
                     onClick={() => handleExport('pdf')}
