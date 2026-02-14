@@ -6,7 +6,9 @@ import {
   Calendar,
   Users,
   Activity,
-  Loader2
+  Loader2,
+  UserCheck,
+  Building2
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import api from '../api/axios';
@@ -14,7 +16,9 @@ import api from '../api/axios';
 export function Dashboard() {
   const [stats, setStats] = useState([
     { label: 'Total Atlet', value: '-', change: '', icon: Users, color: 'bg-blue-500' },
+    { label: 'Total Pelatih', value: '-', change: '', icon: UserCheck, color: 'bg-purple-500' },
     { label: 'Cabang Olahraga', value: '-', change: '', icon: Trophy, color: 'bg-yellow-500' },
+    { label: 'Organisasi', value: '-', change: '', icon: Building2, color: 'bg-teal-500' },
     { label: 'Medali Emas', value: '-', change: '', icon: Medal, color: 'bg-red-500' },
     { label: 'Event Aktif', value: '-', change: '', icon: Calendar, color: 'bg-green-500' },
   ]);
@@ -28,7 +32,9 @@ export function Dashboard() {
         
         setStats([
           { label: 'Total Atlet', value: data.total_athletes.toLocaleString('id-ID'), change: 'Aktif', icon: Users, color: 'bg-blue-500' },
+          { label: 'Total Pelatih', value: data.total_coaches.toLocaleString('id-ID'), change: 'Aktif', icon: UserCheck, color: 'bg-purple-500' },
           { label: 'Cabang Olahraga', value: data.total_cabor.toString(), change: 'Cabor', icon: Trophy, color: 'bg-yellow-500' },
+          { label: 'Organisasi', value: data.total_organizations.toString(), change: 'Terdaftar', icon: Building2, color: 'bg-teal-500' },
           { label: 'Medali Emas', value: data.gold_medals.toString(), change: '-', icon: Medal, color: 'bg-red-500' },
           { label: 'Event Aktif', value: data.active_events.toString(), change: 'Running', icon: Calendar, color: 'bg-green-500' },
         ]);
@@ -48,7 +54,7 @@ export function Dashboard() {
       subtitle="Selamat datang kembali, berikut adalah ringkasan data hari ini."
     >
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
         {stats.map((stat, index) => (
           <motion.div
             key={index}

@@ -8,6 +8,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import api from '../api/axios';
+import { SearchableSelect } from './SearchableSelect';
 
 const RELIGIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'];
 const GENDERS = [
@@ -33,6 +34,7 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
     name: '',
     nik: '',
     cabor_id: '',
+    organization_id: '',
     birth_place: '',
     birth_date: '',
     gender: '',
@@ -50,6 +52,7 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
   const [photo, setPhoto] = useState(null);
   const [photoPreview, setPhotoPreview] = useState('');
   const [cabors, setCabors] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -62,6 +65,7 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
           name: coach.name || '',
           nik: coach.nik || '',
           cabor_id: coach.cabor_id || coach.cabor?.id || '',
+          organization_id: coach.organization_id?.toString() || '',
           birth_place: coach.birth_place || '',
           birth_date: formatDateForInput(coach.birth_date),
           gender: coach.gender || '',
@@ -87,6 +91,7 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
           name: '',
           nik: '',
           cabor_id: '',
+          organization_id: '',
           birth_place: '',
           birth_date: '',
           gender: '',
@@ -106,15 +111,29 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
       setPhoto(null);
       setError('');
       fetchCabors();
+      fetchOrganizations();
     }
   }, [isOpen, coach]);
 
   const fetchCabors = async () => {
     try {
-      const response = await api.get('/api/master/cabors?all=true');
-      setCabors(response.data.data || response.data || []);
+      const res = await api.get('/api/cabors/all');
+      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
+      setCabors(data);
     } catch (err) {
       console.error('Failed to fetch cabors:', err);
+      setCabors([]);
+    }
+  };
+
+  const fetchOrganizations = async () => {
+    try {
+      const res = await api.get('/api/organizations/all');
+      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
+      setOrganizations(data);
+    } catch (err) {
+      console.error('Failed to fetch organizations:', err);
+      setOrganizations([]);
     }
   };
 
@@ -268,17 +287,23 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
               {/* Cabor */}
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Cabang Olahraga *</label>
-                <select
+                <SearchableSelect
+                  options={cabors}
                   value={formData.cabor_id}
-                  onChange={(e) => updateField('cabor_id', e.target.value)}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                  required
-                >
-                  <option value="">Pilih Cabor</option>
-                  {cabors.map((cabor) => (
-                    <option key={cabor.id} value={cabor.id}>{cabor.name}</option>
-                  ))}
-                </select>
+                  onChange={(val) => updateField('cabor_id', val)}
+                  placeholder="Cari & pilih cabor..."
+                />
+              </div>
+
+              {/* Organisasi */}
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Organisasi</label>
+                <SearchableSelect
+                  options={organizations}
+                  value={formData.organization_id}
+                  onChange={(val) => updateField('organization_id', val)}
+                  placeholder="Cari & pilih organisasi..."
+                />
               </div>
 
               {/* Gender */}

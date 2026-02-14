@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import api from '../api/axios';
 import ProtectedImage from './ProtectedImage';
+import { SearchableSelect } from './SearchableSelect';
 
 const STEPS = [
   { id: 1, title: 'Data Pribadi' },
@@ -47,6 +48,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const formContainerRef = useRef(null);
   const [step, setStep] = useState(1);
   const [cabors, setCabors] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
   const [educationLevels, setEducationLevels] = useState([]);
   const [competitionClasses, setCompetitionClasses] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -54,7 +56,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const [errorMessage, setErrorMessage] = useState('');
   
   const [formData, setFormData] = useState({
-    cabor_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
+    cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
     birth_place: '', birth_date: '', gender: '',
     religion: '', address: '', blood_type: '', occupation: '',
     marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
@@ -68,6 +70,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   useEffect(() => {
     if (isOpen) {
       fetchCabors();
+      fetchOrganizations();
       fetchEducationLevels();
       setStep(1);
       setErrors({});
@@ -80,6 +83,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         
         setFormData({
           cabor_id: athlete.cabor_id?.toString() || '',
+          organization_id: athlete.organization_id?.toString() || '',
           education_level_id: athlete.education_level_id?.toString() || '',
           competition_class_id: athlete.competition_class_id?.toString() || '',
           name: athlete.name || '',
@@ -111,7 +115,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       } else {
         setCompetitionClasses([]);
         setFormData({
-          cabor_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
+          cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
           birth_place: '', birth_date: '', gender: '',
           religion: '', address: '', blood_type: '', occupation: '',
           marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
@@ -134,6 +138,17 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     } catch (e) { 
       console.error('Failed to fetch cabors:', e);
       setCabors([]);
+    }
+  };
+
+  const fetchOrganizations = async () => {
+    try {
+      const res = await api.get('/api/organizations/all');
+      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
+      setOrganizations(data);
+    } catch (e) {
+      console.error('Failed to fetch organizations:', e);
+      setOrganizations([]);
     }
   };
 
@@ -486,26 +501,31 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Cabang Olahraga</label>
-                    <select
+                    <SearchableSelect
+                      options={cabors}
                       value={formData.cabor_id}
-                      onChange={e => handleCaborChange(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                    >
-                      <option value="">Pilih Cabor</option>
-                      {cabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                      onChange={(val) => handleCaborChange(val)}
+                      placeholder="Cari & pilih cabor..."
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Kelas Pertandingan</label>
-                    <select
+                    <SearchableSelect
+                      options={competitionClasses}
                       value={formData.competition_class_id}
-                      onChange={e => updateField('competition_class_id', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      onChange={(val) => updateField('competition_class_id', val)}
+                      placeholder={formData.cabor_id ? 'Pilih Kelas' : 'Pilih Cabor terlebih dahulu'}
                       disabled={!formData.cabor_id}
-                    >
-                      <option value="">{formData.cabor_id ? 'Pilih Kelas' : 'Pilih Cabor terlebih dahulu'}</option>
-                      {competitionClasses.map(c => <option key={c.id} value={c.id}>{c.name}{c.code ? ` (${c.code})` : ''}</option>)}
-                    </select>
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Organisasi</label>
+                    <SearchableSelect
+                      options={organizations}
+                      value={formData.organization_id}
+                      onChange={(val) => updateField('organization_id', val)}
+                      placeholder="Cari & pilih organisasi..."
+                    />
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Alamat</label>

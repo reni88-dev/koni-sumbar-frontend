@@ -14,7 +14,8 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  ChevronDown
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { AthleteFormModal } from '../components/AthleteFormModal';
@@ -41,6 +42,7 @@ export function AthletesPage() {
   // Export states
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 
@@ -112,8 +114,11 @@ export function AthletesPage() {
   };
 
   const handleFormSuccess = () => {
+    const message = selectedAthlete ? 'Data atlet berhasil diupdate!' : 'Atlet baru berhasil ditambahkan!';
     setIsFormModalOpen(false);
     refetchAthletes();
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(''), 3000);
   };
 
   const handleDelete = async () => {
@@ -164,6 +169,23 @@ export function AthletesPage() {
 
   return (
     <DashboardLayout title="Data Atlet" subtitle="Kelola data atlet dan informasi lengkapnya">
+      {/* Success Toast */}
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 bg-green-600 text-white rounded-xl shadow-lg shadow-green-600/30"
+          >
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+            <span className="text-sm font-medium">{successMessage}</span>
+            <button onClick={() => setSuccessMessage('')} className="ml-2 p-0.5 hover:bg-green-500 rounded-lg transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Action Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div className="flex flex-wrap gap-3">
