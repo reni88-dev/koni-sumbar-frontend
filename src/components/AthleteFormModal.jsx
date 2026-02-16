@@ -19,7 +19,8 @@ import { SearchableSelect } from './SearchableSelect';
 const STEPS = [
   { id: 1, title: 'Data Pribadi' },
   { id: 2, title: 'Info Fisik & Kontak' },
-  { id: 3, title: 'Karir & Prestasi' }
+  { id: 3, title: 'Karir & Prestasi' },
+  { id: 4, title: 'Data Orang Tua' }
 ];
 
 const RELIGIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
@@ -64,15 +65,24 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
     career_start_year: '', injury_illness_history: '',
     top_achievements: ['', '', ''],
+    father_name: '', mother_name: '', parent_address: '', father_phone: '', mother_phone: '',
     is_active: true
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
   // Phone validation state
-  const [phoneStatus, setPhoneStatus] = useState('idle'); // idle | checking | valid | invalid
+  const [phoneStatus, setPhoneStatus] = useState('idle');
   const [phoneMessage, setPhoneMessage] = useState('');
-  const phoneCheckRef = useRef(null); // AbortController ref
+  const phoneCheckRef = useRef(null);
+
+  // Parent phone validation state
+  const [fatherPhoneStatus, setFatherPhoneStatus] = useState('idle');
+  const [fatherPhoneMessage, setFatherPhoneMessage] = useState('');
+  const fatherPhoneCheckRef = useRef(null);
+  const [motherPhoneStatus, setMotherPhoneStatus] = useState('idle');
+  const [motherPhoneMessage, setMotherPhoneMessage] = useState('');
+  const motherPhoneCheckRef = useRef(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -116,6 +126,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
             athlete.top_achievements?.[1] || '',
             athlete.top_achievements?.[2] || ''
           ],
+          father_name: athlete.father_name || '',
+          mother_name: athlete.mother_name || '',
+          parent_address: athlete.parent_address || '',
+          father_phone: athlete.father_phone || '',
+          mother_phone: athlete.mother_phone || '',
           is_active: athlete.is_active ?? true
         });
         setPhotoPreview(athlete.photo || null);
@@ -128,6 +143,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
           career_start_year: '', injury_illness_history: '',
           top_achievements: ['', '', ''],
+          father_name: '', mother_name: '', parent_address: '', father_phone: '', mother_phone: '',
           is_active: true
         });
         setPhotoFile(null);
@@ -259,6 +275,76 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     };
   }, [formData.phone]);
 
+  // Father phone validation
+  useEffect(() => {
+    const phone = formData.father_phone?.trim();
+    if (!phone || phone.length < 8) {
+      setFatherPhoneStatus('idle');
+      setFatherPhoneMessage('');
+      return;
+    }
+    setFatherPhoneStatus('checking');
+    setFatherPhoneMessage('Memeriksa nomor...');
+    if (fatherPhoneCheckRef.current) fatherPhoneCheckRef.current.abort();
+    const controller = new AbortController();
+    fatherPhoneCheckRef.current = controller;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get(`/api/check-phone?phone=${encodeURIComponent(phone)}`, { signal: controller.signal });
+        if (res.data.numberExists) {
+          const normalized = res.data.chatId?.replace('@c.us', '') || phone;
+          setFatherPhoneStatus('valid');
+          setFatherPhoneMessage('WhatsApp aktif');
+          if (normalized !== phone) setFormData(prev => ({ ...prev, father_phone: normalized }));
+        } else {
+          setFatherPhoneStatus('invalid');
+          setFatherPhoneMessage('Nomor tidak terdaftar di WhatsApp');
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
+          setFatherPhoneStatus('idle');
+          setFatherPhoneMessage('');
+        }
+      }
+    }, 800);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [formData.father_phone]);
+
+  // Mother phone validation
+  useEffect(() => {
+    const phone = formData.mother_phone?.trim();
+    if (!phone || phone.length < 8) {
+      setMotherPhoneStatus('idle');
+      setMotherPhoneMessage('');
+      return;
+    }
+    setMotherPhoneStatus('checking');
+    setMotherPhoneMessage('Memeriksa nomor...');
+    if (motherPhoneCheckRef.current) motherPhoneCheckRef.current.abort();
+    const controller = new AbortController();
+    motherPhoneCheckRef.current = controller;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get(`/api/check-phone?phone=${encodeURIComponent(phone)}`, { signal: controller.signal });
+        if (res.data.numberExists) {
+          const normalized = res.data.chatId?.replace('@c.us', '') || phone;
+          setMotherPhoneStatus('valid');
+          setMotherPhoneMessage('WhatsApp aktif');
+          if (normalized !== phone) setFormData(prev => ({ ...prev, mother_phone: normalized }));
+        } else {
+          setMotherPhoneStatus('invalid');
+          setMotherPhoneMessage('Nomor tidak terdaftar di WhatsApp');
+        }
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
+          setMotherPhoneStatus('idle');
+          setMotherPhoneMessage('');
+        }
+      }
+    }, 800);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [formData.mother_phone]);
+
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -301,12 +387,24 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       );
     }
     // Step 3: Karir & Prestasi (prestasi optional)
-    return formData.career_start_year !== '';
+    if (step === 3) {
+      return formData.career_start_year !== '';
+    }
+    // Step 4: Data Orang Tua
+    return (
+      formData.father_name.trim() !== '' &&
+      formData.mother_name.trim() !== '' &&
+      formData.parent_address.trim() !== '' &&
+      formData.father_phone.trim() !== '' &&
+      formData.mother_phone.trim() !== '' &&
+      fatherPhoneStatus === 'valid' &&
+      motherPhoneStatus === 'valid'
+    );
   };
 
   // Go to next step with scroll to top
   const goToNextStep = () => {
-    if (isStepValid() && step < 3) {
+    if (isStepValid() && step < 4) {
       setStep(step + 1);
       // Scroll form container to top
       setTimeout(() => {
@@ -379,12 +477,15 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         // Determine which step has the first error and go there
         const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address'];
         const step2Fields = ['height', 'weight', 'blood_type', 'education_level_id', 'occupation', 'marital_status', 'phone', 'email'];
+        const step4Fields = ['father_name', 'mother_name', 'parent_address', 'father_phone', 'mother_phone'];
         
         const errorFields = Object.keys(errData);
         if (errorFields.some(f => step1Fields.includes(f))) {
           setStep(1);
         } else if (errorFields.some(f => step2Fields.includes(f))) {
           setStep(2);
+        } else if (errorFields.some(f => step4Fields.includes(f))) {
+          setStep(4);
         } else {
           setStep(3);
         }
@@ -797,6 +898,103 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                 </div>
               </div>
             )}
+
+            {/* Step 4: Data Orang Tua / Wali */}
+            {step === 4 && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Ayah <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={formData.father_name}
+                      onChange={e => updateField('father_name', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      placeholder="Nama lengkap ayah"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Ibu <span className="text-red-500">*</span></label>
+                    <input
+                      type="text"
+                      value={formData.mother_name}
+                      onChange={e => updateField('mother_name', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      placeholder="Nama lengkap ibu"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Orang Tua <span className="text-red-500">*</span></label>
+                  <textarea
+                    value={formData.parent_address}
+                    onChange={e => updateField('parent_address', e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none"
+                    rows={3}
+                    placeholder="Alamat lengkap orang tua/wali"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Father Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ayah <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.father_phone}
+                        onChange={e => updateField('father_phone', e.target.value)}
+                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none pr-10 ${
+                          fatherPhoneStatus === 'valid' ? 'border-green-300 bg-green-50' :
+                          fatherPhoneStatus === 'invalid' ? 'border-red-300 bg-red-50' :
+                          'border-slate-200'
+                        }`}
+                        placeholder="08xxxxxxxxxx"
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {fatherPhoneStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
+                        {fatherPhoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {fatherPhoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
+                      </div>
+                    </div>
+                    {fatherPhoneMessage && (
+                      <p className={`text-xs mt-1 ${fatherPhoneStatus === 'valid' ? 'text-green-600' : fatherPhoneStatus === 'invalid' ? 'text-red-600' : 'text-slate-500'}`}>
+                        {fatherPhoneMessage}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Mother Phone */}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ibu <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={formData.mother_phone}
+                        onChange={e => updateField('mother_phone', e.target.value)}
+                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none pr-10 ${
+                          motherPhoneStatus === 'valid' ? 'border-green-300 bg-green-50' :
+                          motherPhoneStatus === 'invalid' ? 'border-red-300 bg-red-50' :
+                          'border-slate-200'
+                        }`}
+                        placeholder="08xxxxxxxxxx"
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {motherPhoneStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
+                        {motherPhoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {motherPhoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
+                      </div>
+                    </div>
+                    {motherPhoneMessage && (
+                      <p className={`text-xs mt-1 ${motherPhoneStatus === 'valid' ? 'text-green-600' : motherPhoneStatus === 'invalid' ? 'text-red-600' : 'text-slate-500'}`}>
+                        {motherPhoneMessage}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
@@ -811,7 +1009,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
               Sebelumnya
             </button>
 
-            {step < 3 ? (
+            {step < 4 ? (
               <button
                 type="button"
                 onClick={goToNextStep}
@@ -825,8 +1023,8 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
+                disabled={loading || !isStepValid()}
+                className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
                 {athlete ? 'Update Atlet' : 'Simpan Atlet'}

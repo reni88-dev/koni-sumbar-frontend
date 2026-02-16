@@ -23,6 +23,7 @@ import { AthleteDetailModal } from '../components/AthleteDetailModal';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { useAthletes, useDeleteAthlete } from '../hooks/queries/useAthletes';
 import { useCaborsAll } from '../hooks/queries/useCabors';
+import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
 import api from '../api/axios';
 
 export function AthletesPage() {
@@ -30,6 +31,7 @@ export function AthletesPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterCabor, setFilterCabor] = useState('');
   const [filterGender, setFilterGender] = useState('');
+  const [filterOrganization, setFilterOrganization] = useState('');
   const [page, setPage] = useState(1);
   
   // Modal states
@@ -48,6 +50,7 @@ export function AthletesPage() {
 
   // TanStack Query hooks
   const { data: cabors = [] } = useCaborsAll();
+  const { data: organizations = [] } = useOrganizationsAll();
   const { 
     data: athletesData, 
     isLoading: loading,
@@ -56,7 +59,8 @@ export function AthletesPage() {
     page, 
     search: debouncedSearch, 
     caborId: filterCabor, 
-    gender: filterGender 
+    gender: filterGender,
+    organizationId: filterOrganization
   });
   
   const deleteAthleteMutation = useDeleteAthlete();
@@ -80,7 +84,7 @@ export function AthletesPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterCabor, filterGender]);
+  }, [filterCabor, filterGender, filterOrganization]);
 
   const openCreateModal = () => {
     setSelectedAthlete(null);
@@ -215,6 +219,14 @@ export function AthletesPage() {
             <option value="">Semua Gender</option>
             <option value="male">Laki-laki</option>
             <option value="female">Perempuan</option>
+          </select>
+          <select
+            value={filterOrganization}
+            onChange={(e) => setFilterOrganization(e.target.value)}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+          >
+            <option value="">Semua Organisasi</option>
+            {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
         </div>
         <div className="flex items-center gap-3">

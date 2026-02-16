@@ -9,6 +9,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { SearchableSelect } from '../components/SearchableSelect';
 import api from '../api/axios';
 
 export function FormFillPage() {
@@ -90,11 +91,16 @@ export function FormFillPage() {
       const newValues = { ...formValues };
       template.sections.forEach(section => {
         section.fields.forEach(field => {
-          // Handle model_reference fields (existing logic)
+          // Handle model_reference fields
           if (field.type === 'model_reference') {
-            // Skip fields that have a different data_source_model
             if (field.data_source_model && field.data_source_model !== template.reference_model) {
-              return; // Don't auto-fill this field from the global reference
+              // Field has different source model (e.g. cabor field on athlete template)
+              // Check if reference data has a nested object matching field name
+              const nestedObj = res.data[field.name];
+              if (nestedObj && typeof nestedObj === 'object' && field.reference_field) {
+                newValues[field.id] = String(nestedObj[field.reference_field] ?? '');
+              }
+              return;
             }
             
             // Use field.reference_field if configured, otherwise use field.name
@@ -105,9 +111,40 @@ export function FormFillPage() {
           }
           
           // Handle linked fields (select/radio from database with linked_to_reference_field)
-          // Example: Cabor dropdown linked to 'cabor_id' from Athlete
           if (field.linked_to_reference_field && res.data[field.linked_to_reference_field] !== undefined) {
             newValues[field.id] = String(res.data[field.linked_to_reference_field]);
+          }
+
+          // Handle any field with reference_field set
+          if (!newValues[field.id] && field.reference_field && res.data[field.reference_field] !== undefined && res.data[field.reference_field] !== null) {
+            newValues[field.id] = String(res.data[field.reference_field]);
+          }
+
+          // Fallback: match by field name
+          if (!newValues[field.id] && field.type !== 'model_reference' && res.data[field.name] !== undefined && res.data[field.name] !== null) {
+            newValues[field.id] = String(res.data[field.name]);
+          }
+
+          // Final fallback for radio/select: try matching option values against reference data
+          if (!newValues[field.id] && (field.type === 'radio' || field.type === 'select')) {
+            const fieldOptions = field.options_data || field.options || [];
+            const optionValues = fieldOptions.map(o => o.value);
+            // Value translation for common mismatches
+            const valueMap = { 'male': 'laki-laki', 'female': 'perempuan', 'laki-laki': 'male', 'perempuan': 'female' };
+            for (const [, val] of Object.entries(res.data)) {
+              if (typeof val === 'string') {
+                if (optionValues.includes(val)) {
+                  newValues[field.id] = val;
+                  break;
+                }
+                // Try mapped value
+                const mapped = valueMap[val.toLowerCase()];
+                if (mapped && optionValues.includes(mapped)) {
+                  newValues[field.id] = mapped;
+                  break;
+                }
+              }
+            }
           }
         });
       });
@@ -168,14 +205,14 @@ export function FormFillPage() {
           }
           values.push({
             field_id: field.id,
-            value: value ?? '',
+            value: value != null ? String(value) : '',
           });
         });
       });
 
       await api.post(`/api/form-builder/templates/${id}/submissions`, {
-        reference_id: selectedReference || null,
-        event_id: eventId || null,
+        reference_id: selectedReference ? parseInt(selectedReference) : null,
+        event_id: eventId ? parseInt(eventId) : null,
         values,
       });
 
@@ -259,18 +296,17 @@ export function FormFillPage() {
                 <User className="w-4 h-4 inline mr-2" />
                 Pilih {template.reference_model.charAt(0).toUpperCase() + template.reference_model.slice(1)}
               </label>
-              <select
+              <SearchableSelect
+                options={referenceOptions.map(opt => ({
+                  id: opt.value || opt.id,
+                  name: opt.label || opt.name || `ID: ${opt.value || opt.id}`,
+                  code: opt.extra || '',
+                }))}
                 value={selectedReference}
-                onChange={(e) => handleReferenceChange(e.target.value)}
-                className="w-full md:w-1/2 px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-              >
-                <option value="">-- Pilih --</option>
-                {referenceOptions.map(opt => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.name || opt.title || opt.label || `ID: ${opt.id}`}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleReferenceChange(val)}
+                placeholder="-- Pilih --"
+                className="w-full md:w-1/2"
+              />
               {selectedReference && referenceData && (
                 <p className="text-sm text-green-600 mt-2">
                   ✓ Data {template.reference_model} berhasil dimuat
