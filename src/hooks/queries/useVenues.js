@@ -9,12 +9,12 @@ export const venueKeys = {
 };
 
 // Fetch venues with pagination
-export function useVenues({ page = 1, search = '', perPage = 10 } = {}) {
+export function useVenues({ page = 1, search = '', perPage = 10, regencyId = '' } = {}) {
   return useQuery({
-    queryKey: venueKeys.list({ page, search, perPage }),
+    queryKey: venueKeys.list({ page, search, perPage, regencyId }),
     queryFn: async () => {
       const response = await api.get('/api/master/venues', {
-        params: { page, search: search || undefined, per_page: perPage }
+        params: { page, search: search || undefined, per_page: perPage, regency_id: regencyId || undefined }
       });
       return response.data;
     },

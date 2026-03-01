@@ -9,9 +9,9 @@ export const coachAthleteKeys = {
 };
 
 // Fetch coach-athlete assignments with pagination
-export function useCoachAthletes({ page = 1, search = '', perPage = 15, coach_id = '', athlete_id = '' } = {}) {
+export function useCoachAthletes({ page = 1, search = '', perPage = 15, coach_id = '', athlete_id = '', cabor_id = '' } = {}) {
   return useQuery({
-    queryKey: coachAthleteKeys.list({ page, search, perPage, coach_id, athlete_id }),
+    queryKey: coachAthleteKeys.list({ page, search, perPage, coach_id, athlete_id, cabor_id }),
     queryFn: async () => {
       const response = await api.get('/api/coach-athletes', {
         params: { 
@@ -19,7 +19,8 @@ export function useCoachAthletes({ page = 1, search = '', perPage = 15, coach_id
           search: search || undefined, 
           per_page: perPage,
           coach_id: coach_id || undefined,
-          athlete_id: athlete_id || undefined
+          athlete_id: athlete_id || undefined,
+          cabor_id: cabor_id || undefined
         }
       });
       return response.data;

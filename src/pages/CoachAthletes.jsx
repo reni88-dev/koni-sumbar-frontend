@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Plus, Search, UserCheck } from 'lucide-react';
+import { Plus, Search, UserCheck, Printer } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
   useCoachAthletes, useAssignCoachAthlete, useUpdateCoachAthlete, useRemoveCoachAthlete
 } from '../hooks/queries/useCoachAthletes';
 import { useCaborsAll } from '../hooks/queries/useCabors';
 import { AssignmentTable, AssignmentFormModal, DeleteAssignmentModal } from '../components/coach-athletes';
+import { PrintCoachAthleteList } from '../components/PrintCoachAthleteList';
 
 export function CoachAthletesPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [filterCaborId, setFilterCaborId] = useState('');
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,7 +31,7 @@ export function CoachAthletesPage() {
   const [deleteError, setDeleteError] = useState(null);
 
   // TanStack Query hooks
-  const { data: assignmentsData, isLoading: loading } = useCoachAthletes({ page, search: debouncedSearch, perPage: 15 });
+  const { data: assignmentsData, isLoading: loading } = useCoachAthletes({ page, search: debouncedSearch, perPage: 15, cabor_id: filterCaborId });
   const assignMutation = useAssignCoachAthlete();
   const updateMutation = useUpdateCoachAthlete();
   const removeMutation = useRemoveCoachAthlete();
@@ -134,24 +136,45 @@ export function CoachAthletesPage() {
   return (
     <DashboardLayout title="Pelatih & Atlet" subtitle="Kelola assignment pelatih ke atlet">
       {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="relative max-w-md">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Cari pelatih atau atlet..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-          />
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div className="flex flex-wrap gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari pelatih atau atlet..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none w-64"
+            />
+          </div>
+
+          <select
+            value={filterCaborId}
+            onChange={e => { setFilterCaborId(e.target.value); setPage(1); }}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none appearance-none cursor-pointer"
+          >
+            <option value="">Semua Cabor</option>
+            {allCabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Assignment</span>
-        </button>
+
+        <div className="flex items-center gap-2">
+          <PrintCoachAthleteList
+            filterParams={{ search: debouncedSearch, cabor_id: filterCaborId }}
+            filters={{
+              cabor: filterCaborId ? allCabors.find(c => c.id === parseInt(filterCaborId))?.name : '',
+              search: debouncedSearch,
+            }}
+          />
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Assignment</span>
+          </button>
+        </div>
       </div>
 
       {/* Stats */}

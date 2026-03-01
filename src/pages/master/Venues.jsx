@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../../api/axios';
 import {
   Plus,
   Search,
@@ -66,16 +67,27 @@ export function VenuesPage() {
   const [gettingLocation, setGettingLocation] = useState(false);
 
   // Form states
-  const [formData, setFormData] = useState({ name: '', address: '', latitude: 0, longitude: 0, description: '', contact: '', is_active: true });
+  const [formData, setFormData] = useState({ name: '', address: '', latitude: 0, longitude: 0, description: '', contact: '', province_id: '', province_name: '', regency_id: '', regency_name: '', is_active: true });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+
+  // Province / City states (for form)
+  const [provinces, setProvinces] = useState([]);
+  const [regencies, setRegencies] = useState([]);
+  const [loadingRegencies, setLoadingRegencies] = useState(false);
+
+  // Filter states
+  const [filterProvinceId, setFilterProvinceId] = useState('');
+  const [filterRegencyId, setFilterRegencyId] = useState('');
+  const [filterRegencies, setFilterRegencies] = useState([]);
+  const [loadingFilterRegencies, setLoadingFilterRegencies] = useState(false);
 
   // Default center: Padang, Sumatra Barat
   const defaultCenter = [-0.9471, 100.4172];
 
   // Hooks
-  const { data: venuesData, isLoading: loading } = useVenues({ page, search: debouncedSearch, perPage: 10 });
+  const { data: venuesData, isLoading: loading } = useVenues({ page, search: debouncedSearch, perPage: 10, regencyId: filterRegencyId });
   const createMutation = useCreateVenue();
   const updateMutation = useUpdateVenue();
   const deleteMutation = useDeleteVenue();
@@ -92,15 +104,43 @@ export function VenuesPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Fetch provinces on mount
+  useEffect(() => {
+    api.get('/api/wilayah/provinces.json')
+      .then(res => setProvinces(res.data || []))
+      .catch(() => {});
+  }, []);
+
+  // Fetch regencies when province changes (form)
+  useEffect(() => {
+    if (!formData.province_id) { setRegencies([]); return; }
+    setLoadingRegencies(true);
+    api.get(`/api/wilayah/regencies/${formData.province_id}.json`)
+      .then(res => { setRegencies(res.data || []); setLoadingRegencies(false); })
+      .catch(() => setLoadingRegencies(false));
+  }, [formData.province_id]);
+
+  // Fetch regencies for filter when filter province changes
+  useEffect(() => {
+    if (!filterProvinceId) { setFilterRegencies([]); setFilterRegencyId(''); setPage(1); return; }
+    setLoadingFilterRegencies(true);
+    api.get(`/api/wilayah/regencies/${filterProvinceId}.json`)
+      .then(res => { setFilterRegencies(res.data || []); setLoadingFilterRegencies(false); })
+      .catch(() => setLoadingFilterRegencies(false));
+    setFilterRegencyId('');
+    setPage(1);
+  }, [filterProvinceId]);
+
   const markerPosition = formData.latitude && formData.longitude
     ? [formData.latitude, formData.longitude]
     : defaultCenter;
 
   const openCreateModal = () => {
     setModalMode('create');
-    setFormData({ name: '', address: '', latitude: 0, longitude: 0, description: '', contact: '', is_active: true });
+    setFormData({ name: '', address: '', latitude: 0, longitude: 0, description: '', contact: '', province_id: '', province_name: '', regency_id: '', regency_name: '', is_active: true });
     setPhotoFile(null);
     setPhotoPreview(null);
+    setRegencies([]);
     setIsModalOpen(true);
   };
 
@@ -114,6 +154,10 @@ export function VenuesPage() {
       longitude: venue.longitude || 0,
       description: venue.description || '',
       contact: venue.contact || '',
+      province_id: venue.province_id || '',
+      province_name: venue.province_name || '',
+      regency_id: venue.regency_id || '',
+      regency_name: venue.regency_name || '',
       is_active: venue.is_active,
     });
     setPhotoFile(null);
@@ -160,6 +204,10 @@ export function VenuesPage() {
       data.append('longitude', String(formData.longitude));
       data.append('description', formData.description);
       data.append('contact', formData.contact);
+      data.append('province_id', formData.province_id);
+      data.append('province_name', formData.province_name);
+      data.append('regency_id', formData.regency_id);
+      data.append('regency_name', formData.regency_name);
       data.append('is_active', formData.is_active ? 'true' : 'false');
       if (photoFile) {
         data.append('photo', photoFile);
@@ -196,24 +244,46 @@ export function VenuesPage() {
   return (
     <DashboardLayout title="Master Venue" subtitle="Kelola data lokasi/venue latihan">
       {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="relative max-w-md">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Cari venue..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-          />
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="relative max-w-md">
+            <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              placeholder="Cari venue..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+            />
+          </div>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Venue</span>
+          </button>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Venue</span>
-        </button>
+        {/* Filter by Province & Regency */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <select
+            value={filterProvinceId}
+            onChange={e => setFilterProvinceId(e.target.value)}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+          >
+            <option value="">Semua Provinsi</option>
+            {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select
+            value={filterRegencyId}
+            onChange={e => { setFilterRegencyId(e.target.value); setPage(1); }}
+            disabled={!filterProvinceId || loadingFilterRegencies}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"
+          >
+            <option value="">{loadingFilterRegencies ? 'Memuat...' : 'Semua Kota/Kabupaten'}</option>
+            {filterRegencies.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* Venues Table */}
@@ -258,7 +328,14 @@ export function VenuesPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="py-4 px-4 text-slate-600 max-w-xs truncate">{venue.address || '-'}</td>
+                    <td className="py-4 px-4 text-slate-600 max-w-xs">
+                      <div>{venue.address || '-'}</div>
+                      {(venue.regency_name || venue.province_name) && (
+                        <div className="text-xs text-slate-400 mt-0.5">
+                          {[venue.regency_name, venue.province_name].filter(Boolean).join(', ')}
+                        </div>
+                      )}
+                    </td>
                     <td className="py-4 px-4 text-sm text-slate-500">{venue.contact || '-'}</td>
                     <td className="py-4 px-4 text-center">
                       <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -362,14 +439,50 @@ export function VenuesPage() {
 
                   {/* Alamat */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Alamat</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Alamat <span className="text-red-500">*</span></label>
                     <textarea
                       value={formData.address}
                       onChange={e => setFormData({ ...formData, address: e.target.value })}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none"
                       rows={2}
                       placeholder="Alamat lengkap venue"
+                      required
                     />
+                  </div>
+
+                  {/* Provinsi & Kota */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Provinsi <span className="text-red-500">*</span></label>
+                      <select
+                        value={formData.province_id}
+                        onChange={e => {
+                          const prov = provinces.find(p => p.id === e.target.value);
+                          setFormData({ ...formData, province_id: e.target.value, province_name: prov?.name || '', regency_id: '', regency_name: '' });
+                        }}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                        required
+                      >
+                        <option value="">-- Pilih Provinsi --</option>
+                        {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Kota/Kabupaten <span className="text-red-500">*</span></label>
+                      <select
+                        value={formData.regency_id}
+                        onChange={e => {
+                          const reg = regencies.find(r => r.id === e.target.value);
+                          setFormData({ ...formData, regency_id: e.target.value, regency_name: reg?.name || '' });
+                        }}
+                        disabled={!formData.province_id || loadingRegencies}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                        required
+                      >
+                        <option value="">{loadingRegencies ? 'Memuat...' : '-- Pilih Kota/Kabupaten --'}</option>
+                        {regencies.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                      </select>
+                    </div>
                   </div>
 
                   {/* Keterangan & Kontak */}
