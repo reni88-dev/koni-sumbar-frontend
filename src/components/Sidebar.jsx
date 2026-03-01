@@ -20,7 +20,8 @@ import {
   User,
   UserCheck,
   MapPin,
-  Building2
+  Building2,
+  ClipboardCheck
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -129,6 +130,19 @@ function SidebarContent({ onNavigate }) {
     { icon: Calendar, label: 'Event Olahraga', path: '/event', permission: 'events.view' },
     { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
     
+    // Training / Absensi Latihan
+    ...(hasPermission('training.view') || isCoach() ? [
+      { 
+        icon: ClipboardCheck, 
+        label: 'Absensi Latihan', 
+        path: '#', 
+        children: [
+          { icon: Calendar, label: 'Jadwal Latihan', path: '/training' },
+          ...(hasPermission('training.report') || isSuperAdmin() ? [{ icon: Activity, label: 'Laporan Kehadiran', path: '/training/report' }] : []),
+        ]
+      }
+    ] : []),
+    
     // Master Data Menu - Based on permissions
     ...(hasPermission('users.view') || hasPermission('roles.view') || hasPermission('cabors.view') || hasPermission('education_levels.view') || hasPermission('competition_classes.view') || hasPermission('regions.view') || hasPermission('organizations.view') ? [
       { 
@@ -143,6 +157,7 @@ function SidebarContent({ onNavigate }) {
           ...(hasPermission('organizations.view') ? [{ icon: Building2, label: 'Organisasi', path: '/master/organizations' }] : []),
           ...(hasPermission('education_levels.view') ? [{ icon: GraduationCap, label: 'Jenjang Pendidikan', path: '/master/education-levels' }] : []),
           ...(hasPermission('competition_classes.view') ? [{ icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes' }] : []),
+          ...(hasPermission('venues.view') ? [{ icon: MapPin, label: 'Master Venue', path: '/master/venues' }] : []),
         ].filter(Boolean)
       }
     ] : []),

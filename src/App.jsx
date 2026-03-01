@@ -9,6 +9,7 @@ import { EducationLevelsPage } from './pages/master/EducationLevels';
 import { CompetitionClassesPage } from './pages/master/CompetitionClasses';
 import { RegionsPage } from './pages/master/Regions';
 import { OrganizationsPage } from './pages/master/Organizations';
+import { VenuesPage } from './pages/master/Venues';
 import { CoachAthletesPage } from './pages/CoachAthletes';
 import { EventsPage } from './pages/Events';
 import { EventDetailPage } from './pages/EventDetail';
@@ -21,6 +22,9 @@ import { FormSubmissionsPage } from './pages/FormSubmissions';
 import { ActivityLogsPage } from './pages/ActivityLogs';
 import { AthletePortal } from './pages/AthletePortal';
 import { CoachPortal } from './pages/CoachPortal';
+import { TrainingSessionsPage } from './pages/TrainingSessions';
+import { TrainingAttendancePage } from './pages/TrainingAttendance';
+import { TrainingReportPage } from './pages/TrainingReport';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './hooks/useAuth';
 
@@ -105,6 +109,32 @@ function App() {
         element={
           <ProtectedRoute>
             <CoachAthletesPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Training Routes */}
+      <Route
+        path="/training"
+        element={
+          <ProtectedRoute>
+            <TrainingSessionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/training/report"
+        element={
+          <ProtectedRoute>
+            <TrainingReportPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/training/:id"
+        element={
+          <ProtectedRoute>
+            <TrainingAttendancePage />
           </ProtectedRoute>
         }
       />
@@ -223,6 +253,14 @@ function App() {
         element={
           <ProtectedRoute>
             <OrganizationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/venues"
+        element={
+          <ProtectedRoute>
+            <VenuesPage />
           </ProtectedRoute>
         }
       />

@@ -5,7 +5,7 @@ import api from '../api/axios';
  * Component to display protected images that require authentication.
  * Fetches image with credentials and displays as blob URL.
  */
-export function ProtectedImage({ src, alt, className, fallback }) {
+export function ProtectedImage({ src, alt, className, style, fallback }) {
   const [imageUrl, setImageUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -74,6 +74,7 @@ export function ProtectedImage({ src, alt, className, fallback }) {
       src={imageUrl} 
       alt={alt} 
       className={className}
+      style={style}
     />
   );
 }
