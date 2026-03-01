@@ -21,6 +21,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { AthleteFormModal } from '../components/AthleteFormModal';
 import { AthleteDetailModal } from '../components/AthleteDetailModal';
 import { ProtectedImage } from '../components/ProtectedImage';
+import { PrintAthleteList } from '../components/PrintAthleteList';
 import { useAthletes, useDeleteAthlete } from '../hooks/queries/useAthletes';
 import { useCaborsAll } from '../hooks/queries/useCabors';
 import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
@@ -270,6 +271,23 @@ export function AthletesPage() {
               </>
             )}
           </div>
+
+          {/* Print Button */}
+          <PrintAthleteList
+            total={pagination.total}
+            filterParams={{
+              search: debouncedSearch,
+              caborId: filterCabor,
+              gender: filterGender,
+              organizationId: filterOrganization,
+            }}
+            filters={{
+              cabor: filterCabor ? cabors.find(c => String(c.id) === String(filterCabor))?.name : '',
+              gender: filterGender,
+              organization: filterOrganization ? organizations.find(o => String(o.id) === String(filterOrganization))?.name : '',
+              search: debouncedSearch,
+            }}
+          />
           
           {/* Add Athlete Button */}
           <button
