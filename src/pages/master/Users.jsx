@@ -20,6 +20,7 @@ export function UsersPage() {
   const { user: currentUser } = useAuth();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filterRole, setFilterRole] = useState('');
   const [page, setPage] = useState(1);
   
   // Modal states
@@ -34,7 +35,7 @@ export function UsersPage() {
   const [formErrors, setFormErrors] = useState({});
 
   // TanStack Query hooks
-  const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch });
+  const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch, roleId: filterRole });
   const { data: roles = [] } = useRolesAll();
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
@@ -116,15 +117,27 @@ export function UsersPage() {
     <DashboardLayout title="Master Users" subtitle="Kelola data pengguna sistem">
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="relative max-w-md">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Cari user..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-          />
+        <div className="flex flex-wrap gap-3">
+          <div className="relative">
+            <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+            <input
+              type="text"
+              placeholder="Cari user..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+            />
+          </div>
+          <select
+            value={filterRole}
+            onChange={(e) => { setFilterRole(e.target.value); setPage(1); }}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+          >
+            <option value="">Semua Role</option>
+            {roles.map(role => (
+              <option key={role.id} value={role.id}>{role.name}</option>
+            ))}
+          </select>
         </div>
         <button
           onClick={openCreateModal}

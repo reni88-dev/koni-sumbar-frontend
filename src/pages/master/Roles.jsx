@@ -10,7 +10,9 @@ import {
   Loader2,
   AlertCircle,
   Check,
-  Users
+  Users,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { 
@@ -24,6 +26,7 @@ import {
 
 export function RolesPage() {
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState('grid');
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -154,85 +157,191 @@ export function RolesPage() {
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
           />
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Role</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              title="Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2.5 transition-colors ${viewMode === 'list' ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              title="List View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Role</span>
+          </button>
+        </div>
       </div>
 
-      {/* Roles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <div className="col-span-full py-12 text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
-          </div>
-        ) : filteredRoles.length === 0 ? (
-          <div className="col-span-full py-12 text-center text-slate-500">
-            Tidak ada data role
-          </div>
-        ) : (
-          filteredRoles.map((role) => (
-            <motion.div
-              key={role.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${
-                  role.name === 'super_admin' ? 'bg-purple-100' : 'bg-blue-100'
-                }`}>
-                  <Shield className={`w-6 h-6 ${
-                    role.name === 'super_admin' ? 'text-purple-600' : 'text-blue-600'
-                  }`} />
-                </div>
-                {role.name !== 'super_admin' && (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => openEditModal(role)}
-                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => { setRoleToDelete(role); setIsDeleteModalOpen(true); }}
-                      className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+      {/* Roles View */}
+      {viewMode === 'grid' ? (
+        /* Grid View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {loading ? (
+            <div className="col-span-full py-12 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+            </div>
+          ) : filteredRoles.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-500">
+              Tidak ada data role
+            </div>
+          ) : (
+            filteredRoles.map((role) => (
+              <motion.div
+                key={role.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl ${
+                    role.name === 'super_admin' ? 'bg-purple-100' : 'bg-blue-100'
+                  }`}>
+                    <Shield className={`w-6 h-6 ${
+                      role.name === 'super_admin' ? 'text-purple-600' : 'text-blue-600'
+                    }`} />
                   </div>
-                )}
-              </div>
-              
-              <h3 className="font-bold text-slate-800 text-lg mb-1">{role.display_name}</h3>
-              <p className="text-sm text-slate-500 mb-4">{role.description || '-'}</p>
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <Users className="w-4 h-4" />
-                  <span>{role.permissions?.length || 0} Permission</span>
+                  {role.name !== 'super_admin' && (
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => openEditModal(role)}
+                        className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => { setRoleToDelete(role); setIsDeleteModalOpen(true); }}
+                        className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
-                {role.name === 'super_admin' ? (
-                  <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
-                    All Access
-                  </span>
+                <h3 className="font-bold text-slate-800 text-lg mb-1">{role.display_name}</h3>
+                <p className="text-sm text-slate-500 mb-4">{role.description || '-'}</p>
+                
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-slate-500">
+                    <Users className="w-4 h-4" />
+                    <span>{role.permissions?.length || 0} Permission</span>
+                  </div>
+                  
+                  {role.name === 'super_admin' ? (
+                    <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
+                      All Access
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => openPermissionEditor(role)}
+                      className="text-sm font-semibold text-red-600 hover:text-red-700 transition-colors"
+                    >
+                      Atur Permission
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* List/Table View */
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Slug</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Deskripsi</th>
+                  <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Permission</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+                    </td>
+                  </tr>
+                ) : filteredRoles.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                      Tidak ada data role
+                    </td>
+                  </tr>
                 ) : (
-                  <button
-                    onClick={() => openPermissionEditor(role)}
-                    className="text-sm font-semibold text-red-600 hover:text-red-700 transition-colors"
-                  >
-                    Atur Permission
-                  </button>
+                  filteredRoles.map((role) => (
+                    <tr key={role.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            role.name === 'super_admin' ? 'bg-purple-100' : 'bg-blue-100'
+                          }`}>
+                            <Shield className={`w-4 h-4 ${
+                              role.name === 'super_admin' ? 'text-purple-600' : 'text-blue-600'
+                            }`} />
+                          </div>
+                          <span className="font-medium text-slate-800">{role.display_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-mono text-sm text-slate-500">{role.name}</span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate">{role.description || '-'}</td>
+                      <td className="px-6 py-4 text-center">
+                        {role.name === 'super_admin' ? (
+                          <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">All Access</span>
+                        ) : (
+                          <button
+                            onClick={() => openPermissionEditor(role)}
+                            className="text-sm font-semibold text-red-600 hover:text-red-700"
+                          >
+                            {role.permissions?.length || 0} Permission
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          {role.name !== 'super_admin' && (
+                            <>
+                              <button
+                                onClick={() => openEditModal(role)}
+                                className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => { setRoleToDelete(role); setIsDeleteModalOpen(true); }}
+                                className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </div>
-            </motion.div>
-          ))
-        )}
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Create/Edit Modal */}
       <AnimatePresence>

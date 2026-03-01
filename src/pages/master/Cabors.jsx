@@ -10,7 +10,9 @@ import {
   Loader2,
   AlertCircle,
   Users,
-  Upload
+  Upload,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { ProtectedImage } from '../../components/ProtectedImage';
@@ -20,6 +22,7 @@ export function CaborsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
+  const [viewMode, setViewMode] = useState('grid');
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -144,82 +147,187 @@ export function CaborsPage() {
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
           />
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Cabor</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              title="Grid View"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2.5 transition-colors ${viewMode === 'list' ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
+              title="List View"
+            >
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Cabor</span>
+          </button>
+        </div>
       </div>
 
-      {/* Cabors Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {loading ? (
-          <div className="col-span-full py-12 text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
-          </div>
-        ) : cabors.length === 0 ? (
-          <div className="col-span-full py-12 text-center text-slate-500">
-            Tidak ada data cabor
-          </div>
-        ) : (
-          cabors.map((cabor) => (
-            <motion.div
-              key={cabor.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="h-32 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
-                {cabor.logo ? (
-                  <ProtectedImage 
-                    src={`/api/storage/${cabor.logo}`}
-                    alt={cabor.name}
-                    className="h-20 w-20 object-contain"
-                    fallback={<Trophy className="w-12 h-12 text-slate-300" />}
-                  />
+      {/* Cabors View */}
+      {viewMode === 'grid' ? (
+        /* Grid View */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {loading ? (
+            <div className="col-span-full py-12 text-center">
+              <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+            </div>
+          ) : cabors.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-500">
+              Tidak ada data cabor
+            </div>
+          ) : (
+            cabors.map((cabor) => (
+              <motion.div
+                key={cabor.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="h-32 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
+                  {cabor.logo ? (
+                    <ProtectedImage 
+                      src={`/api/storage/${cabor.logo}`}
+                      alt={cabor.name}
+                      className="h-20 w-20 object-contain"
+                      fallback={<Trophy className="w-12 h-12 text-slate-300" />}
+                    />
+                  ) : (
+                    <Trophy className="w-12 h-12 text-slate-300" />
+                  )}
+                </div>
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="font-bold text-slate-800">{cabor.name}</h3>
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                      cabor.is_active 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      {cabor.is_active ? 'Aktif' : 'Nonaktif'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 mb-3 line-clamp-2">{cabor.federation || '-'}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-sm text-slate-500">
+                      <Users className="w-4 h-4" />
+                      <span>{cabor.athletes_count || 0} Atlet</span>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => openEditModal(cabor)}
+                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => { setCaborToDelete(cabor); setIsDeleteModalOpen(true); }}
+                        className="p-1.5 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </div>
+      ) : (
+        /* List/Table View */
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor</th>
+                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Federasi</th>
+                  <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Atlet</th>
+                  <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center">
+                      <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
+                    </td>
+                  </tr>
+                ) : cabors.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                      Tidak ada data cabor
+                    </td>
+                  </tr>
                 ) : (
-                  <Trophy className="w-12 h-12 text-slate-300" />
+                  cabors.map((cabor) => (
+                    <tr key={cabor.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {cabor.logo ? (
+                            <ProtectedImage 
+                              src={`/api/storage/${cabor.logo}`}
+                              alt={cabor.name}
+                              className="w-10 h-10 object-contain rounded-lg border border-slate-200 bg-slate-50"
+                              fallback={<div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center"><Trophy className="w-5 h-5 text-slate-300" /></div>}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
+                              <Trophy className="w-5 h-5 text-slate-300" />
+                            </div>
+                          )}
+                          <span className="font-medium text-slate-800">{cabor.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">{cabor.federation || '-'}</td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex items-center justify-center gap-1 text-sm text-slate-600">
+                          <Users className="w-4 h-4" />
+                          <span>{cabor.athletes_count || 0}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          cabor.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
+                        }`}>
+                          {cabor.is_active ? 'Aktif' : 'Nonaktif'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(cabor)}
+                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => { setCaborToDelete(cabor); setIsDeleteModalOpen(true); }}
+                            className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
-              </div>
-              <div className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="font-bold text-slate-800">{cabor.name}</h3>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    cabor.is_active 
-                      ? 'bg-green-100 text-green-700' 
-                      : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {cabor.is_active ? 'Aktif' : 'Nonaktif'}
-                  </span>
-                </div>
-                <p className="text-sm text-slate-500 mb-3 line-clamp-2">{cabor.federation || '-'}</p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1 text-sm text-slate-500">
-                    <Users className="w-4 h-4" />
-                    <span>{cabor.athletes_count || 0} Atlet</span>
-                  </div>
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => openEditModal(cabor)}
-                      className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => { setCaborToDelete(cabor); setIsDeleteModalOpen(true); }}
-                      className="p-1.5 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))
-        )}
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Pagination */}
       {pagination.last_page > 1 && (
