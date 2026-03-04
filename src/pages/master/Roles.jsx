@@ -26,7 +26,7 @@ import {
 
 export function RolesPage() {
   const [search, setSearch] = useState('');
-  const [viewMode, setViewMode] = useState('grid');
+  const [viewMode, setViewMode] = useState('list');
   
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);

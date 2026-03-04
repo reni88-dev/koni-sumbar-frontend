@@ -67,6 +67,13 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
     is_active: true,
   });
 
+  // Sync coach_id when myCoachId loads asynchronously (for coach users)
+  useEffect(() => {
+    if (isCoach && myCoachId && !form.coach_id) {
+      setForm(f => ({ ...f, coach_id: myCoachId }));
+    }
+  }, [isCoach, myCoachId]);
+
   useEffect(() => {
     if (editData) {
       setForm({

@@ -56,6 +56,13 @@ export function CreateTrainingModal({ onClose, cabors, coaches, isCoach, myCoach
   });
   const [gettingLocation, setGettingLocation] = useState(false);
 
+  // Sync coach_id when myCoachId loads asynchronously (for coach users)
+  useEffect(() => {
+    if (isCoach && myCoachId && !form.coach_id) {
+      setForm(f => ({ ...f, coach_id: myCoachId }));
+    }
+  }, [isCoach, myCoachId]);
+
   // Default center: Padang, Sumatra Barat
   const defaultCenter = [-0.9471, 100.4172];
   const markerPosition = form.latitude && form.longitude

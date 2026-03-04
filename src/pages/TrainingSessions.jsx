@@ -37,8 +37,18 @@ export function TrainingSessionsPage() {
   useEffect(() => {
     if (isCoach && user?.id) {
       api.get('/api/portal/profile').then(res => {
-        if (res.data?.coach?.id) setMyCoachId(res.data.coach.id);
-      }).catch(() => {});
+        // Portal profile returns flat object: { type: "coach", id: 5, ... }
+        if (res.data?.type === 'coach' && res.data?.id) {
+          setMyCoachId(res.data.id);
+        }
+      }).catch(() => {
+        // Fallback: search coaches by user name if portal profile fails
+        api.get('/api/coaches', { params: { limit: 100, search: user.name } }).then(r => {
+          const coaches = r.data?.data || [];
+          const myCoach = coaches.find(c => c.user_id === user.id);
+          if (myCoach) setMyCoachId(myCoach.id);
+        }).catch(() => {});
+      });
     }
   }, [isCoach, user?.id]);
 
