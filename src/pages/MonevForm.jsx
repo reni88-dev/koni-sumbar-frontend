@@ -91,8 +91,13 @@ export default function MonevForm() {
     if (q.key === 'q12_athlete_issues' || q.key === 'q13_coach_issues') return !answers[q.key];
     return answers[q.key];
   }).length;
-  const canProceed = form.cabor_id && form.venue_id && form.monitoring_date;
-  const canSubmit = canProceed && (!isAdminMonev || (form.monitor_latitude && form.monitor_longitude));
+  const canProceed = (
+    form.cabor_id && 
+    form.venue_id && 
+    form.monitoring_date && 
+    (!isAdminMonev || (form.monitor_latitude && form.monitor_longitude))
+  );
+  const canSubmit = canProceed;
 
   const handleSubmit = async () => {
     const payload = { cabor_id: parseInt(form.cabor_id), venue_id: parseInt(form.venue_id),
@@ -164,9 +169,9 @@ export default function MonevForm() {
                 <input type="text" value={form.training_time} placeholder="Contoh: 08:00 - 10:00" onChange={e => setForm(f => ({ ...f, training_time: e.target.value }))} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div>
             </div>
             {form.monitor_latitude && (<div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700"><MapPin className="w-4 h-4" /> Lokasi GPS: {form.monitor_latitude.toFixed(6)}, {form.monitor_longitude.toFixed(6)}</div>)}
-            <div className="flex justify-between pt-2">
-              <button onClick={() => navigate('/monev')} className="px-6 py-2.5 font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors">Batal</button>
-              <button onClick={() => setStep(1)} disabled={!canProceed} className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg shadow-red-500/20">Lanjut <ChevronRight className="w-4 h-4" /></button>
+            <div className="flex flex-col-reverse sm:flex-row justify-between pt-2 gap-3">
+              <button onClick={() => navigate('/monev')} className="w-full sm:w-auto px-6 py-2.5 font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors">Batal</button>
+              <button onClick={() => setStep(1)} disabled={!canProceed} className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 shadow-lg shadow-red-500/20">Lanjut <ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
         )}
@@ -190,12 +195,12 @@ export default function MonevForm() {
                 </div>))}
               </div>
             </div>))}
-            <div className="flex justify-between pt-2">
-              <div className="flex items-center gap-2">
-                <button onClick={() => navigate('/monev')} className="px-6 py-2.5 font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors hidden sm:block">Batal</button>
-                <button onClick={() => setStep(0)} className="flex items-center gap-2 px-6 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50"><ChevronLeft className="w-4 h-4" /> Kembali</button>
+            <div className="flex flex-col-reverse sm:flex-row justify-between pt-2 gap-3">
+              <div className="flex flex-col-reverse sm:flex-row items-center gap-2 w-full sm:w-auto">
+                <button onClick={() => navigate('/monev')} className="w-full sm:w-auto px-6 py-2.5 font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors sm:block">Batal</button>
+                <button onClick={() => setStep(0)} className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50"><ChevronLeft className="w-4 h-4" /> Kembali</button>
               </div>
-              <button onClick={() => setStep(2)} className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 shadow-lg shadow-red-500/20">Lanjut <ChevronRight className="w-4 h-4" /></button>
+              <button onClick={() => setStep(2)} className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 shadow-lg shadow-red-500/20">Lanjut <ChevronRight className="w-4 h-4" /></button>
             </div>
           </div>
         )}
@@ -212,12 +217,12 @@ export default function MonevForm() {
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={4} placeholder="Catatan tambahan dari pemonitor..."
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none" /></div>
             {error && (<div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2"><AlertCircle className="w-5 h-5 text-red-600 mt-0.5" /><p className="text-sm text-red-700">{error}</p></div>)}
-            <div className="flex justify-between pt-2">
-              <div className="flex items-center gap-2">
-                <button onClick={() => navigate('/monev')} className="px-6 py-2.5 font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors hidden sm:block">Batal</button>
-                <button onClick={() => setStep(1)} className="flex items-center gap-2 px-6 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50"><ChevronLeft className="w-4 h-4" /> Kembali</button>
+            <div className="flex flex-col-reverse sm:flex-row justify-between pt-2 gap-3">
+              <div className="flex flex-col-reverse sm:flex-row items-center gap-2 w-full sm:w-auto">
+                <button onClick={() => navigate('/monev')} className="w-full sm:w-auto px-6 py-2.5 font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors sm:block">Batal</button>
+                <button onClick={() => setStep(1)} className="w-full sm:w-auto flex justify-center items-center gap-2 px-6 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50"><ChevronLeft className="w-4 h-4" /> Kembali</button>
               </div>
-              <button onClick={handleSubmit} disabled={!canSubmit || submitting} className="flex items-center gap-2 px-8 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-50 shadow-lg shadow-red-500/20">
+              <button onClick={handleSubmit} disabled={!canSubmit || submitting} className="w-full sm:w-auto flex justify-center items-center gap-2 px-8 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-50 shadow-lg shadow-red-500/20">
                 {submitting && <Loader2 className="w-4 h-4 animate-spin" />} {isEdit ? 'Update Monitoring' : 'Simpan Monitoring'}</button>
             </div>
           </div>
