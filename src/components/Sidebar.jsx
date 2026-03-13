@@ -21,7 +21,8 @@ import {
   UserCheck,
   MapPin,
   Building2,
-  ClipboardCheck
+  ClipboardCheck,
+  ClipboardList
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -129,6 +130,7 @@ function SidebarContent({ onNavigate }) {
     { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },
     { icon: Calendar, label: 'Event Olahraga', path: '/event', permission: 'events.view' },
     { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
+    { icon: ClipboardList, label: 'Monitoring', path: '/monev', permission: 'monev.view' },
     
     // Training / Absensi Latihan
     ...(hasPermission('training.view') || isCoach() ? [

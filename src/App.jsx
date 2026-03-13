@@ -25,6 +25,9 @@ import { CoachPortal } from './pages/CoachPortal';
 import { TrainingSessionsPage } from './pages/TrainingSessions';
 import { TrainingAttendancePage } from './pages/TrainingAttendance';
 import { TrainingReportPage } from './pages/TrainingReport';
+import MonevList from './pages/MonevList';
+import MonevForm from './pages/MonevForm';
+import MonevDetail from './pages/MonevDetail';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './hooks/useAuth';
 
@@ -135,6 +138,40 @@ function App() {
         element={
           <ProtectedRoute>
             <TrainingAttendancePage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Monev Routes */}
+      <Route
+        path="/monev"
+        element={
+          <ProtectedRoute>
+            <MonevList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monev/create"
+        element={
+          <ProtectedRoute>
+            <MonevForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monev/:id"
+        element={
+          <ProtectedRoute>
+            <MonevDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monev/:id/edit"
+        element={
+          <ProtectedRoute>
+            <MonevForm />
           </ProtectedRoute>
         }
       />
