@@ -144,7 +144,7 @@ export default function MonevList() {
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                      <span>{new Date(entry.monitoring_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} <span className="text-slate-400 ml-1">{entry.training_time}</span></span>
+                      <span>{new Date(entry.monitoring_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} {entry.start_time && <span className="text-slate-400 ml-1">{entry.start_time} - {entry.end_time}</span>}</span>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                       <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -192,7 +192,7 @@ export default function MonevList() {
                           {new Date(entry.monitoring_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </span>
                       </div>
-                      {entry.training_time && <div className="text-xs text-slate-400 ml-6">{entry.training_time}</div>}
+                      {entry.start_time && <div className="text-xs text-slate-400 ml-6">{entry.start_time} - {entry.end_time}</div>}
                     </td>
                     <td className="py-4 px-4 font-medium text-slate-700">{entry.cabor_name}</td>
                     <td className="py-4 px-4 text-slate-600 text-sm">{entry.venue_name}</td>

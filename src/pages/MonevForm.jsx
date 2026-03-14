@@ -46,7 +46,8 @@ export default function MonevForm() {
   const [geoError, setGeoError] = useState(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [form, setForm] = useState({
-    cabor_id: '', venue_id: '', coach_id: '', training_time: '',
+    cabor_id: '', venue_id: '', coach_id: '',
+    start_time: '', end_time: '',
     monitoring_date: new Date().toISOString().split('T')[0],
     notes: '', monitor_latitude: null, monitor_longitude: null,
   });
@@ -66,7 +67,8 @@ export default function MonevForm() {
   useEffect(() => {
     if (!existingData || !isEdit) return;
     setForm({ cabor_id: String(existingData.cabor_id||''), venue_id: String(existingData.venue_id||''),
-      coach_id: existingData.coach_id ? String(existingData.coach_id) : '', training_time: existingData.training_time||'',
+      coach_id: existingData.coach_id ? String(existingData.coach_id) : '',
+      start_time: existingData.start_time||'', end_time: existingData.end_time||'',
       monitoring_date: existingData.monitoring_date?.split('T')[0]||'', notes: existingData.notes||'',
       monitor_latitude: existingData.monitor_latitude||null, monitor_longitude: existingData.monitor_longitude||null });
     setAnswers(Object.fromEntries(QUESTIONS.map(q => [q.key, existingData[q.key]||false])));
@@ -101,7 +103,8 @@ export default function MonevForm() {
 
   const handleSubmit = async () => {
     const payload = { cabor_id: parseInt(form.cabor_id), venue_id: parseInt(form.venue_id),
-      coach_id: form.coach_id ? parseInt(form.coach_id) : null, training_time: form.training_time,
+      coach_id: form.coach_id ? parseInt(form.coach_id) : null,
+      start_time: form.start_time, end_time: form.end_time,
       monitoring_date: form.monitoring_date, notes: form.notes,
       monitor_latitude: form.monitor_latitude, monitor_longitude: form.monitor_longitude,
       ...answers,
@@ -165,8 +168,10 @@ export default function MonevForm() {
                 <SearchableSelect options={coaches} value={form.coach_id} onChange={val => setForm(f => ({ ...f, coach_id: val }))} disabled={!form.cabor_id} placeholder="-- Pilih Pelatih (opsional) --" /></div>
               <div><label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Monitoring <span className="text-red-500">*</span></label>
                 <input type="date" value={form.monitoring_date} onChange={e => setForm(f => ({ ...f, monitoring_date: e.target.value }))} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" required /></div>
-              <div className="md:col-span-2"><label className="block text-sm font-medium text-slate-700 mb-1"><Clock className="w-4 h-4 inline mr-1" />Jam Latihan</label>
-                <input type="text" value={form.training_time} placeholder="Contoh: 08:00 - 10:00" onChange={e => setForm(f => ({ ...f, training_time: e.target.value }))} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div>
+              <div><label className="block text-sm font-medium text-slate-700 mb-1"><Clock className="w-4 h-4 inline mr-1" />Jam Mulai</label>
+                <input type="time" value={form.start_time} onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div>
+              <div><label className="block text-sm font-medium text-slate-700 mb-1"><Clock className="w-4 h-4 inline mr-1" />Jam Selesai</label>
+                <input type="time" value={form.end_time} onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div>
             </div>
             {form.monitor_latitude && (<div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-700"><MapPin className="w-4 h-4" /> Lokasi GPS: {form.monitor_latitude.toFixed(6)}, {form.monitor_longitude.toFixed(6)}</div>)}
             <div className="flex flex-col-reverse sm:flex-row justify-between pt-2 gap-3">

@@ -70,7 +70,7 @@ export default function MonevDetail() {
             <div className="flex items-center gap-3"><Building2 className="w-5 h-5 text-blue-500" /><div><div className="text-xs text-slate-400">Venue</div><div className="font-medium text-slate-700">{data.venue_name}</div></div></div>
             {data.coach_name && <div className="flex items-center gap-3"><User className="w-5 h-5 text-green-500" /><div><div className="text-xs text-slate-400">Pelatih</div><div className="font-medium text-slate-700">{data.coach_name}</div></div></div>}
             <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-violet-500" /><div><div className="text-xs text-slate-400">Tanggal</div><div className="font-medium text-slate-700">{new Date(data.monitoring_date).toLocaleDateString('id-ID')}</div></div></div>
-            {data.training_time && <div className="flex items-center gap-3"><Clock className="w-5 h-5 text-amber-500" /><div><div className="text-xs text-slate-400">Jam Latihan</div><div className="font-medium text-slate-700">{data.training_time}</div></div></div>}
+            {data.start_time && <div className="flex items-center gap-3"><Clock className="w-5 h-5 text-amber-500" /><div><div className="text-xs text-slate-400">Jam Latihan</div><div className="font-medium text-slate-700">{data.start_time} - {data.end_time}</div></div></div>}
             <div className="flex items-center gap-3"><User className="w-5 h-5 text-slate-400" /><div><div className="text-xs text-slate-400">Pemonitor</div><div className="font-medium text-slate-700">{data.creator_name}</div></div></div>
           </div>
 
