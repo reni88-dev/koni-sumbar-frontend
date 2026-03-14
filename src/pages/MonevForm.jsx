@@ -43,11 +43,13 @@ export default function MonevForm() {
   const [cabors, setCabors] = useState([]);
   const [venues, setVenues] = useState([]);
   const [coaches, setCoaches] = useState([]);
+  const [availableCompanions, setAvailableCompanions] = useState([]);
   const [geoError, setGeoError] = useState(null);
   const [geoLoading, setGeoLoading] = useState(false);
   const [form, setForm] = useState({
     cabor_id: '', venue_id: '', coach_id: '',
     start_time: '', end_time: '',
+    companions: [],
     monitoring_date: new Date().toISOString().split('T')[0],
     notes: '', monitor_latitude: null, monitor_longitude: null,
   });
@@ -57,7 +59,13 @@ export default function MonevForm() {
   useEffect(() => {
     api.get('/api/cabors/all').then(r => setCabors(r.data || [])).catch(() => {});
     api.get('/api/venues/all').then(r => setVenues(r.data || [])).catch(() => {});
-  }, []);
+    if (isAdminMonev) {
+      api.get('/api/monev/companions').then(r => {
+        const others = (r.data || []).filter(u => u.id !== user?.id);
+        setAvailableCompanions(others);
+      }).catch(() => {});
+    }
+  }, [isAdminMonev, user]);
 
   useEffect(() => {
     if (!form.cabor_id) { setCoaches([]); return; }
@@ -69,6 +77,7 @@ export default function MonevForm() {
     setForm({ cabor_id: String(existingData.cabor_id||''), venue_id: String(existingData.venue_id||''),
       coach_id: existingData.coach_id ? String(existingData.coach_id) : '',
       start_time: existingData.start_time||'', end_time: existingData.end_time||'',
+      companions: existingData.companions?.map(c => c.user_id) || [],
       monitoring_date: existingData.monitoring_date?.split('T')[0]||'', notes: existingData.notes||'',
       monitor_latitude: existingData.monitor_latitude||null, monitor_longitude: existingData.monitor_longitude||null });
     setAnswers(Object.fromEntries(QUESTIONS.map(q => [q.key, existingData[q.key]||false])));
@@ -105,6 +114,7 @@ export default function MonevForm() {
     const payload = { cabor_id: parseInt(form.cabor_id), venue_id: parseInt(form.venue_id),
       coach_id: form.coach_id ? parseInt(form.coach_id) : null,
       start_time: form.start_time, end_time: form.end_time,
+      companions: form.companions,
       monitoring_date: form.monitoring_date, notes: form.notes,
       monitor_latitude: form.monitor_latitude, monitor_longitude: form.monitor_longitude,
       ...answers,
@@ -221,6 +231,42 @@ export default function MonevForm() {
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Catatan Umum</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={4} placeholder="Catatan tambahan dari pemonitor..."
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none" /></div>
+            
+            {isAdminMonev && availableCompanions.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Pilih Pendamping Pengawasan (Opsional)</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {availableCompanions.map(c => {
+                    const isSelected = form.companions.includes(c.id);
+                    return (
+                      <button key={c.id} onClick={(e) => {
+                        e.preventDefault();
+                        setForm(f => ({
+                          ...f,
+                          companions: isSelected 
+                            ? f.companions.filter(id => id !== c.id) 
+                            : [...f.companions, c.id]
+                        }));
+                      }} type="button" 
+                      className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                        isSelected ? 'bg-red-50 border-red-200 shadow-sm' : 'bg-white border-slate-200 hover:border-red-200 hover:bg-slate-50'
+                      }`}>
+                        <div className={`w-5 h-5 flex-shrink-0 rounded flex items-center justify-center border transition-colors ${
+                          isSelected ? 'bg-red-500 border-red-500' : 'bg-white border-slate-300'
+                        }`}>
+                          {isSelected && <Check className="w-3.5 h-3.5 text-white" />}
+                        </div>
+                        <div className="flex-1 truncate">
+                          <p className={`text-sm font-medium truncate ${isSelected ? 'text-red-800' : 'text-slate-700'}`}>{c.name}</p>
+                          <p className="text-xs text-slate-500 truncate">{c.email}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {error && (<div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2"><AlertCircle className="w-5 h-5 text-red-600 mt-0.5" /><p className="text-sm text-red-700">{error}</p></div>)}
             <div className="flex flex-col-reverse sm:flex-row justify-between pt-2 gap-3">
               <div className="flex flex-col-reverse sm:flex-row items-center gap-2 w-full sm:w-auto">

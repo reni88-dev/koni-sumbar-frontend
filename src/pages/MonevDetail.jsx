@@ -72,6 +72,22 @@ export default function MonevDetail() {
             <div className="flex items-center gap-3"><Calendar className="w-5 h-5 text-violet-500" /><div><div className="text-xs text-slate-400">Tanggal</div><div className="font-medium text-slate-700">{new Date(data.monitoring_date).toLocaleDateString('id-ID')}</div></div></div>
             {data.start_time && <div className="flex items-center gap-3"><Clock className="w-5 h-5 text-amber-500" /><div><div className="text-xs text-slate-400">Jam Latihan</div><div className="font-medium text-slate-700">{data.start_time} - {data.end_time}</div></div></div>}
             <div className="flex items-center gap-3"><User className="w-5 h-5 text-slate-400" /><div><div className="text-xs text-slate-400">Pemonitor</div><div className="font-medium text-slate-700">{data.creator_name}</div></div></div>
+            
+            {data.companions && data.companions.length > 0 && (
+              <div className="pt-2 border-t border-slate-100">
+                <div className="text-xs text-slate-400 mb-2">Pendamping</div>
+                <div className="space-y-2">
+                  {data.companions.map((c, i) => (
+                    <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                      <div className="w-6 h-6 rounded bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">{c.name.charAt(0)}</div>
+                      <div>
+                        <div className="text-sm font-medium text-slate-700 leading-none">{c.name}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Map for admin/superadmin */}
