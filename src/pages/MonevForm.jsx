@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Check, Loader2, AlertCircle, MapPin, ClipboardCheck, FileText, Clock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Loader2, AlertCircle, MapPin, ClipboardCheck, FileText, Clock, Camera, X } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { useMonevDetail, useMonevCreate, useMonevUpdate } from '../hooks/useMonev';
@@ -53,6 +53,7 @@ export default function MonevForm() {
     monitoring_date: new Date().toISOString().split('T')[0],
     notes: '', monitor_latitude: null, monitor_longitude: null,
   });
+  const [photos, setPhotos] = useState([]);
   const [answers, setAnswers] = useState(Object.fromEntries(QUESTIONS.map(q => [q.key, false])));
   const [qNotes, setQNotes] = useState(Object.fromEntries(QUESTIONS.map(q => [q.key, ''])));
 
@@ -110,11 +111,95 @@ export default function MonevForm() {
   );
   const canSubmit = canProceed;
 
+  const compressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 1200;
+        const scale = Math.min(MAX_WIDTH / img.width, 1);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error('Canvas toBlob failed')); return; }
+          const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+            type: 'image/webp',
+            lastModified: Date.now(),
+          });
+          const previewUrl = URL.createObjectURL(compressedFile);
+          resolve({ file: compressedFile, previewUrl });
+        }, 'image/webp', 0.8);
+      };
+      img.onerror = () => reject(new Error('Image processing failed'));
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
+  const handlePhotoSelect = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    
+    // Max 3 photos total
+    if (photos.length + files.length > 3) {
+      alert('Maksimal 3 foto dokumentasi');
+      return;
+    }
+
+    try {
+      const compressedPhotos = await Promise.all(
+        files.map(f => compressImage(f))
+      );
+      setPhotos(prev => [...prev, ...compressedPhotos]);
+    } catch (err) {
+      console.error('Failed to compress image:', err);
+      alert('Gagal memproses gambar');
+    }
+  };
+
+  const removePhoto = (index) => {
+    setPhotos(prev => {
+      const newPhotos = [...prev];
+      URL.revokeObjectURL(newPhotos[index].previewUrl);
+      newPhotos.splice(index, 1);
+      return newPhotos;
+    });
+  };
+
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+
   const handleSubmit = async () => {
+    let photoPaths = [];
+    
+    // Step 1: Upload photos first if any selected
+    if (photos.length > 0) {
+      setUploadingPhotos(true);
+      try {
+        const formData = new FormData();
+        photos.forEach(p => formData.append('photos', p.file));
+        const uploadResp = await api.post('/api/monev/upload-photo', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        photoPaths = uploadResp.data?.paths || [];
+      } catch (err) {
+        console.error('Photo upload failed:', err);
+        alert('Terjadi kesalahan saat mengunggah foto!');
+        setUploadingPhotos(false);
+        return;
+      } finally {
+        setUploadingPhotos(false);
+      }
+    }
+
+    // Step 2: Submit main form payload
     const payload = { cabor_id: parseInt(form.cabor_id), venue_id: parseInt(form.venue_id),
       coach_id: form.coach_id ? parseInt(form.coach_id) : null,
       start_time: form.start_time, end_time: form.end_time,
       companions: form.companions,
+      photos: photoPaths,
       monitoring_date: form.monitoring_date, notes: form.notes,
       monitor_latitude: form.monitor_latitude, monitor_longitude: form.monitor_longitude,
       ...answers,
@@ -126,7 +211,7 @@ export default function MonevForm() {
   if (isEdit && loadingDetail) return <DashboardLayout title="Loading..."><div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div></DashboardLayout>;
 
   const error = createError || updateError;
-  const submitting = creating || updating;
+  const submitting = creating || updating || uploadingPhotos;
 
   return (
     <DashboardLayout title={isEdit ? 'Edit Monitoring' : 'Buat Monitoring Baru'} subtitle="Monitoring PLATPROV Atlet Sumatera Barat">
@@ -231,6 +316,37 @@ export default function MonevForm() {
             <div><label className="block text-sm font-medium text-slate-700 mb-1">Catatan Umum</label>
               <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} rows={4} placeholder="Catatan tambahan dari pemonitor..."
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none" /></div>
+            
+            {/* Foto Section */}
+            <div>
+              <div className="flex justify-between items-end mb-2">
+                <label className="block text-sm font-medium text-slate-700">Foto Dokumentasi (Opsional)</label>
+                <span className="text-xs text-slate-500">{photos.length}/3 Foto</span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {photos.map((p, i) => (
+                  <div key={i} className="relative aspect-square rounded-xl overflow-hidden border border-slate-200 group bg-slate-50">
+                    <img src={p.previewUrl} alt={`Preview ${i}`} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <button type="button" onClick={() => removePhoto(i)} className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-transform hover:scale-110">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                
+                {photos.length < 3 && (
+                  <label className="relative aspect-square rounded-xl border-2 border-dashed border-slate-300 hover:border-red-400 hover:bg-red-50 transition-colors flex flex-col items-center justify-center cursor-pointer group">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-500 group-hover:bg-red-100 group-hover:text-red-500 flex items-center justify-center mb-2 transition-colors">
+                      <Camera className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-semibold text-slate-500 group-hover:text-red-600">Tambah Foto</span>
+                    <input type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" multiple />
+                  </label>
+                )}
+              </div>
+              <p className="text-xs text-slate-400 mt-2">Foto akan otomatis dikompres sebelum diunggah agar hemat kuota.</p>
+            </div>
             
             {isAdminMonev && availableCompanions.length > 0 && (
               <div>

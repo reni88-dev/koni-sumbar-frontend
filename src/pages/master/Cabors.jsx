@@ -62,10 +62,23 @@ export function CaborsPage() {
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setLogoFile(file);
-      setLogoPreview(URL.createObjectURL(file));
-    }
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 600;
+      const scale = Math.min(MAX_WIDTH / img.width, 1);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() });
+        setLogoFile(compressed);
+        setLogoPreview(URL.createObjectURL(compressed));
+      }, 'image/webp', 0.85);
+    };
+    img.src = URL.createObjectURL(file);
   };
 
   const openCreateModal = () => {

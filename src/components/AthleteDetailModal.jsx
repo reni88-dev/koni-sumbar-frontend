@@ -110,12 +110,16 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
 
             {/* Additional Info */}
             <div className="space-y-4">
-              {/* NIK & No KK */}
+              {/* NIK & No KK & No Atlit Nasional */}
               <div className="p-4 bg-slate-50 rounded-xl">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-xs text-slate-500">NIK</p>
                     <p className="font-mono text-sm font-medium text-slate-800">{athlete.nik || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500">No. Atlit Nasional</p>
+                    <p className="font-mono text-sm font-medium text-slate-800">{athlete.national_athlete_number || '-'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">No. Kartu Keluarga</p>

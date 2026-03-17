@@ -146,10 +146,23 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setPhoto(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 800;
+      const scale = Math.min(MAX_WIDTH / img.width, 1);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() });
+        setPhoto(compressed);
+        setPhotoPreview(URL.createObjectURL(compressed));
+      }, 'image/webp', 0.82);
+    };
+    img.src = URL.createObjectURL(file);
   };
 
   const updateField = (field, value) => {

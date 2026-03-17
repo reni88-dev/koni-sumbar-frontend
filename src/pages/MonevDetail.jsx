@@ -1,5 +1,7 @@
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, CheckCircle2, XCircle, MapPin, Loader2, Calendar, Clock, Trophy, User, Building2, Edit2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, XCircle, MapPin, Loader2, Calendar, Clock, Trophy, User, Building2, Edit2, X } from 'lucide-react';
+import { ProtectedImage } from '../components/ProtectedImage';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -40,6 +42,22 @@ export default function MonevDetail() {
   const { data, loading, error } = useMonevDetail(id);
   const isAdminMonev = user?.role?.name === 'admin_monev';
   const canSeeMap = !isAdminMonev;
+  const [lightboxIndex, setLightboxIndex] = useState(null);
+
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const prevPhoto = useCallback(() => setLightboxIndex(i => (i - 1 + (data?.photos?.length || 1)) % (data?.photos?.length || 1)), [data]);
+  const nextPhoto = useCallback(() => setLightboxIndex(i => (i + 1) % (data?.photos?.length || 1)), [data]);
+
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (lightboxIndex === null) return;
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') prevPhoto();
+      if (e.key === 'ArrowRight') nextPhoto();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxIndex, closeLightbox, prevPhoto, nextPhoto]);
 
   if (loading) return <DashboardLayout title="Loading..."><div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div></DashboardLayout>;
   if (error || !data) return <DashboardLayout title="Error"><div className="flex flex-col items-center justify-center h-64 text-slate-400"><p>{error || 'Data tidak ditemukan'}</p><button onClick={() => navigate('/monev')} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-xl">Kembali</button></div></DashboardLayout>;
@@ -143,6 +161,81 @@ export default function MonevDetail() {
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
               <h4 className="font-semibold text-slate-700 mb-2">📋 Catatan Umum</h4>
               <p className="text-sm text-slate-600 whitespace-pre-wrap">{data.notes}</p>
+            </div>
+          )}
+
+          {data.photos && data.photos.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+              <h4 className="font-semibold text-slate-700 mb-3">📷 Foto Dokumentasi</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {data.photos.map((path, i) => (
+                  <button key={i} type="button" onClick={() => setLightboxIndex(i)}
+                    className="block aspect-square rounded-xl overflow-hidden border border-slate-200 hover:ring-2 hover:ring-red-400 transition-all group">
+                    <ProtectedImage
+                      src={`/api/storage/${encodeURIComponent(path)}`}
+                      alt={`Foto ${i + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lightbox Modal */}
+          {lightboxIndex !== null && data.photos?.length > 0 && (
+            <div
+              className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={closeLightbox}
+            >
+              <div className="relative max-w-4xl w-full" onClick={e => e.stopPropagation()}>
+                {/* Close button */}
+                <button onClick={closeLightbox}
+                  className="absolute -top-12 right-0 text-white/80 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors z-10">
+                  <X className="w-7 h-7" />
+                </button>
+
+                {/* Counter */}
+                <div className="absolute -top-12 left-0 text-white/70 text-sm font-medium py-2">
+                  {lightboxIndex + 1} / {data.photos.length}
+                </div>
+
+                {/* Image */}
+                <div className="rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center" style={{ maxHeight: '80vh' }}>
+                  <ProtectedImage
+                    src={`/api/storage/${encodeURIComponent(data.photos[lightboxIndex])}`}
+                    alt={`Foto ${lightboxIndex + 1}`}
+                    className="max-h-[80vh] w-auto max-w-full object-contain"
+                  />
+                </div>
+
+                {/* Arrows (only show if more than 1 photo) */}
+                {data.photos.length > 1 && (
+                  <>
+                    <button onClick={prevPhoto}
+                      className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-14 bg-white/10 hover:bg-white/25 text-white p-3 rounded-full backdrop-blur-sm transition-colors">
+                      <ChevronLeft className="w-6 h-6" />
+                    </button>
+                    <button onClick={nextPhoto}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-14 bg-white/10 hover:bg-white/25 text-white p-3 rounded-full backdrop-blur-sm transition-colors">
+                      <ChevronRight className="w-6 h-6" />
+                    </button>
+                  </>
+                )}
+
+                {/* Dot indicators */}
+                {data.photos.length > 1 && (
+                  <div className="flex justify-center gap-2 mt-4">
+                    {data.photos.map((_, i) => (
+                      <button key={i} onClick={() => setLightboxIndex(i)}
+                        className={`w-2.5 h-2.5 rounded-full transition-all ${
+                          i === lightboxIndex ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/70'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

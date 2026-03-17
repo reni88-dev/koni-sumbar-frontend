@@ -59,7 +59,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const [errorMessage, setErrorMessage] = useState('');
   
   const [formData, setFormData] = useState({
-    cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
+    cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', national_athlete_number: '', no_kk: '',
     birth_place: '', birth_date: '', gender: '',
     religion: '', address: '', blood_type: '', occupation: '',
     marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
@@ -105,6 +105,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           competition_class_id: athlete.competition_class_id?.toString() || '',
           name: athlete.name || '',
           nik: athlete.nik || '',
+          national_athlete_number: athlete.national_athlete_number || '',
           no_kk: athlete.no_kk || '',
           birth_place: athlete.birth_place || '',
           birth_date: formatDateForInput(athlete.birth_date),
@@ -137,7 +138,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       } else {
         setCompetitionClasses([]);
         setFormData({
-          cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', no_kk: '',
+          cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', national_athlete_number: '', no_kk: '',
           birth_place: '', birth_date: '', gender: '',
           religion: '', address: '', blood_type: '', occupation: '',
           marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
@@ -213,10 +214,23 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
 
   const handlePhotoChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setPhotoFile(file);
-      setPhotoPreview(URL.createObjectURL(file));
-    }
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_WIDTH = 800;
+      const scale = Math.min(MAX_WIDTH / img.width, 1);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() });
+        setPhotoFile(compressed);
+        setPhotoPreview(URL.createObjectURL(compressed));
+      }, 'image/webp', 0.82);
+    };
+    img.src = URL.createObjectURL(file);
   };
 
   // Debounced phone validation via n8n webhook
@@ -617,6 +631,16 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                       maxLength={16}
                     />
                     {errors.nik && <p className="text-red-500 text-xs mt-1">{errors.nik[0]}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">No. Atlit Nasional</label>
+                    <input
+                      type="text"
+                      value={formData.national_athlete_number}
+                      onChange={e => updateField('national_athlete_number', e.target.value)}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      placeholder="Nomor Atlit"
+                    />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">No. KK</label>
