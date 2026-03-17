@@ -20,6 +20,7 @@ import { FormBuilderCreatePage } from './pages/FormBuilderCreate';
 import { FormFillPage } from './pages/FormFill';
 import { FormSubmissionsPage } from './pages/FormSubmissions';
 import { ActivityLogsPage } from './pages/ActivityLogs';
+import { AiAnalytics } from './pages/AiAnalytics';
 import { AthletePortal } from './pages/AthletePortal';
 import { CoachPortal } from './pages/CoachPortal';
 import { TrainingSessionsPage } from './pages/TrainingSessions';
@@ -308,6 +309,16 @@ function App() {
         element={
           <ProtectedRoute>
             <ActivityLogsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* AI Analytics Route (Super Admin only) */}
+      <Route
+        path="/ai-analytics"
+        element={
+          <ProtectedRoute>
+            <AiAnalytics />
           </ProtectedRoute>
         }
       />

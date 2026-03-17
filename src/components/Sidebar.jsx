@@ -22,7 +22,8 @@ import {
   MapPin,
   Building2,
   ClipboardCheck,
-  ClipboardList
+  ClipboardList,
+  Bot
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -166,7 +167,8 @@ function SidebarContent({ onNavigate }) {
 
     // Activity Logs - Super Admin only
     ...(isSuperAdmin() ? [
-      { icon: History, label: 'Activity Log', path: '/activity-logs' }
+      { icon: History, label: 'Activity Log', path: '/activity-logs' },
+      { icon: Bot, label: 'AI Analytics', path: '/ai-analytics' }
     ] : []),
 
     { icon: Settings, label: 'Pengaturan', path: '/settings', permission: 'settings.view' },
