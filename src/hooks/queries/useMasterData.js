@@ -176,12 +176,12 @@ export const userKeys = {
   list: (filters) => [...userKeys.lists(), filters],
 };
 
-export function useUsers({ page = 1, search = '', perPage = 10, roleId = '' } = {}) {
+export function useUsers({ page = 1, search = '', perPage = 10, roleId = '', sort = '' } = {}) {
   return useQuery({
-    queryKey: userKeys.list({ page, search, perPage, roleId }),
+    queryKey: userKeys.list({ page, search, perPage, roleId, sort }),
     queryFn: async () => {
       const response = await api.get('/api/master/users', {
-        params: { page, search: search || undefined, per_page: perPage, role_id: roleId || undefined }
+        params: { page, search: search || undefined, per_page: perPage, role_id: roleId || undefined, sort: sort || undefined }
       });
       return response.data;
     },

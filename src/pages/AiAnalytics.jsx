@@ -14,12 +14,22 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import api from '../api/axios';
 
 export function AiAnalytics() {
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: 'Halo! Saya AI Assistant khusus KONI. Saya dapat membantu memberikan total data dan daftar cabang olahraga (cabor) beserta statistik atletnya. Apa yang ingin Anda ketahui hari ini?'
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('koni_ai_chat_history');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse chat history', e);
+      }
     }
-  ]);
+    return [
+      {
+        role: 'assistant',
+        content: 'Halo! Saya AI Assistant khusus KONI. Saya dapat membantu memberikan total data dan daftar cabang olahraga (cabor) beserta statistik atletnya. Apa yang ingin Anda ketahui hari ini?'
+      }
+    ];
+  });
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -32,6 +42,10 @@ export function AiAnalytics() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    localStorage.setItem('koni_ai_chat_history', JSON.stringify(messages));
+  }, [messages]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -147,12 +161,14 @@ export function AiAnalytics() {
 
   const clearChat = () => {
     if (window.confirm("Apakah Anda yakin ingin menghapus seluruh riwayat percakapan ini?")) {
-      setMessages([
+      const initialMessages = [
         {
           role: 'assistant',
           content: 'Halo! Saya AI Assistant khusus KONI. Saya dapat membantu memberikan total data dan daftar cabang olahraga (cabor) beserta statistik atletnya. Apa yang ingin Anda ketahui hari ini?'
         }
-      ]);
+      ];
+      setMessages(initialMessages);
+      localStorage.setItem('koni_ai_chat_history', JSON.stringify(initialMessages));
       setError(null);
     }
   };
@@ -212,7 +228,28 @@ export function AiAnalytics() {
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 ) : (
                   <div className="prose prose-sm sm:prose-base max-w-none prose-slate prose-p:leading-relaxed prose-pre:bg-slate-800 prose-pre:text-slate-100">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        table: ({node, ...props}) => (
+                          <div className="overflow-x-auto my-6 rounded-lg border border-slate-200 shadow-sm">
+                            <table className="min-w-full divide-y divide-slate-200 m-0" {...props} />
+                          </div>
+                        ),
+                        thead: ({node, ...props}) => <thead className="bg-slate-50" {...props} />,
+                        tbody: ({node, ...props}) => <tbody className="divide-y divide-slate-200 bg-white" {...props} />,
+                        tr: ({node, ...props}) => <tr className="hover:bg-slate-50 transition-colors" {...props} />,
+                        th: ({node, ...props}) => (
+                          <th className="px-4 py-3 text-left border-b-0 text-xs font-semibold text-slate-600 uppercase tracking-wider whitespace-nowrap" {...props} />
+                        ),
+                        td: ({node, ...props}) => (
+                          <td className="px-4 py-3 border-b-0 text-sm xl:text-base text-slate-700 whitespace-normal" {...props} />
+                        ),
+                        a: ({node, ...props}) => (
+                          <a className="text-indigo-600 hover:text-indigo-800 underline underline-offset-2" {...props} />
+                        )
+                      }}
+                    >
                       {message.content}
                     </ReactMarkdown>
                   </div>

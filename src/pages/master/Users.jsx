@@ -15,12 +15,14 @@ import { DashboardLayout } from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../../hooks/queries/useMasterData';
 import { useRolesAll } from '../../hooks/queries/useMasterData';
+import { PrintUserList } from '../../components/PrintUserList';
 
 export function UsersPage() {
   const { user: currentUser } = useAuth();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
+  const [filterSort, setFilterSort] = useState('');
   const [page, setPage] = useState(1);
   
   // Modal states
@@ -35,7 +37,7 @@ export function UsersPage() {
   const [formErrors, setFormErrors] = useState({});
 
   // TanStack Query hooks
-  const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch, roleId: filterRole });
+  const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch, roleId: filterRole, sort: filterSort });
   const { data: roles = [] } = useRolesAll();
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
@@ -138,14 +140,32 @@ export function UsersPage() {
               <option key={role.id} value={role.id}>{role.name}</option>
             ))}
           </select>
+          <select
+            value={filterSort}
+            onChange={(e) => { setFilterSort(e.target.value); setPage(1); }}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+          >
+            <option value="">Terbaru</option>
+            <option value="name">Nama (A-Z)</option>
+          </select>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah User</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <PrintUserList 
+            filterParams={{ search: debouncedSearch, role_id: filterRole, sort: filterSort }}
+            filters={{
+              role: filterRole ? roles.find(r => r.id === parseInt(filterRole))?.name : '',
+              search: debouncedSearch,
+              sort: filterSort === 'name' ? 'Nama (A-Z)' : 'Terbaru'
+            }}
+          />
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah User</span>
+          </button>
+        </div>
       </div>
 
       {/* Users Table */}
