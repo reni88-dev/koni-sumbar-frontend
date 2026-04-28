@@ -23,7 +23,7 @@ export function Sidebar({ isOpen, onClose }) {
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-slate-900 flex-col fixed h-full z-30 border-r border-slate-800">
+      <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col fixed h-full z-30">
         <SidebarContent />
       </aside>
 
@@ -36,30 +36,32 @@ export function Sidebar({ isOpen, onClose }) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
-              className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-40 lg:hidden"
+              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
             />
             <motion.aside
               initial={{ x: -290 }}
               animate={{ x: 0 }}
               exit={{ x: -290 }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-72 bg-slate-900 shadow-2xl z-50 lg:hidden flex flex-col border-r border-slate-800"
+              className="fixed inset-y-0 left-0 w-72 bg-white shadow-2xl z-50 lg:hidden flex flex-col border-r border-slate-200"
             >
-              <div className="px-5 py-4 flex items-center justify-between border-b border-slate-800">
+              <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-lg shadow-red-600/20">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-md shadow-slate-200 border border-slate-100">
                     <img src={koniLogo} alt="Logo KONI" className="w-full h-full object-contain" />
                   </div>
                   <div>
-                    <h1 className="font-bold text-base text-white leading-tight">
-                      KONI <span className="text-red-500">SUMBAR</span>
+                    <h1 className="font-bold text-[15px] text-slate-800 leading-tight tracking-wide">
+                      KONI <span className="text-red-600">SUMBAR</span>
                     </h1>
-                    <p className="text-[9px] text-slate-500 font-semibold tracking-widest uppercase">Sports Management</p>
+                    <p className="text-[9px] text-slate-400 font-semibold tracking-[0.18em] uppercase mt-0.5">
+                      Sports Management
+                    </p>
                   </div>
                 </div>
                 <button 
                   onClick={onClose}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -177,7 +179,7 @@ function SidebarContent({ onNavigate }) {
       ],
     },
 
-    // ▶ ANALITIK & SISTEM (Super Admin)
+    // ▶ ANALITIK & SISTEM (Super Admin only)
     ...(isSuperAdmin()
       ? [{
           id: 'analitik',
@@ -238,22 +240,24 @@ function SidebarContent({ onNavigate }) {
             onClick={() => toggleSubmenu(item.label)}
             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
               isOpen || hasActiveChild
-                ? 'bg-slate-800 text-white'
-                : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                ? 'bg-red-50 text-red-700'
+                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
             }`}
           >
             <div className="flex items-center gap-3">
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
                 hasActiveChild
-                  ? 'bg-red-600/20 text-red-400'
-                  : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-300'
+                  ? 'bg-red-100 text-red-600'
+                  : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'
               }`}>
                 <item.icon className="w-4 h-4" />
               </div>
               <span>{item.label}</span>
             </div>
             <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+              className={`w-3.5 h-3.5 transition-transform duration-200 ${
+                isOpen ? 'rotate-180 text-red-500' : 'text-slate-300'
+              }`}
             />
           </button>
 
@@ -266,7 +270,7 @@ function SidebarContent({ onNavigate }) {
                 transition={{ duration: 0.18, ease: 'easeInOut' }}
                 className="overflow-hidden"
               >
-                <div className="ml-4 pl-3.5 mt-1 mb-1 border-l border-slate-700/70 space-y-0.5">
+                <div className="ml-4 pl-3.5 mt-1 mb-1 border-l-2 border-red-100 space-y-0.5">
                   {item.children.map((child, ci) => (
                     <Link
                       key={ci}
@@ -274,12 +278,12 @@ function SidebarContent({ onNavigate }) {
                       onClick={onNavigate}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] transition-all duration-150 ${
                         isActive(child.path)
-                          ? 'text-red-400 bg-red-600/10 font-semibold'
-                          : 'text-slate-500 hover:text-slate-200 hover:bg-slate-800/60'
+                          ? 'text-red-600 bg-red-50 font-semibold'
+                          : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
                       }`}
                     >
                       <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 transition-colors ${
-                        isActive(child.path) ? 'bg-red-500' : 'bg-slate-700'
+                        isActive(child.path) ? 'bg-red-500' : 'bg-slate-300'
                       }`} />
                       {child.label}
                     </Link>
@@ -301,14 +305,14 @@ function SidebarContent({ onNavigate }) {
         onClick={onNavigate}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
           active
-            ? 'bg-red-600 text-white shadow-lg shadow-red-600/25'
-            : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+            ? 'bg-red-600 text-white shadow-md shadow-red-500/25'
+            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
         }`}
       >
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${
           active
             ? 'bg-white/20 text-white'
-            : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-300'
+            : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200 group-hover:text-slate-600'
         }`}>
           <item.icon className="w-4 h-4" />
         </div>
@@ -324,18 +328,15 @@ function SidebarContent({ onNavigate }) {
     <div className="flex flex-col h-full">
 
       {/* Brand Header — Desktop only */}
-      <div className="hidden lg:flex items-center gap-3 px-5 py-5 border-b border-slate-800 flex-shrink-0">
-        <div className="relative flex-shrink-0">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-lg shadow-red-600/20">
-            <img src={koniLogo} alt="Logo KONI" className="w-full h-full object-contain" />
-          </div>
-          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-slate-900" />
+      <div className="hidden lg:flex items-center gap-3 px-5 py-5 border-b border-slate-100 flex-shrink-0">
+        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center p-1 shadow-md shadow-slate-200 border border-slate-100 flex-shrink-0">
+          <img src={koniLogo} alt="Logo KONI" className="w-full h-full object-contain" />
         </div>
         <div className="min-w-0">
-          <h1 className="font-bold text-[15px] text-white leading-tight tracking-wide">
-            KONI <span className="text-red-500">SUMBAR</span>
+          <h1 className="font-bold text-[15px] text-slate-800 leading-tight tracking-wide">
+            KONI <span className="text-red-600">SUMBAR</span>
           </h1>
-          <p className="text-[9px] text-slate-500 font-semibold tracking-[0.18em] uppercase mt-0.5">
+          <p className="text-[9px] text-slate-400 font-semibold tracking-[0.18em] uppercase mt-0.5">
             Sports Management
           </p>
         </div>
@@ -346,7 +347,7 @@ function SidebarContent({ onNavigate }) {
         {navGroups.map((group) => (
           <div key={group.id}>
             {/* Section Label */}
-            <p className="px-3 mb-2 text-[10px] font-bold text-slate-600 uppercase tracking-[0.16em]">
+            <p className="px-3 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.16em]">
               {group.label}
             </p>
             {/* Items */}
@@ -359,14 +360,16 @@ function SidebarContent({ onNavigate }) {
 
       {/* User Profile Card */}
       {user && (
-        <div className="px-3 pb-4 flex-shrink-0">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-800/60 border border-slate-700/40">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-md shadow-red-900/40">
+        <div className="px-3 pb-4 pt-2 border-t border-slate-100 flex-shrink-0">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm">
               {user?.name?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-slate-200 truncate leading-tight">{user?.name || 'User'}</p>
-              <p className="text-[10px] text-slate-500 truncate capitalize mt-0.5">
+              <p className="text-[13px] font-semibold text-slate-700 truncate leading-tight">
+                {user?.name || 'User'}
+              </p>
+              <p className="text-[10px] text-slate-400 truncate capitalize mt-0.5">
                 {user?.role?.name?.replace('_', ' ') || 'User'}
               </p>
             </div>
