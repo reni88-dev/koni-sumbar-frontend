@@ -75,6 +75,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const [phoneStatus, setPhoneStatus] = useState('idle');
   const [phoneMessage, setPhoneMessage] = useState('');
   const phoneCheckRef = useRef(null);
+  const initialPhoneValuesRef = useRef({ phone: '', father_phone: '', mother_phone: '' });
 
   // Parent phone validation state
   const [fatherPhoneStatus, setFatherPhoneStatus] = useState('idle');
@@ -93,6 +94,12 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       setErrors({});
       
       if (athlete) {
+        initialPhoneValuesRef.current = {
+          phone: athlete.phone || '',
+          father_phone: athlete.father_phone || '',
+          mother_phone: athlete.mother_phone || '',
+        };
+
         // Fetch competition classes for the athlete's cabor
         if (athlete.cabor_id) {
           fetchCompetitionClasses(athlete.cabor_id);
@@ -135,7 +142,14 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           is_active: athlete.is_active ?? true
         });
         setPhotoPreview(athlete.photo || null);
+        setPhoneStatus(athlete.phone ? 'valid' : 'idle');
+        setPhoneMessage(athlete.phone ? 'Nomor tersimpan' : '');
+        setFatherPhoneStatus(athlete.father_phone ? 'valid' : 'idle');
+        setFatherPhoneMessage(athlete.father_phone ? 'Nomor tersimpan' : '');
+        setMotherPhoneStatus(athlete.mother_phone ? 'valid' : 'idle');
+        setMotherPhoneMessage(athlete.mother_phone ? 'Nomor tersimpan' : '');
       } else {
+        initialPhoneValuesRef.current = { phone: '', father_phone: '', mother_phone: '' };
         setCompetitionClasses([]);
         setFormData({
           cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', national_athlete_number: '', no_kk: '',
@@ -149,6 +163,12 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         });
         setPhotoFile(null);
         setPhotoPreview(null);
+        setPhoneStatus('idle');
+        setPhoneMessage('');
+        setFatherPhoneStatus('idle');
+        setFatherPhoneMessage('');
+        setMotherPhoneStatus('idle');
+        setMotherPhoneMessage('');
       }
     }
   }, [isOpen, athlete]);
@@ -236,6 +256,13 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   // Debounced phone validation via n8n webhook
   useEffect(() => {
     const phone = formData.phone?.trim();
+
+    // Existing saved numbers should not block edit flow unless the user changes them.
+    if (athlete && phone && phone === initialPhoneValuesRef.current.phone.trim()) {
+      setPhoneStatus('valid');
+      setPhoneMessage('Nomor tersimpan');
+      return;
+    }
     
     // Reset if phone is empty or too short
     if (!phone || phone.length < 8) {
@@ -292,6 +319,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   // Father phone validation
   useEffect(() => {
     const phone = formData.father_phone?.trim();
+    if (athlete && phone && phone === initialPhoneValuesRef.current.father_phone.trim()) {
+      setFatherPhoneStatus('valid');
+      setFatherPhoneMessage('Nomor tersimpan');
+      return;
+    }
     if (!phone || phone.length < 8) {
       setFatherPhoneStatus('idle');
       setFatherPhoneMessage('');
@@ -327,6 +359,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   // Mother phone validation
   useEffect(() => {
     const phone = formData.mother_phone?.trim();
+    if (athlete && phone && phone === initialPhoneValuesRef.current.mother_phone.trim()) {
+      setMotherPhoneStatus('valid');
+      setMotherPhoneMessage('Nomor tersimpan');
+      return;
+    }
     if (!phone || phone.length < 8) {
       setMotherPhoneStatus('idle');
       setMotherPhoneMessage('');
