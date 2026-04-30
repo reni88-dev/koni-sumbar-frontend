@@ -1,5 +1,6 @@
 // Athletes queries
 export * from './useAthletes';
+export * from './useAthleteClusters';
 
 // Coaches queries
 export * from './useCoaches';

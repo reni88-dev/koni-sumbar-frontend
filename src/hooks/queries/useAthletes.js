@@ -11,9 +11,19 @@ export const athleteKeys = {
 };
 
 // Fetch athletes with pagination and filters
-export function useAthletes({ page = 1, search = '', caborId = '', gender = '', organizationId = '', perPage = 10 } = {}) {
+export function useAthletes({
+  page = 1,
+  search = '',
+  caborId = '',
+  gender = '',
+  organizationId = '',
+  clusterType = '',
+  subClusterType = '',
+  hasNationalAthleteNumber = '',
+  perPage = 10,
+} = {}) {
   return useQuery({
-    queryKey: athleteKeys.list({ page, search, caborId, gender, organizationId, perPage }),
+    queryKey: athleteKeys.list({ page, search, caborId, gender, organizationId, clusterType, subClusterType, hasNationalAthleteNumber, perPage }),
     queryFn: async () => {
       const response = await api.get('/api/athletes', {
         params: { 
@@ -22,6 +32,9 @@ export function useAthletes({ page = 1, search = '', caborId = '', gender = '', 
           cabor_id: caborId || undefined, 
           gender: gender || undefined, 
           organization_id: organizationId || undefined,
+          cluster_type: clusterType || undefined,
+          sub_cluster_type: subClusterType || undefined,
+          has_national_athlete_number: hasNationalAthleteNumber || undefined,
           per_page: perPage 
         }
       });

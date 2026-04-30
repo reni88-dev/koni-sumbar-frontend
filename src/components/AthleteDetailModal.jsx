@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -10,11 +11,15 @@ import {
   Activity,
   Briefcase,
   Heart,
-  Droplet
+  Droplet,
+  Layers,
+  Wallet
 } from 'lucide-react';
 import { ProtectedImage } from './ProtectedImage';
+import { AthleteClusterHistoryTab, AthleteDevelopmentFundsTab } from './athlete-clusters';
 
 export function AthleteDetailModal({ isOpen, onClose, athlete }) {
+  const [activeTab, setActiveTab] = useState('profile');
   if (!isOpen || !athlete) return null;
 
   const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
@@ -110,6 +115,31 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
 
             {/* Additional Info */}
             <div className="space-y-4">
+              <div className="flex flex-wrap gap-2 p-1 bg-slate-100 rounded-xl">
+                <button
+                  onClick={() => setActiveTab('profile')}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'profile' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <User className="w-4 h-4" />
+                  Profil
+                </button>
+                <button
+                  onClick={() => setActiveTab('clusters')}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'clusters' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Layers className="w-4 h-4" />
+                  Riwayat Kluster
+                </button>
+                <button
+                  onClick={() => setActiveTab('funds')}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'funds' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                >
+                  <Wallet className="w-4 h-4" />
+                  Biaya Pembinaan
+                </button>
+              </div>
+
+              {activeTab === 'profile' && <>
               {/* NIK & No KK & No Atlit Nasional */}
               <div className="p-4 bg-slate-50 rounded-xl">
                 <div className="grid grid-cols-3 gap-4">
@@ -165,6 +195,10 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
                   <p className="text-sm text-slate-700">{athlete.injury_illness_history}</p>
                 </div>
               )}
+              </>}
+
+              {activeTab === 'clusters' && <AthleteClusterHistoryTab athlete={athlete} />}
+              {activeTab === 'funds' && <AthleteDevelopmentFundsTab athlete={athlete} />}
             </div>
           </div>
         </div>

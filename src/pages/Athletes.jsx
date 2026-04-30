@@ -23,6 +23,7 @@ import { PrintAthleteList } from '../components/PrintAthleteList';
 import { useAthletes, useDeleteAthlete } from '../hooks/queries/useAthletes';
 import { useCaborsAll } from '../hooks/queries/useCabors';
 import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
+import { CLUSTER_TYPES, SUB_CLUSTER_TYPES } from '../components/athlete-clusters';
 import api from '../api/axios';
 
 export function AthletesPage() {
@@ -31,6 +32,9 @@ export function AthletesPage() {
   const [filterCabor, setFilterCabor] = useState('');
   const [filterGender, setFilterGender] = useState('');
   const [filterOrganization, setFilterOrganization] = useState('');
+  const [filterCluster, setFilterCluster] = useState('');
+  const [filterSubCluster, setFilterSubCluster] = useState('');
+  const [filterNationalNumber, setFilterNationalNumber] = useState('');
   const [page, setPage] = useState(1);
   
   // Modal states
@@ -59,7 +63,10 @@ export function AthletesPage() {
     search: debouncedSearch, 
     caborId: filterCabor, 
     gender: filterGender,
-    organizationId: filterOrganization
+    organizationId: filterOrganization,
+    clusterType: filterCluster,
+    subClusterType: filterSubCluster,
+    hasNationalAthleteNumber: filterNationalNumber
   });
   
   const deleteAthleteMutation = useDeleteAthlete();
@@ -83,7 +90,13 @@ export function AthletesPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterCabor, filterGender, filterOrganization]);
+  }, [filterCabor, filterGender, filterOrganization, filterCluster, filterSubCluster, filterNationalNumber]);
+
+  useEffect(() => {
+    if (filterCluster !== 'koni_development' && filterSubCluster) {
+      setFilterSubCluster('');
+    }
+  }, [filterCluster, filterSubCluster]);
 
   const openCreateModal = () => {
     setSelectedAthlete(null);
@@ -148,6 +161,9 @@ export function AthletesPage() {
       if (debouncedSearch) params.append('search', debouncedSearch);
       if (filterCabor) params.append('cabor_id', filterCabor);
       if (filterGender) params.append('gender', filterGender);
+      if (filterCluster) params.append('cluster_type', filterCluster);
+      if (filterSubCluster) params.append('sub_cluster_type', filterSubCluster);
+      if (filterNationalNumber) params.append('has_national_athlete_number', filterNationalNumber);
       
       const response = await api.get(`/api/athletes/export/${type}?${params.toString()}`, {
         responseType: 'blob',
@@ -227,6 +243,33 @@ export function AthletesPage() {
             <option value="">Semua Organisasi</option>
             {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
+          <select
+            value={filterCluster}
+            onChange={(e) => setFilterCluster(e.target.value)}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+          >
+            <option value="">Semua Atlet Umum</option>
+            {CLUSTER_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          </select>
+          {filterCluster === 'koni_development' && (
+            <select
+              value={filterSubCluster}
+              onChange={(e) => setFilterSubCluster(e.target.value)}
+              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+            >
+              <option value="">Semua Sub-Kluster</option>
+              {SUB_CLUSTER_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            </select>
+          )}
+          <select
+            value={filterNationalNumber}
+            onChange={(e) => setFilterNationalNumber(e.target.value)}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+          >
+            <option value="">Semua No. Nasional</option>
+            <option value="true">Sudah punya nomor nasional</option>
+            <option value="false">Belum punya nomor nasional</option>
+          </select>
         </div>
         <div className="flex items-center gap-3">
           {/* Export Dropdown */}
@@ -278,11 +321,16 @@ export function AthletesPage() {
               caborId: filterCabor,
               gender: filterGender,
               organizationId: filterOrganization,
+              clusterType: filterCluster,
+              subClusterType: filterSubCluster,
+              hasNationalAthleteNumber: filterNationalNumber,
             }}
             filters={{
               cabor: filterCabor ? cabors.find(c => String(c.id) === String(filterCabor))?.name : '',
               gender: filterGender,
               organization: filterOrganization ? organizations.find(o => String(o.id) === String(filterOrganization))?.name : '',
+              cluster: filterCluster ? CLUSTER_TYPES.find(c => c.value === filterCluster)?.label : '',
+              subCluster: filterSubCluster ? SUB_CLUSTER_TYPES.find(c => c.value === filterSubCluster)?.label : '',
               search: debouncedSearch,
             }}
           />
@@ -314,6 +362,8 @@ export function AthletesPage() {
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">TTL</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gender</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kluster</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">No. Nasional</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
               </tr>
@@ -321,13 +371,13 @@ export function AthletesPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={8} className="px-6 py-12 text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                   </td>
                 </tr>
               ) : athletes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                     Tidak ada data atlet
                   </td>
                 </tr>
@@ -372,6 +422,21 @@ export function AthletesPage() {
                       }`}>
                         {genderLabels[athlete.gender] || '-'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1">
+                        <span className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${athlete.current_cluster_type === 'koni_development' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {athlete.current_cluster_label || 'Atlet Non Binaan'}
+                        </span>
+                        {athlete.current_sub_cluster_label && (
+                          <span className="px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 whitespace-nowrap">
+                            {athlete.current_sub_cluster_label}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="font-mono text-sm text-slate-600 whitespace-nowrap">{athlete.national_athlete_number || '-'}</span>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
