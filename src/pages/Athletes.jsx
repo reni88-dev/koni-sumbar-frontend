@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Plus,
+  Search,
+  Edit2,
   Trash2,
   X,
   Loader2,
@@ -13,30 +13,30 @@ import {
   FileSpreadsheet,
   FileText,
   ChevronDown,
-  CheckCircle2
-} from 'lucide-react';
-import { DashboardLayout } from '../components/DashboardLayout';
-import { AthleteFormModal } from '../components/AthleteFormModal';
-import { AthleteDetailModal } from '../components/AthleteDetailModal';
-import { ProtectedImage } from '../components/ProtectedImage';
-import { PrintAthleteList } from '../components/PrintAthleteList';
-import { useAthletes, useDeleteAthlete } from '../hooks/queries/useAthletes';
-import { useCaborsAll } from '../hooks/queries/useCabors';
-import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
-import { CLUSTER_TYPES, SUB_CLUSTER_TYPES } from '../components/athlete-clusters';
-import api from '../api/axios';
+  CheckCircle2,
+} from "lucide-react";
+import { DashboardLayout } from "../components/DashboardLayout";
+import { AthleteFormModal } from "../components/AthleteFormModal";
+import { AthleteDetailModal } from "../components/AthleteDetailModal";
+import { ProtectedImage } from "../components/ProtectedImage";
+import { PrintAthleteList } from "../components/PrintAthleteList";
+import { useAthletes, useDeleteAthlete } from "../hooks/queries/useAthletes";
+import { useCaborsAll } from "../hooks/queries/useCabors";
+import { useOrganizationsAll } from "../hooks/queries/useOrganizations";
+import { useAthleteClustersAll, useAthleteSubClustersByCluster } from "../hooks/queries/useAthleteClusterMaster";
+import api from "../api/axios";
 
 export function AthletesPage() {
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filterCabor, setFilterCabor] = useState('');
-  const [filterGender, setFilterGender] = useState('');
-  const [filterOrganization, setFilterOrganization] = useState('');
-  const [filterCluster, setFilterCluster] = useState('');
-  const [filterSubCluster, setFilterSubCluster] = useState('');
-  const [filterNationalNumber, setFilterNationalNumber] = useState('');
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [filterCabor, setFilterCabor] = useState("");
+  const [filterGender, setFilterGender] = useState("");
+  const [filterOrganization, setFilterOrganization] = useState("");
+  const [filterCluster, setFilterCluster] = useState("");
+  const [filterSubCluster, setFilterSubCluster] = useState("");
+  const [filterNationalNumber, setFilterNationalNumber] = useState("");
   const [page, setPage] = useState(1);
-  
+
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -47,35 +47,37 @@ export function AthletesPage() {
   // Export states
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
+  const genderLabels = { male: "Laki-laki", female: "Perempuan" };
 
   // TanStack Query hooks
   const { data: cabors = [] } = useCaborsAll();
   const { data: organizations = [] } = useOrganizationsAll();
-  const { 
-    data: athletesData, 
+  const { data: clusters = [] } = useAthleteClustersAll();
+  const { data: subClusters = [] } = useAthleteSubClustersByCluster(filterCluster);
+  const {
+    data: athletesData,
     isLoading: loading,
-    refetch: refetchAthletes 
-  } = useAthletes({ 
-    page, 
-    search: debouncedSearch, 
-    caborId: filterCabor, 
+    refetch: refetchAthletes,
+  } = useAthletes({
+    page,
+    search: debouncedSearch,
+    caborId: filterCabor,
     gender: filterGender,
     organizationId: filterOrganization,
-    clusterType: filterCluster,
-    subClusterType: filterSubCluster,
-    hasNationalAthleteNumber: filterNationalNumber
+    clusterId: filterCluster,
+    subClusterId: filterSubCluster,
+    hasNationalAthleteNumber: filterNationalNumber,
   });
-  
+
   const deleteAthleteMutation = useDeleteAthlete();
 
   const athletes = athletesData?.data || [];
   const pagination = {
     current_page: athletesData?.current_page || 1,
     last_page: athletesData?.last_page || 1,
-    total: athletesData?.total || 0
+    total: athletesData?.total || 0,
   };
 
   // Debounce search
@@ -90,13 +92,20 @@ export function AthletesPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterCabor, filterGender, filterOrganization, filterCluster, filterSubCluster, filterNationalNumber]);
+  }, [
+    filterCabor,
+    filterGender,
+    filterOrganization,
+    filterCluster,
+    filterSubCluster,
+    filterNationalNumber,
+  ]);
 
   useEffect(() => {
-    if (filterCluster !== 'koni_development' && filterSubCluster) {
-      setFilterSubCluster('');
+    if (filterSubCluster && !subClusters.some((item) => String(item.id) === String(filterSubCluster))) {
+      setFilterSubCluster("");
     }
-  }, [filterCluster, filterSubCluster]);
+  }, [filterSubCluster, subClusters]);
 
   const openCreateModal = () => {
     setSelectedAthlete(null);
@@ -110,7 +119,7 @@ export function AthletesPage() {
       setSelectedAthlete(response.data);
       setIsFormModalOpen(true);
     } catch (error) {
-      console.error('Failed to fetch athlete details:', error);
+      console.error("Failed to fetch athlete details:", error);
       // Fallback to list data if API fails
       setSelectedAthlete(athlete);
       setIsFormModalOpen(true);
@@ -123,18 +132,20 @@ export function AthletesPage() {
       setSelectedAthlete(response.data);
       setIsDetailModalOpen(true);
     } catch (error) {
-      console.error('Failed to fetch athlete details:', error);
+      console.error("Failed to fetch athlete details:", error);
       setSelectedAthlete(athlete);
       setIsDetailModalOpen(true);
     }
   };
 
   const handleFormSuccess = () => {
-    const message = selectedAthlete ? 'Data atlet berhasil diupdate!' : 'Atlet baru berhasil ditambahkan!';
+    const message = selectedAthlete
+      ? "Data atlet berhasil diupdate!"
+      : "Atlet baru berhasil ditambahkan!";
     setIsFormModalOpen(false);
     refetchAthletes();
     setSuccessMessage(message);
-    setTimeout(() => setSuccessMessage(''), 3000);
+    setTimeout(() => setSuccessMessage(""), 3000);
   };
 
   const handleDelete = async () => {
@@ -143,51 +154,65 @@ export function AthletesPage() {
       setIsDeleteModalOpen(false);
       setAthleteToDelete(null);
     } catch (error) {
-      console.error('Failed to delete athlete:', error);
+      console.error("Failed to delete athlete:", error);
     }
   };
 
   const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+    if (!dateStr) return "-";
+    return new Date(dateStr).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
   };
 
   const handleExport = async (type) => {
     setIsExporting(true);
     setIsExportMenuOpen(false);
-    
+
     try {
       const params = new URLSearchParams();
-      if (debouncedSearch) params.append('search', debouncedSearch);
-      if (filterCabor) params.append('cabor_id', filterCabor);
-      if (filterGender) params.append('gender', filterGender);
-      if (filterCluster) params.append('cluster_type', filterCluster);
-      if (filterSubCluster) params.append('sub_cluster_type', filterSubCluster);
-      if (filterNationalNumber) params.append('has_national_athlete_number', filterNationalNumber);
-      
-      const response = await api.get(`/api/athletes/export/${type}?${params.toString()}`, {
-        responseType: 'blob',
-      });
-      
+      if (debouncedSearch) params.append("search", debouncedSearch);
+      if (filterCabor) params.append("cabor_id", filterCabor);
+      if (filterGender) params.append("gender", filterGender);
+      if (filterCluster) params.append("cluster_id", filterCluster);
+      if (filterSubCluster) params.append("sub_cluster_id", filterSubCluster);
+      if (filterNationalNumber)
+        params.append("has_national_athlete_number", filterNationalNumber);
+
+      const response = await api.get(
+        `/api/athletes/export/${type}?${params.toString()}`,
+        {
+          responseType: "blob",
+        },
+      );
+
       // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
+      const link = document.createElement("a");
       link.href = url;
-      link.setAttribute('download', `data_atlet_koni_${new Date().toISOString().split('T')[0]}.${type}`);
+      link.setAttribute(
+        "download",
+        `data_atlet_koni_${new Date().toISOString().split("T")[0]}.${type}`,
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error('Export failed:', error);
-      alert('Gagal mengekspor data. Silakan coba lagi.');
+      console.error("Export failed:", error);
+      alert("Gagal mengekspor data. Silakan coba lagi.");
     } finally {
       setIsExporting(false);
     }
   };
 
   return (
-    <DashboardLayout title="Data Atlet" subtitle="Kelola data atlet dan informasi lengkapnya">
+    <DashboardLayout
+      title="Data Atlet"
+      subtitle="Kelola data atlet dan informasi lengkapnya"
+    >
       {/* Success Toast */}
       <AnimatePresence>
         {successMessage && (
@@ -199,7 +224,10 @@ export function AthletesPage() {
           >
             <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
             <span className="text-sm font-medium">{successMessage}</span>
-            <button onClick={() => setSuccessMessage('')} className="ml-2 p-0.5 hover:bg-green-500 rounded-lg transition-colors">
+            <button
+              onClick={() => setSuccessMessage("")}
+              className="ml-2 p-0.5 hover:bg-green-500 rounded-lg transition-colors"
+            >
               <X className="w-4 h-4" />
             </button>
           </motion.div>
@@ -224,7 +252,11 @@ export function AthletesPage() {
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
           >
             <option value="">Semua Cabor</option>
-            {cabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {cabors.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
           <select
             value={filterGender}
@@ -241,24 +273,36 @@ export function AthletesPage() {
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
           >
             <option value="">Semua Organisasi</option>
-            {organizations.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+            {organizations.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
           </select>
           <select
             value={filterCluster}
             onChange={(e) => setFilterCluster(e.target.value)}
             className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
           >
-            <option value="">Semua Atlet Umum</option>
-            {CLUSTER_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+            <option value="">Semua Cluster</option>
+            {clusters.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ))}
           </select>
-          {filterCluster === 'koni_development' && (
+          {filterCluster && subClusters.length > 0 && (
             <select
               value={filterSubCluster}
               onChange={(e) => setFilterSubCluster(e.target.value)}
               className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
             >
               <option value="">Semua Sub-Kluster</option>
-              {SUB_CLUSTER_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+              {subClusters.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             </select>
           )}
           <select
@@ -289,20 +333,22 @@ export function AthletesPage() {
             </button>
             {isExportMenuOpen && (
               <>
-                <div 
-                  className="fixed inset-0 z-10" 
-                  onClick={() => setIsExportMenuOpen(false)} 
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setIsExportMenuOpen(false)}
                 />
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-20">
                   <button
-                    onClick={() => handleExport('csv')}
+                    onClick={() => handleExport("csv")}
                     className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
                   >
                     <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium">Excel / CSV (.csv)</span>
+                    <span className="text-sm font-medium">
+                      Excel / CSV (.csv)
+                    </span>
                   </button>
                   <button
-                    onClick={() => handleExport('pdf')}
+                    onClick={() => handleExport("pdf")}
                     className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
                   >
                     <FileText className="w-5 h-5 text-red-600" />
@@ -321,34 +367,48 @@ export function AthletesPage() {
               caborId: filterCabor,
               gender: filterGender,
               organizationId: filterOrganization,
-              clusterType: filterCluster,
-              subClusterType: filterSubCluster,
+              clusterId: filterCluster,
+              subClusterId: filterSubCluster,
               hasNationalAthleteNumber: filterNationalNumber,
             }}
             filters={{
-              cabor: filterCabor ? cabors.find(c => String(c.id) === String(filterCabor))?.name : '',
+              cabor: filterCabor
+                ? cabors.find((c) => String(c.id) === String(filterCabor))?.name
+                : "",
               gender: filterGender,
-              organization: filterOrganization ? organizations.find(o => String(o.id) === String(filterOrganization))?.name : '',
-              cluster: filterCluster ? CLUSTER_TYPES.find(c => c.value === filterCluster)?.label : '',
-              subCluster: filterSubCluster ? SUB_CLUSTER_TYPES.find(c => c.value === filterSubCluster)?.label : '',
+              organization: filterOrganization
+                ? organizations.find(
+                    (o) => String(o.id) === String(filterOrganization),
+                  )?.name
+                : "",
+              cluster: filterCluster
+                ? clusters.find((c) => String(c.id) === String(filterCluster))?.name
+                : "",
+              subCluster: filterSubCluster
+                ? subClusters.find((c) => String(c.id) === String(filterSubCluster))
+                    ?.name
+                : "",
               search: debouncedSearch,
             }}
           />
-          
+
           {/* Add Athlete Button */}
           <button
             onClick={openCreateModal}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
           >
             <Plus className="w-5 h-5" />
-            <span>Tambah Atlet</span>
+            <span>Tambah</span>
           </button>
         </div>
       </div>
 
       {/* Stats */}
       <div className="mb-6 p-4 bg-white rounded-xl border border-slate-100 flex items-center justify-between">
-        <span className="text-sm text-slate-600">Total: <strong className="text-slate-800">{pagination.total}</strong> atlet</span>
+        <span className="text-sm text-slate-600">
+          Total: <strong className="text-slate-800">{pagination.total}</strong>{" "}
+          atlet
+        </span>
       </div>
 
       {/* Table */}
@@ -357,15 +417,31 @@ export function AthletesPage() {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Atlet</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Atlet
+                </th>
                 {/* <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">NIK</th> */}
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">TTL</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gender</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kluster</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">No. Nasional</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Cabor
+                </th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  TTL
+                </th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Gender
+                </th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Kluster
+                </th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  No. Nasional
+                </th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Aksi
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -377,32 +453,40 @@ export function AthletesPage() {
                 </tr>
               ) : athletes.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                  <td
+                    colSpan={8}
+                    className="px-6 py-12 text-center text-slate-500"
+                  >
                     Tidak ada data atlet
                   </td>
                 </tr>
               ) : (
                 athletes.map((athlete) => (
-                  <tr key={athlete.id} className="hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={athlete.id}
+                    className="hover:bg-slate-50 transition-colors"
+                  >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {athlete.photo ? (
-                          <ProtectedImage 
+                          <ProtectedImage
                             src={athlete.photo}
                             alt={athlete.name}
                             className="w-10 h-10 rounded-full object-cover"
                             fallback={
                               <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-medium">
-                                {athlete.name?.charAt(0) || '?'}
+                                {athlete.name?.charAt(0) || "?"}
                               </div>
                             }
                           />
                         ) : (
                           <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-medium">
-                            {athlete.name?.charAt(0) || '?'}
+                            {athlete.name?.charAt(0) || "?"}
                           </div>
                         )}
-                        <span className="font-medium text-slate-800">{athlete.name}</span>
+                        <span className="font-medium text-slate-800">
+                          {athlete.name}
+                        </span>
                       </div>
                     </td>
                     {/* <td className="px-6 py-4">
@@ -410,23 +494,30 @@ export function AthletesPage() {
                     </td> */}
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm whitespace-nowrap">
-                        {athlete.cabor?.name || '-'}
+                        {athlete.cabor?.name || "-"}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {athlete.birth_place ? `${athlete.birth_place}, ` : ''}{formatDate(athlete.birth_date)}
+                      {athlete.birth_place ? `${athlete.birth_place}, ` : ""}
+                      {formatDate(athlete.birth_date)}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${
-                        athlete.gender === 'male' ? 'bg-blue-100 text-blue-700' : 'bg-pink-100 text-pink-700'
-                      }`}>
-                        {genderLabels[athlete.gender] || '-'}
+                      <span
+                        className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${
+                          athlete.gender === "male"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-pink-100 text-pink-700"
+                        }`}
+                      >
+                        {genderLabels[athlete.gender] || "-"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-col gap-1">
-                        <span className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${athlete.current_cluster_type === 'koni_development' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
-                          {athlete.current_cluster_label || 'Atlet Non Binaan'}
+                        <span
+                          className={`px-2 py-1 rounded-lg text-xs font-medium whitespace-nowrap ${athlete.is_development_cluster ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"}`}
+                        >
+                          {athlete.current_cluster_label || "Atlet Non Binaan"}
                         </span>
                         {athlete.current_sub_cluster_label && (
                           <span className="px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 whitespace-nowrap">
@@ -436,13 +527,19 @@ export function AthletesPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="font-mono text-sm text-slate-600 whitespace-nowrap">{athlete.national_athlete_number || '-'}</span>
+                      <span className="font-mono text-sm text-slate-600 whitespace-nowrap">
+                        {athlete.national_athlete_number || "-"}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        athlete.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        {athlete.is_active ? 'Aktif' : 'Nonaktif'}
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          athlete.is_active
+                            ? "bg-green-100 text-green-700"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {athlete.is_active ? "Aktif" : "Nonaktif"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -462,7 +559,10 @@ export function AthletesPage() {
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => { setAthleteToDelete(athlete); setIsDeleteModalOpen(true); }}
+                          onClick={() => {
+                            setAthleteToDelete(athlete);
+                            setIsDeleteModalOpen(true);
+                          }}
                           className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
                           title="Hapus"
                         >
@@ -481,19 +581,22 @@ export function AthletesPage() {
       {/* Pagination */}
       {pagination.last_page > 1 && (
         <div className="flex items-center justify-center gap-2 mt-6">
-          {Array.from({ length: Math.min(pagination.last_page, 10) }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i + 1)}
-              className={`w-10 h-10 rounded-xl font-medium transition-colors ${
-                pagination.current_page === i + 1
-                  ? 'bg-red-600 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
+          {Array.from(
+            { length: Math.min(pagination.last_page, 10) },
+            (_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i + 1)}
+                className={`w-10 h-10 rounded-xl font-medium transition-colors ${
+                  pagination.current_page === i + 1
+                    ? "bg-red-600 text-white"
+                    : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ),
+          )}
         </div>
       )}
 
@@ -531,13 +634,19 @@ export function AthletesPage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
             >
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center" onClick={e => e.stopPropagation()}>
+              <div
+                className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <AlertCircle className="w-8 h-8 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-800 mb-2">Hapus Atlet?</h3>
+                <h3 className="text-lg font-bold text-slate-800 mb-2">
+                  Hapus Atlet?
+                </h3>
                 <p className="text-slate-500 text-sm mb-6">
-                  Anda yakin ingin menghapus atlet <strong>{athleteToDelete?.name}</strong>?
+                  Anda yakin ingin menghapus atlet{" "}
+                  <strong>{athleteToDelete?.name}</strong>?
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -551,7 +660,7 @@ export function AthletesPage() {
                     disabled={deleteAthleteMutation.isPending}
                     className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
                   >
-                    {deleteAthleteMutation.isPending ? 'Menghapus...' : 'Hapus'}
+                    {deleteAthleteMutation.isPending ? "Menghapus..." : "Hapus"}
                   </button>
                 </div>
               </div>

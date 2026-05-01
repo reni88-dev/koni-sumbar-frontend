@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
 import { useCreateAthleteDevelopmentFund, useUpdateAthleteDevelopmentFund } from '../../hooks/queries/useAthleteClusters';
 
+const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
+const formatThousands = (value) => onlyDigits(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
 export function AthleteDevelopmentFundModal({ isOpen, onClose, athlete, fund }) {
   const createMutation = useCreateAthleteDevelopmentFund();
   const updateMutation = useUpdateAthleteDevelopmentFund();
@@ -13,7 +16,7 @@ export function AthleteDevelopmentFundModal({ isOpen, onClose, athlete, fund }) 
     if (fund) {
       setForm({
         fund_date: fund.fund_date || new Date().toISOString().split('T')[0],
-        amount: String(fund.amount ?? ''),
+        amount: formatThousands(fund.amount ?? ''),
         description: fund.description || '',
       });
     } else {
@@ -29,7 +32,7 @@ export function AthleteDevelopmentFundModal({ isOpen, onClose, athlete, fund }) 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
-    const amount = Number(form.amount);
+    const amount = Number(onlyDigits(form.amount));
     if (!form.fund_date) return setError('Tanggal biaya wajib diisi.');
     if (Number.isNaN(amount) || amount < 0) return setError('Nominal wajib berupa angka dan minimal 0.');
 
@@ -44,6 +47,10 @@ export function AthleteDevelopmentFundModal({ isOpen, onClose, athlete, fund }) 
     } catch (err) {
       setError(err.response?.data?.error || 'Gagal menyimpan biaya pembinaan.');
     }
+  };
+
+  const handleAmountChange = (event) => {
+    setForm({ ...form, amount: formatThousands(event.target.value) });
   };
 
   return (
@@ -68,7 +75,7 @@ export function AthleteDevelopmentFundModal({ isOpen, onClose, athlete, fund }) 
             </label>
             <label className="space-y-1 block">
               <span className="text-sm font-medium text-slate-700">Nominal</span>
-              <input type="number" min="0" step="1000" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" placeholder="0" />
+              <input type="text" inputMode="numeric" value={form.amount} onChange={handleAmountChange} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" placeholder="0" />
             </label>
             <label className="space-y-1 block">
               <span className="text-sm font-medium text-slate-700">Keterangan</span>

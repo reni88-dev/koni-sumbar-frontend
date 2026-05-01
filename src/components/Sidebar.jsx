@@ -17,13 +17,13 @@ import {
   GraduationCap,
   FileText,
   History,
-  User,
   UserCheck,
   MapPin,
   Building2,
   ClipboardCheck,
   ClipboardList,
-  Bot
+  Bot,
+  Layers
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -111,75 +111,105 @@ function SidebarContent({ onNavigate }) {
     return user?.role?.name === 'coach';
   };
 
-  // Build navItems based on permissions
-  const navItems = [
-    // Dashboard only visible for non-athlete/coach users (admins)
-    ...(!isAthlete() && !isCoach() ? [
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }
-    ] : []),
-    
-    // Portal Menu Items - Only for Athletes and Coaches (as their main dashboard)
-    ...(isAthlete() ? [
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/portal/atlet' }
-    ] : []),
-    ...(isCoach() ? [
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/portal/pelatih' }
-    ] : []),
-    
-    { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
-    { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
-    { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },
-    { icon: Calendar, label: 'Event Olahraga', path: '/event', permission: 'events.view' },
-    { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
-    { icon: ClipboardList, label: 'Monitoring', path: '/monev', permission: 'monev.view' },
-    
-    // Training / Absensi Latihan
-    ...(hasPermission('training.view') || isCoach() ? [
-      { 
-        icon: ClipboardCheck, 
-        label: 'Absensi Latihan', 
-        path: '#', 
-        children: [
-          { icon: Calendar, label: 'Jadwal Latihan', path: '/training' },
-          ...(hasPermission('training.report') || isSuperAdmin() ? [{ icon: Activity, label: 'Laporan Kehadiran', path: '/training/report' }] : []),
-        ]
-      }
-    ] : []),
-    
-    // Master Data Menu - Based on permissions
-    ...(hasPermission('users.view') || hasPermission('roles.view') || hasPermission('cabors.view') || hasPermission('education_levels.view') || hasPermission('competition_classes.view') || hasPermission('regions.view') || hasPermission('organizations.view') ? [
-      { 
-        icon: Database, 
-        label: 'Master Data', 
-        path: '#', 
-        children: [
-          ...(hasPermission('users.view') ? [{ icon: Users, label: 'Data User', path: '/master/users' }] : []),
-          ...(hasPermission('roles.view') ? [{ icon: Shield, label: 'Data Role', path: '/master/roles' }] : []),
-          ...(hasPermission('cabors.view') ? [{ icon: Trophy, label: 'Master Cabor', path: '/master/cabors' }] : []),
-          ...(hasPermission('regions.view') ? [{ icon: MapPin, label: 'Wilayah', path: '/master/regions' }] : []),
-          ...(hasPermission('organizations.view') ? [{ icon: Building2, label: 'Organisasi', path: '/master/organizations' }] : []),
-          ...(hasPermission('education_levels.view') ? [{ icon: GraduationCap, label: 'Jenjang Pendidikan', path: '/master/education-levels' }] : []),
-          ...(hasPermission('competition_classes.view') ? [{ icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes' }] : []),
-          ...(hasPermission('venues.view') ? [{ icon: MapPin, label: 'Master Venue', path: '/master/venues' }] : []),
-        ].filter(Boolean)
-      }
-    ] : []),
+  const createSection = (label, items) => {
+    if (!items.length) {
+      return [];
+    }
 
-    // Activity Logs - Super Admin only
-    ...(isSuperAdmin() ? [
-      { icon: History, label: 'Activity Log', path: '/activity-logs' },
-      { icon: Bot, label: 'AI Analytics', path: '/ai-analytics' }
-    ] : []),
+    return [{ type: 'section', label }, ...items];
+  };
 
-    { icon: Settings, label: 'Pengaturan', path: '/settings', permission: 'settings.view' },
-  ].filter(item => {
-    // Filter items based on permission
+  const filterVisibleItems = (items) => items.filter((item) => {
     if (item.permission) {
       return hasPermission(item.permission);
     }
-    // Items without permission requirement (like Master Data parent) are shown
+
+    if (item.children) {
+      return item.children.length > 0;
+    }
+
     return true;
   });
+
+  const dashboardItems = filterVisibleItems([
+    ...(!isAthlete() && !isCoach()
+      ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' }]
+      : []),
+    ...(isAthlete()
+      ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/portal/atlet' }]
+      : []),
+    ...(isCoach()
+      ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/portal/pelatih' }]
+      : []),
+  ]);
+
+  const trainingChildren = filterVisibleItems([
+    { icon: Calendar, label: 'Jadwal Latihan', path: '/training' },
+    ...(hasPermission('training.report') || isSuperAdmin()
+      ? [{ icon: Activity, label: 'Laporan Kehadiran', path: '/training/report' }]
+      : []),
+  ]);
+
+  const pembinaanItems = filterVisibleItems([
+    { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
+    { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
+    { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },
+    ...(hasPermission('training.view') || isCoach()
+      ? [{
+          icon: ClipboardCheck,
+          label: 'Absensi Latihan',
+          path: '#',
+          children: trainingChildren,
+        }]
+      : []),
+  ]);
+
+  const kegiatanItems = filterVisibleItems([
+    { icon: Calendar, label: 'Event Olahraga', path: '/event', permission: 'events.view' },
+    { icon: ClipboardList, label: 'Monitoring', path: '/monev', permission: 'monev.view' },
+    { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
+  ]);
+
+  const masterDataChildren = filterVisibleItems([
+    { icon: Users, label: 'Data User', path: '/master/users', permission: 'users.view' },
+    { icon: Shield, label: 'Data Role', path: '/master/roles', permission: 'roles.view' },
+    { icon: Trophy, label: 'Master Cabor', path: '/master/cabors', permission: 'cabors.view' },
+    { icon: Layers, label: 'Master Cluster Atlet', path: '/master/athlete-clusters', permission: 'athlete_cluster_master.view' },
+    { icon: MapPin, label: 'Wilayah', path: '/master/regions', permission: 'regions.view' },
+    { icon: Building2, label: 'Organisasi', path: '/master/organizations', permission: 'organizations.view' },
+    { icon: GraduationCap, label: 'Jenjang Pendidikan', path: '/master/education-levels', permission: 'education_levels.view' },
+    { icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes', permission: 'competition_classes.view' },
+    { icon: MapPin, label: 'Master Venue', path: '/master/venues', permission: 'venues.view' },
+  ]).map(({ permission, ...item }) => item);
+
+  const masterDataItems = filterVisibleItems([
+    ...(masterDataChildren.length
+      ? [{
+          icon: Database,
+          label: 'Master Data',
+          path: '#',
+          children: masterDataChildren,
+        }]
+      : []),
+  ]);
+
+  const systemItems = filterVisibleItems([
+    ...(isSuperAdmin()
+      ? [
+          { icon: History, label: 'Activity Log', path: '/activity-logs' },
+          { icon: Bot, label: 'AI Analytics', path: '/ai-analytics' },
+        ]
+      : []),
+    { icon: Settings, label: 'Pengaturan', path: '/settings', permission: 'settings.view' },
+  ]);
+
+  const navItems = [
+    ...createSection('Utama', dashboardItems),
+    ...createSection('Pembinaan', pembinaanItems),
+    ...createSection('Kegiatan', kegiatanItems),
+    ...createSection('Master Data', masterDataItems),
+    ...createSection('Sistem', systemItems),
+  ];
 
   const toggleSubmenu = (label) => {
     if (openSubmenu === label) {
@@ -215,10 +245,23 @@ function SidebarContent({ onNavigate }) {
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {navItems.map((item, index) => {
+          if (item.type === 'section') {
+            return (
+              <div
+                key={`section-${item.label}`}
+                className={index === 0 ? 'px-4 pt-1 pb-2' : 'px-4 pt-5 pb-2'}
+              >
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                  {item.label}
+                </p>
+              </div>
+            );
+          }
+
           if (item.children) {
             const hasActiveChild = isChildActive(item.children);
             return (
-              <div key={index} className="space-y-1">
+              <div key={item.label} className="space-y-1">
                 <button
                   onClick={() => toggleSubmenu(item.label)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
@@ -246,13 +289,13 @@ function SidebarContent({ onNavigate }) {
                       exit={{ height: 0, opacity: 0 }}
                       className="overflow-hidden"
                     >
-                      <div className="pl-4 pr-2 py-1 space-y-1">
-                        {item.children.map((child, childIndex) => (
-                          <Link
-                            key={childIndex}
-                            to={child.path}
-                            onClick={onNavigate}
-                            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
+                        <div className="pl-4 pr-2 py-1 space-y-1">
+                          {item.children.map((child) => (
+                            <Link
+                              key={child.path}
+                              to={child.path}
+                              onClick={onNavigate}
+                              className={`flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-colors ${
                               isActive(child.path)
                                 ? 'text-red-600 bg-red-50 font-medium'
                                 : 'text-slate-500 hover:text-red-600 hover:bg-red-50'
@@ -273,7 +316,7 @@ function SidebarContent({ onNavigate }) {
           const active = isActive(item.path);
           return (
             <Link
-              key={index}
+              key={item.path}
               to={item.path}
               onClick={onNavigate}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${

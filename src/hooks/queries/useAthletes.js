@@ -17,13 +17,15 @@ export function useAthletes({
   caborId = '',
   gender = '',
   organizationId = '',
+  clusterId = '',
+  subClusterId = '',
   clusterType = '',
   subClusterType = '',
   hasNationalAthleteNumber = '',
   perPage = 10,
 } = {}) {
   return useQuery({
-    queryKey: athleteKeys.list({ page, search, caborId, gender, organizationId, clusterType, subClusterType, hasNationalAthleteNumber, perPage }),
+    queryKey: athleteKeys.list({ page, search, caborId, gender, organizationId, clusterId, subClusterId, clusterType, subClusterType, hasNationalAthleteNumber, perPage }),
     queryFn: async () => {
       const response = await api.get('/api/athletes', {
         params: { 
@@ -32,6 +34,8 @@ export function useAthletes({
           cabor_id: caborId || undefined, 
           gender: gender || undefined, 
           organization_id: organizationId || undefined,
+          cluster_id: clusterId || undefined,
+          sub_cluster_id: subClusterId || undefined,
           cluster_type: clusterType || undefined,
           sub_cluster_type: subClusterType || undefined,
           has_national_athlete_number: hasNationalAthleteNumber || undefined,

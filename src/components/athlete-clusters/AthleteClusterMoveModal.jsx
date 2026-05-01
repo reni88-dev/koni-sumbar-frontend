@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Upload, AlertTriangle, Loader2 } from 'lucide-react';
 import { useMoveAthleteCluster } from '../../hooks/queries/useAthleteClusters';
-import { CHANGE_TYPES, CLUSTER_TYPES, DECREE_TYPES, SUB_CLUSTER_TYPES } from './athleteClusterConstants';
+import { useAthleteClustersAll, useAthleteSubClustersByCluster } from '../../hooks/queries/useAthleteClusterMaster';
+import { CHANGE_TYPES, DECREE_TYPES } from './athleteClusterConstants';
 
 export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
   const moveMutation = useMoveAthleteCluster();
+  const { data: clusters = [], isLoading: loadingClusters } = useAthleteClustersAll();
   const [form, setForm] = useState({
-    cluster_type: 'koni_development',
-    sub_cluster_type: 'andalan',
+    cluster_id: '',
+    sub_cluster_id: '',
     start_date: new Date().toISOString().split('T')[0],
     change_type: 'initial_assignment',
     reason: '',
@@ -21,18 +23,41 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
   const [file, setFile] = useState(null);
   const [error, setError] = useState('');
 
+  const selectedCluster = clusters.find((item) => String(item.id) === String(form.cluster_id));
+  const { data: subClusters = [], isLoading: loadingSubClusters } = useAthleteSubClustersByCluster(form.cluster_id);
+
+  useEffect(() => {
+    if (isOpen && clusters.length && !form.cluster_id) {
+      const currentCluster = clusters.find((item) => String(item.id) === String(athlete?.current_cluster_id));
+      const fallback = currentCluster || clusters[0];
+      setForm((current) => ({ ...current, cluster_id: String(fallback.id), sub_cluster_id: '' }));
+    }
+  }, [isOpen, clusters, form.cluster_id, athlete?.current_cluster_id]);
+
+  useEffect(() => {
+    if (!form.cluster_id) return;
+    if (!subClusters.length) {
+      setForm((current) => current.sub_cluster_id ? { ...current, sub_cluster_id: '' } : current);
+      return;
+    }
+    setForm((current) => {
+      if (subClusters.some((item) => String(item.id) === String(current.sub_cluster_id))) return current;
+      return { ...current, sub_cluster_id: String(subClusters[0].id) };
+    });
+  }, [form.cluster_id, subClusters]);
+
   if (!isOpen || !athlete) return null;
 
   const updateField = (field, value) => {
     setForm((current) => {
       const next = { ...current, [field]: value };
-      if (field === 'cluster_type' && value === 'non_development') {
-        next.sub_cluster_type = '';
-        if (next.change_type === 'initial_assignment') next.change_type = 'removed';
-        if (next.decree_type === 'assignment') next.decree_type = 'removal';
-      }
-      if (field === 'cluster_type' && value === 'koni_development' && !next.sub_cluster_type) {
-        next.sub_cluster_type = 'andalan';
+      if (field === 'cluster_id') {
+        next.sub_cluster_id = '';
+        const cluster = clusters.find((item) => String(item.id) === String(value));
+        if (cluster && !cluster.is_development_cluster) {
+          if (next.change_type === 'initial_assignment') next.change_type = 'removed';
+          if (next.decree_type === 'assignment') next.decree_type = 'removal';
+        }
       }
       return next;
     });
@@ -42,8 +67,7 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
     event.preventDefault();
     setError('');
 
-    if (!form.cluster_type) return setError('Kluster tujuan wajib dipilih.');
-    if (form.cluster_type === 'koni_development' && !form.sub_cluster_type) return setError('Sub-kluster wajib dipilih untuk atlet binaan KONI.');
+    if (!form.cluster_id) return setError('Kluster tujuan wajib dipilih.');
     if (!form.start_date) return setError('Tanggal mulai berlaku wajib diisi.');
     if ((form.change_type === 'removed' || form.change_type === 'demoted') && !form.reason.trim()) return setError('Alasan wajib diisi untuk perubahan ini.');
 
@@ -82,17 +106,24 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
             <div className="grid md:grid-cols-2 gap-4">
               <label className="space-y-1">
                 <span className="text-sm font-medium text-slate-700">Kluster Tujuan</span>
-                <select value={form.cluster_type} onChange={(e) => updateField('cluster_type', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none">
-                  {CLUSTER_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                <select value={form.cluster_id} onChange={(e) => updateField('cluster_id', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" disabled={loadingClusters}>
+                  <option value="">{loadingClusters ? 'Memuat cluster...' : 'Pilih cluster'}</option>
+                  {clusters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                 </select>
               </label>
-              {form.cluster_type === 'koni_development' && (
+              {!!form.cluster_id && subClusters.length > 0 && (
                 <label className="space-y-1">
                   <span className="text-sm font-medium text-slate-700">Sub-Kluster</span>
-                  <select value={form.sub_cluster_type} onChange={(e) => updateField('sub_cluster_type', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none">
-                    {SUB_CLUSTER_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+                  <select value={form.sub_cluster_id} onChange={(e) => updateField('sub_cluster_id', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" disabled={loadingSubClusters}>
+                    <option value="">Tanpa sub-kluster</option>
+                    {subClusters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                   </select>
                 </label>
+              )}
+              {!!selectedCluster?.is_development_cluster && subClusters.length === 0 && (
+                <div className="md:col-span-2 p-3 bg-blue-50 text-blue-700 rounded-xl text-sm">
+                  Cluster ini termasuk binaan KONI dan tidak memiliki sub-kluster aktif. Sub-kluster akan dikosongkan.
+                </div>
               )}
               <label className="space-y-1">
                 <span className="text-sm font-medium text-slate-700">Tanggal Mulai Berlaku</span>

@@ -39,7 +39,7 @@ export function AthleteClusterHistoryTab({ athlete }) {
       <div className="mb-4 p-3 bg-white rounded-lg border border-slate-100">
         <p className="text-xs text-slate-500 mb-1">Status Aktif</p>
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${activeHistory?.cluster_type === 'koni_development' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
+          <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${activeHistory?.is_development_cluster || athlete.is_development_cluster ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'}`}>
             {activeHistory?.cluster_label || athlete.current_cluster_label || 'Atlet Non Binaan'}
           </span>
           {(activeHistory?.sub_cluster_label || athlete.current_sub_cluster_label) && (

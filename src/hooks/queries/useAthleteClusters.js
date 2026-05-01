@@ -119,6 +119,8 @@ export function useDevelopmentFundsReport(filters = {}) {
           year: filters.year || undefined,
           month: filters.month || undefined,
           cabor_id: filters.caborId || undefined,
+          cluster_id: filters.clusterId || undefined,
+          sub_cluster_id: filters.subClusterId || undefined,
           cluster_type: filters.clusterType || undefined,
           sub_cluster_type: filters.subClusterType || undefined,
         },
