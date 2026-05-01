@@ -4,6 +4,7 @@ import { X, Upload, AlertTriangle, Loader2 } from 'lucide-react';
 import { useMoveAthleteCluster } from '../../hooks/queries/useAthleteClusters';
 import { useAthleteClustersAll, useAthleteSubClustersByCluster } from '../../hooks/queries/useAthleteClusterMaster';
 import { CHANGE_TYPES, DECREE_TYPES } from './athleteClusterConstants';
+import { DateInput } from '../DateInput';
 
 export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
   const moveMutation = useMoveAthleteCluster();
@@ -88,7 +89,7 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
   return (
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60]" onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[60] flex items-start justify-center p-4 pt-10 overflow-y-auto">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[61] flex items-start justify-center p-4 pt-10 overflow-y-auto">
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <div>
@@ -127,7 +128,7 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
               )}
               <label className="space-y-1">
                 <span className="text-sm font-medium text-slate-700">Tanggal Mulai Berlaku</span>
-                <input type="date" value={form.start_date} onChange={(e) => updateField('start_date', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
+                <DateInput value={form.start_date} onChange={(e) => updateField('start_date', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
               </label>
               <label className="space-y-1">
                 <span className="text-sm font-medium text-slate-700">Jenis Perubahan</span>
@@ -154,7 +155,7 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
               </label>
               <label className="space-y-1">
                 <span className="text-sm font-medium text-slate-700">Tanggal SK</span>
-                <input type="date" value={form.decree_date} onChange={(e) => updateField('decree_date', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
+                <DateInput value={form.decree_date} onChange={(e) => updateField('decree_date', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
               </label>
               <label className="space-y-1">
                 <span className="text-sm font-medium text-slate-700">Judul SK</span>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, X } from 'lucide-react';
 import { useCreateAthleteDevelopmentFund, useUpdateAthleteDevelopmentFund } from '../../hooks/queries/useAthleteClusters';
+import { DateInput } from '../DateInput';
 
 const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
 const formatThousands = (value) => onlyDigits(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
@@ -56,7 +57,7 @@ export function AthleteDevelopmentFundModal({ isOpen, onClose, athlete, fund }) 
   return (
     <AnimatePresence>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60]" onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[61] flex items-center justify-center p-4">
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <div>
@@ -71,7 +72,7 @@ export function AthleteDevelopmentFundModal({ isOpen, onClose, athlete, fund }) 
             {error && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{error}</div>}
             <label className="space-y-1 block">
               <span className="text-sm font-medium text-slate-700">Tanggal Biaya</span>
-              <input type="date" value={form.fund_date} onChange={(e) => setForm({ ...form, fund_date: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
+              <DateInput value={form.fund_date} onChange={(e) => setForm({ ...form, fund_date: e.target.value })} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
             </label>
             <label className="space-y-1 block">
               <span className="text-sm font-medium text-slate-700">Nominal</span>

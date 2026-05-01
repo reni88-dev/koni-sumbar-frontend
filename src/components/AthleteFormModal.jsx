@@ -13,6 +13,7 @@ import {
   XCircle
 } from 'lucide-react';
 import api from '../api/axios';
+import { DateInput } from './DateInput';
 import ProtectedImage from './ProtectedImage';
 import { SearchableSelect } from './SearchableSelect';
 
@@ -702,8 +703,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Lahir</label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={formData.birth_date}
                       onChange={e => updateField('birth_date', e.target.value)}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
