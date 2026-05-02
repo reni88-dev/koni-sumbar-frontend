@@ -8,7 +8,6 @@ import {
   Plus,
   X,
   Loader2,
-  Search,
   Check,
   XCircle,
   Clock,
@@ -19,7 +18,9 @@ import {
 import { useParams, Link } from 'react-router-dom';
 import api from '../api/axios';
 import { DashboardLayout } from '../components/DashboardLayout';
-import { useEvent, useEventAthletes, useRegisterAthlete, useUpdateAthleteStatus, useRemoveAthleteFromEvent } from '../hooks/queries/useEvents';
+import { SearchableSelect } from '../components/SearchableSelect';
+import { useAthletes } from '../hooks/queries/useAthletes';
+import { useEvent, useRegisterAthlete, useUpdateAthleteStatus, useRemoveAthleteFromEvent } from '../hooks/queries/useEvents';
 import { useCaborsAll } from '../hooks/queries/useCabors';
 import { useCompetitionClassesByCabor } from '../hooks/queries/useMasterData';
 import { useFormBuilderTemplatesAll } from '../hooks/queries/useFormBuilder';
@@ -33,7 +34,6 @@ export function EventDetailPage() {
 
   // Register Modal
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
-  const [availableAthletes, setAvailableAthletes] = useState([]);
   const [registerForm, setRegisterForm] = useState({ athlete_id: '', cabor_id: '', competition_class_id: '', notes: '' });
   const [registerError, setRegisterError] = useState('');
 
@@ -52,6 +52,18 @@ export function EventDetailPage() {
   const { data: cabors = [] } = useCaborsAll();
   const { data: competitionClasses = [] } = useCompetitionClassesByCabor(registerForm.cabor_id);
   const { data: formTemplates = [], isLoading: formsLoading } = useFormBuilderTemplatesAll();
+  const { data: availableAthletesData, isLoading: availableAthletesLoading } = useAthletes({
+    caborId: registerForm.cabor_id,
+    perPage: 100,
+    isActive: true,
+    enabled: !!registerForm.cabor_id,
+  });
+  const availableAthletes = registerForm.cabor_id ? (availableAthletesData?.data || []) : [];
+  const athleteOptions = availableAthletes.map((athlete) => ({
+    id: athlete.id,
+    name: athlete.name,
+    code: athlete.nik || athlete.national_athlete_number || '',
+  }));
   
   // For athletes, we still use custom fetch because of filter params
   const [athletes, setAthletes] = useState([]);
@@ -75,35 +87,35 @@ export function EventDetailPage() {
     }
   };
 
-  const fetchAvailableAthletes = async () => {
-    try {
-      const response = await api.get('/api/athletes/all');
-      setAvailableAthletes(response.data);
-    } catch (error) {
-      console.error('Failed to fetch athletes:', error);
-    }
-  };
-
   useEffect(() => {
     if (id) {
       fetchAthletes();
     }
   }, [id, filterCabor, filterStatus]);
 
-  const openRegisterModal = async () => {
-    await fetchAvailableAthletes();
+  const openRegisterModal = () => {
     setRegisterForm({ athlete_id: '', cabor_id: '', competition_class_id: '', notes: '' });
     setRegisterError('');
     setIsRegisterModalOpen(true);
   };
 
   const handleCaborChange = (caborId) => {
-    setRegisterForm({ ...registerForm, cabor_id: caborId, competition_class_id: '' });
+    setRegisterForm({ ...registerForm, cabor_id: caborId, athlete_id: '', competition_class_id: '' });
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setRegisterError('');
+
+    if (!registerForm.cabor_id) {
+      setRegisterError('Cabor wajib dipilih');
+      return;
+    }
+
+    if (!registerForm.athlete_id) {
+      setRegisterError('Atlet wajib dipilih');
+      return;
+    }
 
     try {
       await registerAthleteMutation.mutateAsync({ eventId: id, data: registerForm });
@@ -469,42 +481,42 @@ export function EventDetailPage() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Pilih Atlet</label>
-                    <select
-                      value={registerForm.athlete_id}
-                      onChange={e => setRegisterForm({...registerForm, athlete_id: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      required
-                    >
-                      <option value="">-- Pilih Atlet --</option>
-                      {availableAthletes.map(a => (
-                        <option key={a.id} value={a.id}>{a.name} {a.nik ? `(${a.nik})` : ''}</option>
-                      ))}
-                    </select>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Cabor yang Diikuti</label>
+                    <SearchableSelect
+                      options={cabors}
+                      value={registerForm.cabor_id}
+                      onChange={handleCaborChange}
+                      placeholder="Cari & pilih cabor..."
+                    />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cabor yang Diikuti</label>
-                    <select
-                      value={registerForm.cabor_id}
-                      onChange={e => handleCaborChange(e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      required
-                    >
-                      <option value="">-- Pilih Cabor --</option>
-                      {cabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Pilih Atlet</label>
+                    <SearchableSelect
+                      options={athleteOptions}
+                      value={registerForm.athlete_id}
+                      onChange={athleteId => setRegisterForm({...registerForm, athlete_id: athleteId})}
+                      placeholder={
+                        !registerForm.cabor_id
+                          ? 'Pilih cabor terlebih dahulu'
+                          : availableAthletesLoading
+                            ? 'Memuat atlet...'
+                            : 'Cari & pilih atlet...'
+                      }
+                      disabled={!registerForm.cabor_id || availableAthletesLoading}
+                    />
+                    {registerForm.cabor_id && !availableAthletesLoading && availableAthletes.length === 0 && (
+                      <p className="text-xs text-slate-500 mt-1">Tidak ada atlet pada cabor ini</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Kelas Pertandingan</label>
-                    <select
+                    <SearchableSelect
+                      options={competitionClasses}
                       value={registerForm.competition_class_id}
-                      onChange={e => setRegisterForm({...registerForm, competition_class_id: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none disabled:bg-slate-100"
+                      onChange={classId => setRegisterForm({...registerForm, competition_class_id: classId})}
+                      placeholder="Cari & pilih kelas (opsional)..."
                       disabled={!registerForm.cabor_id}
-                    >
-                      <option value="">-- Pilih Kelas (opsional) --</option>
-                      {competitionClasses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
+                    />
                     <p className="text-xs text-slate-500 mt-1">Maks 2 kelas per cabor</p>
                   </div>
                   <div>

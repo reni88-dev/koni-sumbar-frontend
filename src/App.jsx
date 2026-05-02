@@ -30,6 +30,9 @@ import { TrainingReportPage } from './pages/TrainingReport';
 import MonevList from './pages/MonevList';
 import MonevForm from './pages/MonevForm';
 import MonevDetail from './pages/MonevDetail';
+import MonevEventForm from './pages/MonevEventForm';
+import MonevEventDetail from './pages/MonevEventDetail';
+import MonevEvents from './pages/MonevEvents';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './hooks/useAuth';
 
@@ -154,7 +157,39 @@ function App() {
         }
       />
       <Route
-        path="/monev/create"
+        path="/monev/events"
+        element={
+          <ProtectedRoute>
+            <MonevEvents />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monev/events/create"
+        element={
+          <ProtectedRoute>
+            <MonevEventForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monev/events/:id"
+        element={
+          <ProtectedRoute>
+            <MonevEventDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monev/events/:id/edit"
+        element={
+          <ProtectedRoute>
+            <MonevEventForm />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/monev/submit/:eventId"
         element={
           <ProtectedRoute>
             <MonevForm />
@@ -162,7 +197,7 @@ function App() {
         }
       />
       <Route
-        path="/monev/:id"
+        path="/monev/submissions/:id"
         element={
           <ProtectedRoute>
             <MonevDetail />
@@ -170,7 +205,7 @@ function App() {
         }
       />
       <Route
-        path="/monev/:id/edit"
+        path="/monev/submissions/:id/edit"
         element={
           <ProtectedRoute>
             <MonevForm />

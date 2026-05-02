@@ -9,6 +9,8 @@ export const portalKeys = {
   submissions: () => [...portalKeys.all, 'submissions'],
   dashboard: () => [...portalKeys.all, 'dashboard'],
   athletes: () => [...portalKeys.all, 'athletes'],
+  clusters: () => [...portalKeys.all, 'profile', 'clusters'],
+  funds: (filters) => [...portalKeys.all, 'profile', 'development-funds', filters],
 };
 
 // Fetch user's portal profile
@@ -33,6 +35,36 @@ export function useUpdatePortalProfile() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: portalKeys.profile() });
+      queryClient.invalidateQueries({ queryKey: portalKeys.dashboard() });
+    },
+  });
+}
+
+// Fetch logged-in athlete cluster histories (self-service only)
+export function usePortalClusterHistories() {
+  return useQuery({
+    queryKey: portalKeys.clusters(),
+    queryFn: async () => {
+      const response = await api.get('/api/portal/profile/clusters');
+      return response.data;
+    },
+  });
+}
+
+// Fetch logged-in athlete development funds (self-service only)
+export function usePortalDevelopmentFunds(filters = {}) {
+  return useQuery({
+    queryKey: portalKeys.funds(filters),
+    queryFn: async () => {
+      const response = await api.get('/api/portal/profile/development-funds', {
+        params: {
+          page: filters.page || 1,
+          per_page: filters.perPage || 15,
+          year: filters.year || undefined,
+          month: filters.month || undefined,
+        },
+      });
+      return response.data;
     },
   });
 }

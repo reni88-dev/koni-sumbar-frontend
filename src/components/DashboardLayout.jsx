@@ -119,7 +119,7 @@ export function DashboardLayout({ children, title, subtitle }) {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <div id="main-scroll-container" className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
           {/* Page Header */}
           {(title || subtitle) && (
             <div className="mb-8">

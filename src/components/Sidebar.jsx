@@ -173,13 +173,14 @@ function SidebarContent({ onNavigate }) {
   const masterDataChildren = filterVisibleItems([
     { icon: Users, label: 'Data User', path: '/master/users', permission: 'users.view' },
     { icon: Shield, label: 'Data Role', path: '/master/roles', permission: 'roles.view' },
-    { icon: Trophy, label: 'Master Cabor', path: '/master/cabors', permission: 'cabors.view' },
-    { icon: Layers, label: 'Master Cluster Atlet', path: '/master/athlete-clusters', permission: 'athlete_cluster_master.view' },
+    { icon: Trophy, label: 'Cabor', path: '/master/cabors', permission: 'cabors.view' },
+    { icon: Layers, label: 'Cluster Atlet', path: '/master/athlete-clusters', permission: 'athlete_cluster_master.view' },
     { icon: MapPin, label: 'Wilayah', path: '/master/regions', permission: 'regions.view' },
     { icon: Building2, label: 'Organisasi', path: '/master/organizations', permission: 'organizations.view' },
     { icon: GraduationCap, label: 'Jenjang Pendidikan', path: '/master/education-levels', permission: 'education_levels.view' },
     { icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes', permission: 'competition_classes.view' },
-    { icon: MapPin, label: 'Master Venue', path: '/master/venues', permission: 'venues.view' },
+    { icon: MapPin, label: 'Venue', path: '/master/venues', permission: 'venues.view' },
+    { icon: ClipboardList, label: 'Event Monev', path: '/monev/events', permission: 'monev.manage' },
   ]).map(({ permission, ...item }) => item);
 
   const masterDataItems = filterVisibleItems([

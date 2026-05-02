@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FileText, History, Layers, Loader2, Plus } from 'lucide-react';
+import api from '../../api/axios';
 import { useAthleteClusterHistories } from '../../hooks/queries/useAthleteClusters';
 import { usePermission } from '../../hooks/usePermission';
 import { AthleteClusterMoveModal } from './AthleteClusterMoveModal';
@@ -19,6 +20,20 @@ export function AthleteClusterHistoryTab({ athlete }) {
   const formatDate = (date) => {
     if (!date) return '-';
     return new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  const handleOpenDecreeFile = async (fileUrl) => {
+    try {
+      const response = await api.get(fileUrl, {
+        responseType: 'blob',
+      });
+      const objectUrl = window.URL.createObjectURL(response.data);
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60_000);
+    } catch (error) {
+      console.error('Failed to open decree file:', error);
+      window.alert('Gagal membuka file SK. Silakan coba lagi.');
+    }
   };
 
   return (
@@ -79,10 +94,10 @@ export function AthleteClusterHistoryTab({ athlete }) {
                 <span>Dibuat: <strong className="text-slate-700">{history.created_by_user?.name || '-'}</strong></span>
               </div>
               {history.decree?.file_url && (
-                <a href={history.decree.file_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
+                <button type="button" onClick={() => handleOpenDecreeFile(history.decree.file_url)} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700">
                   <FileText className="w-3.5 h-3.5" />
                   Lihat File SK
-                </a>
+                </button>
               )}
             </div>
           ))}

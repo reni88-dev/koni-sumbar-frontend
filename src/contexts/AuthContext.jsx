@@ -30,7 +30,11 @@ export function AuthProvider({ children }) {
 
   // Login
   const login = async (email, password) => {
-    const response = await api.post('/api/login', { email, password });
+    const response = await api.post('/api/login', new URLSearchParams({ email, password }), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+    });
     const { token, user: userData } = response.data;
     
     // Store JWT token

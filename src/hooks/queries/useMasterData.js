@@ -6,6 +6,7 @@ export const educationLevelKeys = {
   all: ['educationLevels'],
   lists: () => [...educationLevelKeys.all, 'list'],
   list: (filters) => [...educationLevelKeys.lists(), filters],
+  allDropdown: () => [...educationLevelKeys.all, 'dropdown'],
 };
 
 export function useEducationLevels({ page = 1, search = '', perPage = 10 } = {}) {
@@ -17,6 +18,17 @@ export function useEducationLevels({ page = 1, search = '', perPage = 10 } = {})
       });
       return response.data;
     },
+  });
+}
+
+export function useEducationLevelsAll() {
+  return useQuery({
+    queryKey: educationLevelKeys.allDropdown(),
+    queryFn: async () => {
+      const response = await api.get('/api/education-levels/all');
+      return Array.isArray(response.data) ? response.data.filter(level => level && level.id) : [];
+    },
+    staleTime: 10 * 60 * 1000,
   });
 }
 
