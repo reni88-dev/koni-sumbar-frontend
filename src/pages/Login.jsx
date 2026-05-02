@@ -129,7 +129,7 @@ export function Login() {
         >
           <div className="mb-10">
             <h2 className="text-3xl font-bold text-slate-800 mb-2">
-              Selamat Datang 👋
+              Selamat Datang
             </h2>
             <p className="text-slate-500">
               Silakan masuk untuk mengakses dashboard.

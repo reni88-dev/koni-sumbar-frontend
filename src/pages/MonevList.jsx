@@ -1,4 +1,4 @@
-import { Navigate, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ClipboardCheck, Loader2, AlertCircle,
@@ -27,20 +27,17 @@ export default function MonevList() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data, loading, error } = useMonevMyEvents();
-
-  if (user?.role?.name === 'super_admin' || user?.permissions?.includes('*')) {
-    return <Navigate to="/monev/events" replace />;
-  }
+  const isSuperAdmin = user?.role?.name === 'super_admin' || user?.permissions?.includes('*');
 
   return (
-    <DashboardLayout title="Monitoring & Evaluasi" subtitle="Daftar event monev yang ditugaskan kepada Anda">
+    <DashboardLayout title="Monitoring & Evaluasi" subtitle={isSuperAdmin ? 'Semua event monev aktif' : 'Daftar event monev yang ditugaskan kepada Anda'}>
       {loading ? (
         <div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div>
       ) : error ? (
         <div className="flex flex-col items-center justify-center h-64 text-red-500"><AlertCircle className="w-8 h-8 mb-2" /><p>{error}</p></div>
       ) : data.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-          <ClipboardCheck className="w-12 h-12 mb-2" /><p>Tidak ada event monev aktif untuk Anda</p>
+          <ClipboardCheck className="w-12 h-12 mb-2" /><p>{isSuperAdmin ? 'Tidak ada event monev aktif' : 'Tidak ada event monev aktif untuk Anda'}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
