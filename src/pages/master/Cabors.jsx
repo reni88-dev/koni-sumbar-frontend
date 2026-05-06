@@ -1,64 +1,41 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
-  Trophy,
-  X,
-  Loader2,
-  AlertCircle,
-  Users,
-  Upload,
-  LayoutGrid,
-  List
-} from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Trophy, X, Loader2, AlertCircle, Users, Upload, Network } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { ProtectedImage } from '../../components/ProtectedImage';
-import { useCabors, useCreateCabor, useUpdateCabor, useDeleteCabor } from '../../hooks/queries/useCabors';
+import { useCabors, useCaborSports, useCreateCabor, useUpdateCabor, useDeleteCabor } from '../../hooks/queries/useCabors';
+
+const emptyForm = { level: 'sport', parent_id: '', name: '', slug: '', code: '', description: '', federation: '', sort_order: 0, is_active: true };
 
 export function CaborsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [viewMode, setViewMode] = useState('list');
-  
-  // Modal states
+  const [filterLevel, setFilterLevel] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedCabor, setSelectedCabor] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [caborToDelete, setCaborToDelete] = useState(null);
-
-  // Form states
-  const [formData, setFormData] = useState({ name: '', description: '', federation: '', is_active: true });
+  const [formData, setFormData] = useState(emptyForm);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [deleteError, setDeleteError] = useState(null);
 
-  // TanStack Query hooks
-  const { data: caborsData, isLoading: loading } = useCabors({ page, search: debouncedSearch, perPage: 12 });
+  const { data: caborsData, isLoading: loading } = useCabors({ search: debouncedSearch, perPage: 100, tree: filterLevel === '', level: filterLevel });
+  const { data: sports = [] } = useCaborSports();
   const createCaborMutation = useCreateCabor();
   const updateCaborMutation = useUpdateCabor();
   const deleteCaborMutation = useDeleteCabor();
 
   const cabors = caborsData?.data || [];
-  const pagination = {
-    current_page: caborsData?.current_page || 1,
-    last_page: caborsData?.last_page || 1,
-    total: caborsData?.total || 0
-  };
 
-  // Debounce search
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(1);
-    }, 300);
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  const rows = filterLevel === '' ? cabors.flatMap((cabor) => [cabor, ...(cabor.children || [])]) : cabors;
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
@@ -66,8 +43,7 @@ export function CaborsPage() {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      const MAX_WIDTH = 600;
-      const scale = Math.min(MAX_WIDTH / img.width, 1);
+      const scale = Math.min(600 / img.width, 1);
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
@@ -81,9 +57,10 @@ export function CaborsPage() {
     img.src = URL.createObjectURL(file);
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = (level = 'sport', parent = null) => {
     setModalMode('create');
-    setFormData({ name: '', description: '', federation: '', is_active: true });
+    setSelectedCabor(null);
+    setFormData({ ...emptyForm, level, parent_id: parent?.id || '', federation: parent?.federation || '' });
     setLogoFile(null);
     setLogoPreview(null);
     setFormErrors({});
@@ -93,11 +70,16 @@ export function CaborsPage() {
   const openEditModal = (cabor) => {
     setModalMode('edit');
     setSelectedCabor(cabor);
-    setFormData({ 
-      name: cabor.name, 
-      description: cabor.description || '', 
+    setFormData({
+      level: cabor.level || 'discipline',
+      parent_id: cabor.parent_id || '',
+      name: cabor.name || '',
+      slug: cabor.slug || '',
+      code: cabor.code || '',
+      description: cabor.description || '',
       federation: cabor.federation || '',
-      is_active: cabor.is_active
+      sort_order: cabor.sort_order || 0,
+      is_active: cabor.is_active,
     });
     setLogoFile(null);
     setLogoPreview(cabor.logo ? `/api/storage/${cabor.logo}` : null);
@@ -105,30 +87,30 @@ export function CaborsPage() {
     setIsModalOpen(true);
   };
 
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.name.trim()) errors.name = ['Nama wajib diisi'];
+    if (formData.level === 'discipline' && !formData.parent_id) errors.parent_id = ['Cabor induk wajib dipilih'];
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormErrors({});
-
+    if (!validateForm()) return;
     try {
       const data = new FormData();
-      data.append('name', formData.name);
-      data.append('description', formData.description);
-      data.append('federation', formData.federation);
-      data.append('is_active', formData.is_active ? '1' : '0');
-      if (logoFile) {
-        data.append('logo', logoFile);
-      }
-
-      if (modalMode === 'create') {
-        await createCaborMutation.mutateAsync(data);
-      } else {
-        await updateCaborMutation.mutateAsync({ id: selectedCabor.id, formData: data });
-      }
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'is_active') data.append(key, value ? '1' : '0');
+        else if (value !== null && value !== undefined) data.append(key, value);
+      });
+      if (formData.level === 'sport') data.set('parent_id', '');
+      if (logoFile) data.append('logo', logoFile);
+      if (modalMode === 'create') await createCaborMutation.mutateAsync(data);
+      else await updateCaborMutation.mutateAsync({ id: selectedCabor.id, formData: data });
       setIsModalOpen(false);
     } catch (error) {
-      if (error.response?.status === 422) {
-        setFormErrors(error.response.data.errors || {});
-      }
+      setFormErrors({ submit: [error.response?.data?.error || error.response?.data?.message || 'Gagal menyimpan cabor'] });
     }
   };
 
@@ -139,7 +121,6 @@ export function CaborsPage() {
       setIsDeleteModalOpen(false);
       setCaborToDelete(null);
     } catch (error) {
-      console.error('Failed to delete cabor:', error);
       setDeleteError(error.response?.data?.error || error.response?.data?.message || 'Gagal menghapus cabor');
     }
   };
@@ -147,337 +128,100 @@ export function CaborsPage() {
   const formLoading = createCaborMutation.isPending || updateCaborMutation.isPending;
 
   return (
-    <DashboardLayout title="Master Cabang Olahraga" subtitle="Kelola data cabang olahraga">
-      {/* Action Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="relative max-w-md">
-          <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Cari cabor..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-white border border-slate-200 rounded-xl overflow-hidden">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="Grid View"
-            >
-              <LayoutGrid className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2.5 transition-colors ${viewMode === 'list' ? 'bg-red-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}
-              title="List View"
-            >
-              <List className="w-4 h-4" />
-            </button>
+    <DashboardLayout title="Master Cabang Olahraga" subtitle="Kelola cabor induk dan disiplin cabor">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3 flex-1">
+          <div className="relative max-w-md flex-1">
+            <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+            <input type="text" placeholder="Cari cabor atau disiplin..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
           </div>
-          <button
-            onClick={openCreateModal}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-          >
+          <select value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)} className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none">
+            <option value="">Semua dalam Tree</option>
+            <option value="sport">Cabor Induk</option>
+            <option value="discipline">Disiplin</option>
+          </select>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => openCreateModal('sport')} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-semibold hover:bg-slate-50 transition-colors">
+            <Network className="w-5 h-5" />
+            <span>Cabor Induk</span>
+          </button>
+          <button onClick={() => openCreateModal('discipline')} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20">
             <Plus className="w-5 h-5" />
-            <span>Tambah Cabor</span>
+            <span>Disiplin</span>
           </button>
         </div>
       </div>
 
-      {/* Cabors View */}
-      {viewMode === 'grid' ? (
-        /* Grid View */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {loading ? (
-            <div className="col-span-full py-12 text-center">
-              <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
-            </div>
-          ) : cabors.length === 0 ? (
-            <div className="col-span-full py-12 text-center text-slate-500">
-              Tidak ada data cabor
-            </div>
-          ) : (
-            cabors.map((cabor) => (
-              <motion.div
-                key={cabor.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-              >
-                <div className="h-32 bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center">
-                  {cabor.logo ? (
-                    <ProtectedImage 
-                      src={`/api/storage/${cabor.logo}`}
-                      alt={cabor.name}
-                      className="h-20 w-20 object-contain"
-                      fallback={<Trophy className="w-12 h-12 text-slate-300" />}
-                    />
-                  ) : (
-                    <Trophy className="w-12 h-12 text-slate-300" />
-                  )}
-                </div>
-                <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-bold text-slate-800">{cabor.name}</h3>
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      cabor.is_active 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {cabor.is_active ? 'Aktif' : 'Nonaktif'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-500 mb-3 line-clamp-2">{cabor.federation || '-'}</p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-sm text-slate-500">
-                      <Users className="w-4 h-4" />
-                      <span>{cabor.athletes_count || 0} Atlet</span>
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor / Disiplin</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Induk</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Federasi</th>
+                <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Atlet</th>
+                <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr><td colSpan={6} className="px-6 py-12 text-center"><Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" /></td></tr>
+              ) : rows.length === 0 ? (
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">Tidak ada data cabor</td></tr>
+              ) : rows.map((cabor) => (
+                <tr key={cabor.id} className={`${cabor.level === 'sport' ? 'bg-slate-50/60' : 'hover:bg-slate-50'} transition-colors`}>
+                  <td className="px-6 py-4">
+                    <div className={`flex items-center gap-3 ${cabor.level === 'discipline' ? 'pl-8' : ''}`}>
+                      {cabor.logo ? <ProtectedImage src={`/api/storage/${cabor.logo}`} alt={cabor.name} className="w-10 h-10 object-contain rounded-lg border border-slate-200 bg-white" fallback={<Trophy className="w-5 h-5 text-slate-300" />} /> : <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center"><Trophy className="w-5 h-5 text-slate-300" /></div>}
+                      <div>
+                        <div className={`font-medium ${cabor.level === 'sport' ? 'text-slate-900' : 'text-slate-700'}`}>{cabor.name}</div>
+                        <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${cabor.level === 'sport' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>{cabor.level === 'sport' ? 'Cabor Induk' : 'Disiplin'}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => openEditModal(cabor)}
-                        className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => { setCaborToDelete(cabor); setIsDeleteModalOpen(true); }}
-                        className="p-1.5 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </div>
-      ) : (
-        /* List/Table View */
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-100">
-                <tr>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor</th>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Federasi</th>
-                  <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Atlet</th>
-                  <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-500">{cabor.parent_name || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500">{cabor.federation || '-'}</td>
+                  <td className="px-6 py-4 text-center"><span className="inline-flex items-center gap-1 text-sm text-slate-600"><Users className="w-4 h-4" />{cabor.athletes_count || 0}</span></td>
+                  <td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded-full text-xs font-medium ${cabor.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{cabor.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
+                  <td className="px-6 py-4"><div className="flex items-center justify-end gap-2">
+                    {cabor.level === 'sport' && <button onClick={() => openCreateModal('discipline', cabor)} className="px-2 py-1 text-xs bg-red-50 text-red-700 rounded-lg hover:bg-red-100">+ Disiplin</button>}
+                    <button onClick={() => openEditModal(cabor)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"><Edit2 className="w-4 h-4" /></button>
+                    <button onClick={() => { setCaborToDelete(cabor); setIsDeleteModalOpen(true); }} className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                  </div></td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
-                      <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
-                    </td>
-                  </tr>
-                ) : cabors.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
-                      Tidak ada data cabor
-                    </td>
-                  </tr>
-                ) : (
-                  cabors.map((cabor) => (
-                    <tr key={cabor.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          {cabor.logo ? (
-                            <ProtectedImage 
-                              src={`/api/storage/${cabor.logo}`}
-                              alt={cabor.name}
-                              className="w-10 h-10 object-contain rounded-lg border border-slate-200 bg-slate-50"
-                              fallback={<div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center"><Trophy className="w-5 h-5 text-slate-300" /></div>}
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center">
-                              <Trophy className="w-5 h-5 text-slate-300" />
-                            </div>
-                          )}
-                          <span className="font-medium text-slate-800">{cabor.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-slate-500">{cabor.federation || '-'}</td>
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex items-center justify-center gap-1 text-sm text-slate-600">
-                          <Users className="w-4 h-4" />
-                          <span>{cabor.athletes_count || 0}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          cabor.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {cabor.is_active ? 'Aktif' : 'Nonaktif'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEditModal(cabor)}
-                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => { setCaborToDelete(cabor); setIsDeleteModalOpen(true); }}
-                            className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
 
-      {/* Pagination */}
-      {pagination.last_page > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-6">
-          {Array.from({ length: pagination.last_page }, (_, i) => (
-            <button
-              key={i}
-              onClick={() => setPage(i + 1)}
-              className={`w-10 h-10 rounded-xl font-medium transition-colors ${
-                pagination.current_page === i + 1
-                  ? 'bg-red-600 text-white'
-                  : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-              }`}
-            >
-              {i + 1}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Create/Edit Modal */}
       <AnimatePresence>
         {isModalOpen && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
-              onClick={() => setIsModalOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            >
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50" onClick={() => setIsModalOpen(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg my-8" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-slate-800">
-                    {modalMode === 'create' ? 'Tambah Cabor Baru' : 'Edit Cabor'}
-                  </h2>
-                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg">
-                    <X className="w-5 h-5 text-slate-500" />
-                  </button>
+                  <h2 className="text-lg font-bold text-slate-800">{modalMode === 'create' ? 'Tambah Cabor' : 'Edit Cabor'}</h2>
+                  <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-500" /></button>
                 </div>
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Logo</label>
-                    <div className="flex items-center gap-4">
-                      <div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-300">
-                        {logoPreview ? (
-                          logoPreview.startsWith('/api/') ? (
-                            <ProtectedImage 
-                              src={logoPreview} 
-                              alt="Preview" 
-                              className="w-full h-full object-contain"
-                              fallback={<Trophy className="w-8 h-8 text-slate-400" />}
-                            />
-                          ) : (
-                            <img src={logoPreview} alt="Preview" className="w-full h-full object-contain" />
-                          )
-                        ) : (
-                          <Trophy className="w-8 h-8 text-slate-400" />
-                        )}
-                      </div>
-                      <label className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-colors">
-                        <Upload className="w-4 h-4" />
-                        <span className="text-sm font-medium">Upload Logo</span>
-                        <input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
-                      </label>
-                    </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+                  {formErrors.submit && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{formErrors.submit[0]}</div>}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button type="button" onClick={() => setFormData(f => ({ ...f, level: 'sport', parent_id: '' }))} className={`px-4 py-2.5 rounded-xl border font-medium ${formData.level === 'sport' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200'}`}>Cabor Induk</button>
+                    <button type="button" onClick={() => setFormData(f => ({ ...f, level: 'discipline' }))} className={`px-4 py-2.5 rounded-xl border font-medium ${formData.level === 'discipline' ? 'bg-red-600 text-white border-red-600' : 'bg-white text-slate-600 border-slate-200'}`}>Disiplin</button>
                   </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Cabor</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={e => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Contoh: Sepak Bola"
-                      required
-                    />
-                    {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name[0]}</p>}
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Induk Organisasi</label>
-                    <input
-                      type="text"
-                      value={formData.federation}
-                      onChange={e => setFormData({...formData, federation: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Contoh: PSSI"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label>
-                    <textarea
-                      value={formData.description}
-                      onChange={e => setFormData({...formData, description: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none"
-                      rows={3}
-                      placeholder="Deskripsi cabang olahraga..."
-                    />
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      id="is_active"
-                      checked={formData.is_active}
-                      onChange={e => setFormData({...formData, is_active: e.target.checked})}
-                      className="w-4 h-4 accent-red-600"
-                    />
-                    <label htmlFor="is_active" className="text-sm text-slate-700">Aktif</label>
-                  </div>
-                  
-                  <div className="flex gap-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={() => setIsModalOpen(false)}
-                      className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={formLoading}
-                      className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      {formLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                      {modalMode === 'create' ? 'Simpan' : 'Update'}
-                    </button>
-                  </div>
+                  {formData.level === 'discipline' && <div><label className="block text-sm font-medium text-slate-700 mb-1">Cabor Induk</label><select value={formData.parent_id} onChange={e => setFormData({ ...formData, parent_id: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"><option value="">Pilih Cabor Induk</option>{sports.map(s => <option key={s.id} value={s.id}>{s.raw_name || s.name}</option>)}</select>{formErrors.parent_id && <p className="text-red-500 text-xs mt-1">{formErrors.parent_id[0]}</p>}</div>}
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Nama</label><input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" required />{formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name[0]}</p>}</div>
+                  <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm font-medium text-slate-700 mb-1">Slug</label><input type="text" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Kode</label><input type="text" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Federasi</label><input type="text" value={formData.federation} onChange={e => setFormData({ ...formData, federation: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label><textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none" rows={3} /></div>
+                  <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm font-medium text-slate-700 mb-1">Sort Order</label><input type="number" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div><div className="flex items-end pb-3 gap-3"><input type="checkbox" id="is_active" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-4 h-4 accent-red-600" /><label htmlFor="is_active" className="text-sm text-slate-700">Aktif</label></div></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-2">Logo</label><div className="flex items-center gap-4"><div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-300">{logoPreview ? (logoPreview.startsWith('/api/') ? <ProtectedImage src={logoPreview} alt="Preview" className="w-full h-full object-contain" fallback={<Trophy className="w-8 h-8 text-slate-400" />} /> : <img src={logoPreview} alt="Preview" className="w-full h-full object-contain" />) : <Trophy className="w-8 h-8 text-slate-400" />}</div><label className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-colors"><Upload className="w-4 h-4" /><span className="text-sm font-medium">Upload Logo</span><input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" /></label></div></div>
+                  <div className="flex gap-3 pt-4"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors">Batal</button><button type="submit" disabled={formLoading} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">{formLoading && <Loader2 className="w-4 h-4 animate-spin" />}{modalMode === 'create' ? 'Simpan' : 'Update'}</button></div>
                 </form>
               </div>
             </motion.div>
@@ -485,54 +229,17 @@ export function CaborsPage() {
         )}
       </AnimatePresence>
 
-      {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
-              onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50" onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }} />
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center" onClick={e => e.stopPropagation()}>
-                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertCircle className="w-8 h-8 text-red-600" />
-                </div>
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4"><AlertCircle className="w-8 h-8 text-red-600" /></div>
                 <h3 className="text-lg font-bold text-slate-800 mb-2">Hapus Cabor?</h3>
-                <p className="text-slate-500 text-sm mb-4">
-                  Anda yakin ingin menghapus cabor <strong>{caborToDelete?.name}</strong>?
-                </p>
-                {deleteError && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl">
-                    <div className="flex items-start gap-2">
-                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-700 text-left">{deleteError}</p>
-                    </div>
-                  </div>
-                )}
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }}
-                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleteCaborMutation.isPending}
-                    className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50"
-                  >
-                    {deleteCaborMutation.isPending ? 'Menghapus...' : 'Hapus'}
-                  </button>
-                </div>
+                <p className="text-slate-500 text-sm mb-4">Anda yakin ingin menghapus <strong>{caborToDelete?.name}</strong>?</p>
+                {deleteError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 text-left">{deleteError}</div>}
+                <div className="flex gap-3"><button onClick={() => { setIsDeleteModalOpen(false); setDeleteError(null); }} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors">Batal</button><button onClick={handleDelete} disabled={deleteCaborMutation.isPending} className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50">{deleteCaborMutation.isPending ? 'Menghapus...' : 'Hapus'}</button></div>
               </div>
             </motion.div>
           </>

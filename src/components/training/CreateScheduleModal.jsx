@@ -228,7 +228,7 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
                 >
                   <option value="">Pilih Cabor</option>
-                  {cabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  {cabors.map(c => <option key={c.id} value={c.id}>{c.display_name || c.name}</option>)}
                 </select>
               </div>
             </div>

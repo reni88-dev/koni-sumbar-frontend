@@ -67,7 +67,10 @@ export function TrainingSessionsPage() {
   const deleteSchedule = useDeleteTrainingSchedule();
 
   useEffect(() => {
-    api.get('/api/cabors/all').then(r => setCabors(Array.isArray(r.data) ? r.data : r.data?.data || [])).catch(() => {});
+    api.get('/api/cabors/all', { params: { level: 'discipline' } }).then(r => {
+      const data = Array.isArray(r.data) ? r.data : r.data?.data || [];
+      setCabors(data.map(c => ({ ...c, name: c.display_name || c.name })));
+    }).catch(() => {});
     if (!isCoach) {
       api.get('/api/coaches', { params: { limit: 100 } }).then(r => setCoaches(r.data?.data || [])).catch(() => {});
     }

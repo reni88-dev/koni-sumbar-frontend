@@ -32,6 +32,7 @@ const emptyForm = {
 };
 
 const textOrDash = (value) => value || '-';
+const caborLabel = (cabor) => cabor?.display_name || cabor?.name || '-';
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('id-ID') : '-';
 const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
 
@@ -100,7 +101,7 @@ function inputClass() {
 function buildPrintHtml({ athlete, clusters, funds }) {
   const rows = [
     ['Nama', athlete?.name], ['NIK', athlete?.nik], ['No KK', athlete?.no_kk], ['Nomor Atlet Nasional', athlete?.national_athlete_number],
-    ['Cabang Olahraga', athlete?.cabor?.name], ['Kelas Pertandingan', athlete?.competition_class?.name], ['Organisasi', athlete?.organization?.name],
+    ['Cabang Olahraga', caborLabel(athlete?.cabor)], ['Kelas Pertandingan', athlete?.competition_class?.name], ['Organisasi', athlete?.organization?.name],
     ['Tempat/Tanggal Lahir', `${textOrDash(athlete?.birth_place)} / ${formatDate(athlete?.birth_date)}`], ['Jenis Kelamin', GENDER_LABELS[athlete?.gender] || athlete?.gender],
     ['Agama', athlete?.religion], ['Alamat', athlete?.address], ['Telepon', athlete?.phone], ['Email', athlete?.email],
     ['Tinggi/Berat', `${athlete?.height || '-'} cm / ${athlete?.weight || '-'} kg`], ['Golongan Darah', athlete?.blood_type],
@@ -282,7 +283,7 @@ function ProfileView({ athlete, educationLevels }) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-1">
           <InfoItem label="Nama Lengkap" value={athlete?.name} />
-          <InfoItem label="Cabang Olahraga" value={athlete?.cabor?.name} />
+          <InfoItem label="Cabang Olahraga" value={caborLabel(athlete?.cabor)} />
           <InfoItem label="Kelas Pertandingan" value={athlete?.competition_class?.name} />
           <InfoItem label="Kluster Aktif" value={[athlete?.current_cluster_label, athlete?.current_sub_cluster_label].filter(Boolean).join(' - ')} />
           <InfoItem label="Nomor Atlet Nasional" value={athlete?.national_athlete_number} />
@@ -329,7 +330,7 @@ function ProfileEdit({ editData, handleChange, cabors, organizations, competitio
         <SelectInput label="Golongan Darah" value={editData.blood_type} onChange={(v) => handleChange('blood_type', v)} options={['A', 'B', 'AB', 'O'].map((v) => [v, v])} />
       </EditSection>
       <EditSection title="Cabor, Organisasi, Pendidikan">
-        <SelectInput label="Cabang Olahraga" value={editData.cabor_id} onChange={(v) => handleChange('cabor_id', v)} options={cabors.map((c) => [c.id, c.name])} />
+        <SelectInput label="Cabang Olahraga" value={editData.cabor_id} onChange={(v) => handleChange('cabor_id', v)} options={cabors.map((c) => [c.id, c.display_name || c.name])} />
         <SelectInput label="Kelas Pertandingan" value={editData.competition_class_id} onChange={(v) => handleChange('competition_class_id', v)} options={competitionClasses.map((c) => [c.id, c.name])} />
         <SelectInput label="Organisasi" value={editData.organization_id} onChange={(v) => handleChange('organization_id', v)} options={organizations.map((o) => [o.id, o.name])} />
         <SelectInput label="Pendidikan" value={editData.education_level_id} onChange={(v) => handleChange('education_level_id', v)} options={educationLevels.map((e) => [e.id, e.name])} />

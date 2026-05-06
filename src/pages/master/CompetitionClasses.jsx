@@ -121,7 +121,7 @@ export function CompetitionClassesPage() {
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none appearance-none"
             >
               <option value="">Semua Cabor</option>
-              {cabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {cabors.map(c => <option key={c.id} value={c.id}>{c.display_name || c.name}</option>)}
             </select>
           </div>
         </div>
@@ -166,7 +166,7 @@ export function CompetitionClassesPage() {
                   <tr key={item.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
-                        {item.cabor?.name || '-'}
+                        {item.cabor?.display_name || item.cabor?.name || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

@@ -40,7 +40,7 @@ export default function MonevForm() {
   const [qNotes, setQNotes] = useState({});
 
   useEffect(() => {
-    api.get('/api/cabors/all').then(r => setCabors(r.data || [])).catch(() => {});
+    api.get('/api/cabors/all', { params: { level: 'discipline' } }).then(r => setCabors((r.data || []).map(c => ({ ...c, name: c.display_name || c.name })))).catch(() => {});
     api.get('/api/venues/all').then(r => setVenues(r.data || [])).catch(() => {});
     if (isAdminMonev) {
       api.get('/api/monev/assignable-users').then(r => {

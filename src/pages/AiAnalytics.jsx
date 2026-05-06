@@ -14,6 +14,7 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import api from '../api/axios';
 
 export function AiAnalytics() {
+  const initialAssistantMessage = 'Halo! Saya AI Assistant khusus KONI. Saya dapat membantu analisis atlet, pelatih, cabor induk, disiplin cabor, latihan, dan event. Contoh: "Berapa total atlet di Akuatik?" atau "Tampilkan sebaran atlet per disiplin di bawah Akuatik."';
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem('koni_ai_chat_history');
     if (saved) {
@@ -26,7 +27,7 @@ export function AiAnalytics() {
     return [
       {
         role: 'assistant',
-        content: 'Halo! Saya AI Assistant khusus KONI. Saya dapat membantu memberikan total data dan daftar cabang olahraga (cabor) beserta statistik atletnya. Apa yang ingin Anda ketahui hari ini?'
+        content: initialAssistantMessage
       }
     ];
   });
@@ -164,7 +165,7 @@ export function AiAnalytics() {
       const initialMessages = [
         {
           role: 'assistant',
-          content: 'Halo! Saya AI Assistant khusus KONI. Saya dapat membantu memberikan total data dan daftar cabang olahraga (cabor) beserta statistik atletnya. Apa yang ingin Anda ketahui hari ini?'
+          content: initialAssistantMessage
         }
       ];
       setMessages(initialMessages);
@@ -305,7 +306,7 @@ export function AiAnalytics() {
                   handleSubmit(e);
                 }
               }}
-              placeholder="Tanya statistik atlet, riwayat, atau cabor..."
+              placeholder="Tanya statistik atlet, pelatih, cabor induk, atau disiplin cabor..."
               className="flex-1 bg-transparent border-0 focus:ring-0 resize-none max-h-32 min-h-[44px] p-2 sm:p-3 text-sm text-slate-800 placeholder:text-slate-400 py-2 scrollbar-thin scrollbar-thumb-slate-300"
               rows={1}
               onInput={(e) => {

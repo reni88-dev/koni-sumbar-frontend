@@ -6,16 +6,16 @@ export const caborKeys = {
   all: ['cabors'],
   lists: () => [...caborKeys.all, 'list'],
   list: (filters) => [...caborKeys.lists(), filters],
-  allDropdown: () => [...caborKeys.all, 'dropdown'],
+  allDropdown: (filters) => [...caborKeys.all, 'dropdown', filters],
 };
 
 // Fetch cabors with pagination
-export function useCabors({ page = 1, search = '', perPage = 10 } = {}) {
+export function useCabors({ page = 1, search = '', perPage = 10, level = '', parentId = '', tree = false } = {}) {
   return useQuery({
-    queryKey: caborKeys.list({ page, search, perPage }),
+    queryKey: caborKeys.list({ page, search, perPage, level, parentId, tree }),
     queryFn: async () => {
       const response = await api.get('/api/master/cabors', {
-        params: { page, search: search || undefined, per_page: perPage }
+        params: { page, search: search || undefined, per_page: perPage, level: level || undefined, parent_id: parentId || undefined, tree: tree || undefined }
       });
       return response.data;
     },
@@ -23,15 +23,23 @@ export function useCabors({ page = 1, search = '', perPage = 10 } = {}) {
 }
 
 // Fetch all cabors for dropdown
-export function useCaborsAll() {
+export function useCaborsAll({ level = 'discipline', parentId = '', tree = false } = {}) {
   return useQuery({
-    queryKey: caborKeys.allDropdown(),
+    queryKey: caborKeys.allDropdown({ level, parentId, tree }),
     queryFn: async () => {
-      const response = await api.get('/api/cabors/all');
-      return Array.isArray(response.data) ? response.data.filter(c => c && c.id) : [];
+      const response = await api.get('/api/cabors/all', {
+        params: { level: level || undefined, parent_id: parentId || undefined, tree: tree || undefined }
+      });
+      return Array.isArray(response.data)
+        ? response.data.filter(c => c && c.id).map(c => ({ ...c, raw_name: c.name, name: c.display_name || c.name }))
+        : [];
     },
     staleTime: 10 * 60 * 1000, // 10 minutes - dropdown data doesn't change often
   });
+}
+
+export function useCaborSports() {
+  return useCaborsAll({ level: 'sport' });
 }
 
 // Create cabor mutation

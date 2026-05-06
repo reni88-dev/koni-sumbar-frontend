@@ -104,7 +104,8 @@ export function CompetitionClassFormModal({ isOpen, onClose, competitionClass, c
   const canAddMore = items.length < 20 && !isEditMode;
 
   // Get selected cabor name for display
-  const selectedCaborName = cabors.find(c => c.id == selectedCabor)?.name || '';
+  const selectedCaborItem = cabors.find(c => c.id == selectedCabor);
+  const selectedCaborName = selectedCaborItem?.display_name || selectedCaborItem?.name || '';
 
   if (!isOpen) return null;
 
@@ -154,7 +155,7 @@ export function CompetitionClassFormModal({ isOpen, onClose, competitionClass, c
                 disabled={isEditMode}
               >
                 <option value="">Pilih Cabor</option>
-                {cabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                {cabors.map(c => <option key={c.id} value={c.id}>{c.display_name || c.name}</option>)}
               </select>
               {formErrors.cabor_id && <p className="text-red-500 text-xs mt-1">{formErrors.cabor_id[0]}</p>}
             </div>

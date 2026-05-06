@@ -16,6 +16,7 @@ function formatTime(t) {
 
 export function ScheduleCard({ schedule, onGenerate, onEdit, onDelete, isDeleting }) {
   const [showConfirm, setShowConfirm] = useState(false);
+  const caborName = schedule.cabor?.display_name || schedule.cabor?.name;
 
   return (
     <>
@@ -61,7 +62,7 @@ export function ScheduleCard({ schedule, onGenerate, onEdit, onDelete, isDeletin
 
             <div className="flex gap-2 mt-2 text-xs text-slate-500">
               {schedule.coach?.name && <span className="bg-slate-50 px-2 py-0.5 rounded">{schedule.coach.name}</span>}
-              {schedule.cabor?.name && <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">{schedule.cabor.name}</span>}
+              {caborName && <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">{caborName}</span>}
             </div>
           </div>
 

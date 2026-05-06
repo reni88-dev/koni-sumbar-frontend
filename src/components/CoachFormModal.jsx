@@ -124,8 +124,8 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
 
   const fetchCabors = async () => {
     try {
-      const res = await api.get('/api/cabors/all');
-      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
+      const res = await api.get('/api/cabors/all', { params: { level: 'discipline' } });
+      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id).map(item => ({ ...item, name: item.display_name || item.name })) : [];
       setCabors(data);
     } catch (err) {
       console.error('Failed to fetch cabors:', err);

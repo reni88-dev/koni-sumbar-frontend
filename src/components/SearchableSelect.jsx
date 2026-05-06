@@ -30,10 +30,12 @@ export function SearchableSelect({
   // Filter options
   const filtered = search
     ? options.filter(o =>
-        o.name.toLowerCase().includes(search.toLowerCase()) ||
+        (o.display_name || o.name || '').toLowerCase().includes(search.toLowerCase()) ||
         (o.code && o.code.toLowerCase().includes(search.toLowerCase()))
       )
     : options;
+
+  const labelFor = (option) => option ? (option.display_name || option.name || '') + (option.code ? ` (${option.code})` : '') : '';
 
   // Close on outside click
   useEffect(() => {
@@ -78,7 +80,7 @@ export function SearchableSelect({
         }`}
       >
         <span className={selected ? 'text-slate-800' : 'text-slate-400'}>
-          {selected ? selected.name + (selected.code ? ` (${selected.code})` : '') : placeholder}
+          {selected ? labelFor(selected) : placeholder}
         </span>
         <div className="flex items-center gap-1 flex-shrink-0">
           {value && !disabled && (
@@ -129,7 +131,7 @@ export function SearchableSelect({
                       : 'text-slate-700'
                   }`}
                 >
-                  <span>{option.name}{option.code ? ` (${option.code})` : ''}</span>
+                  <span>{labelFor(option)}</span>
                   {String(option.id) === String(value) && (
                     <span className="text-red-600 text-xs">✓</span>
                   )}

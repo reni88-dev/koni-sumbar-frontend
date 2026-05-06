@@ -258,122 +258,129 @@ export function AthletesPage() {
       title="Data Atlet"
       subtitle="Kelola data atlet dan informasi lengkapnya"
     >
-      {/* Success Toast */}
-      <AnimatePresence>
-        {successMessage && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 bg-green-600 text-white rounded-xl shadow-lg shadow-green-600/30"
-          >
-            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
-            <span className="text-sm font-medium">{successMessage}</span>
-            <button
-              onClick={() => setSuccessMessage("")}
-              className="ml-2 p-0.5 hover:bg-green-500 rounded-lg transition-colors"
+      <div className="min-w-0 max-w-full">
+        {/* Success Toast */}
+        <AnimatePresence>
+          {successMessage && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="fixed top-6 right-6 z-[100] flex items-center gap-3 px-5 py-3.5 bg-green-600 text-white rounded-xl shadow-lg shadow-green-600/30"
             >
-              <X className="w-4 h-4" />
+              <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm font-medium">{successMessage}</span>
+              <button
+                onClick={() => setSuccessMessage("")}
+                className="ml-2 p-0.5 hover:bg-green-500 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Action Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6 min-w-0 max-w-full">
+          <AthleteFilters
+            search={search}
+            setSearch={setSearch}
+            filterCabor={filterCabor}
+            setFilterCabor={setFilterCabor}
+            filterGender={filterGender}
+            setFilterGender={setFilterGender}
+            filterOrganization={filterOrganization}
+            setFilterOrganization={setFilterOrganization}
+            filterCluster={filterCluster}
+            setFilterCluster={setFilterCluster}
+            filterSubCluster={filterSubCluster}
+            setFilterSubCluster={setFilterSubCluster}
+            filterNationalNumber={filterNationalNumber}
+            setFilterNationalNumber={setFilterNationalNumber}
+            cabors={cabors}
+            organizations={organizations}
+            clusters={clusters}
+            subClusters={subClusters}
+          />
+
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <AthleteExportButton
+              isExporting={isExporting}
+              onExport={handleExport}
+            />
+
+            <PrintAthleteList
+              total={total}
+              filterParams={{
+                search: debouncedSearch,
+                caborId: filterCabor,
+                gender: filterGender,
+                organizationId: filterOrganization,
+                clusterId: filterCluster,
+                subClusterId: filterSubCluster,
+                hasNationalAthleteNumber: filterNationalNumber,
+              }}
+              filters={{
+                cabor: filterCabor
+                  ? (() => {
+                      const cabor = cabors.find(
+                        (c) => String(c.id) === String(filterCabor)
+                      );
+                      return cabor?.display_name || cabor?.name;
+                    })()
+                  : "",
+                gender: filterGender,
+                organization: filterOrganization
+                  ? organizations.find(
+                      (o) => String(o.id) === String(filterOrganization)
+                    )?.name
+                  : "",
+                cluster: filterCluster
+                  ? clusters.find((c) => String(c.id) === String(filterCluster))
+                      ?.name
+                  : "",
+                subCluster: filterSubCluster
+                  ? subClusters.find(
+                      (c) => String(c.id) === String(filterSubCluster)
+                    )?.name
+                  : "",
+                search: debouncedSearch,
+              }}
+            />
+
+            <button
+              onClick={openCreateModal}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+            >
+              <Plus className="w-5 h-5" />
+              <span>Tambah</span>
             </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Action Bar */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
-        <AthleteFilters
-          search={search}
-          setSearch={setSearch}
-          filterCabor={filterCabor}
-          setFilterCabor={setFilterCabor}
-          filterGender={filterGender}
-          setFilterGender={setFilterGender}
-          filterOrganization={filterOrganization}
-          setFilterOrganization={setFilterOrganization}
-          filterCluster={filterCluster}
-          setFilterCluster={setFilterCluster}
-          filterSubCluster={filterSubCluster}
-          setFilterSubCluster={setFilterSubCluster}
-          filterNationalNumber={filterNationalNumber}
-          setFilterNationalNumber={setFilterNationalNumber}
-          cabors={cabors}
-          organizations={organizations}
-          clusters={clusters}
-          subClusters={subClusters}
-        />
-
-        <div className="flex items-center gap-3">
-          <AthleteExportButton
-            isExporting={isExporting}
-            onExport={handleExport}
-          />
-
-          <PrintAthleteList
-            total={total}
-            filterParams={{
-              search: debouncedSearch,
-              caborId: filterCabor,
-              gender: filterGender,
-              organizationId: filterOrganization,
-              clusterId: filterCluster,
-              subClusterId: filterSubCluster,
-              hasNationalAthleteNumber: filterNationalNumber,
-            }}
-            filters={{
-              cabor: filterCabor
-                ? cabors.find((c) => String(c.id) === String(filterCabor))?.name
-                : "",
-              gender: filterGender,
-              organization: filterOrganization
-                ? organizations.find(
-                    (o) => String(o.id) === String(filterOrganization)
-                  )?.name
-                : "",
-              cluster: filterCluster
-                ? clusters.find((c) => String(c.id) === String(filterCluster))
-                    ?.name
-                : "",
-              subCluster: filterSubCluster
-                ? subClusters.find(
-                    (c) => String(c.id) === String(filterSubCluster)
-                  )?.name
-                : "",
-              search: debouncedSearch,
-            }}
-          />
-
-          <button
-            onClick={openCreateModal}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-          >
-            <Plus className="w-5 h-5" />
-            <span>Tambah</span>
-          </button>
+          </div>
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="mb-6 p-4 bg-white rounded-xl border border-slate-100 flex items-center justify-between">
-        <span className="text-sm text-slate-600">
-          Total:{" "}
-          <strong className="text-slate-800">{total}</strong> atlet
-        </span>
-        <span className="text-sm text-slate-400">
-          Menampilkan {athletes.length} dari {total}
-        </span>
-      </div>
+        {/* Stats */}
+        <div className="mb-6 p-4 bg-white rounded-xl border border-slate-100 flex flex-wrap items-center justify-between gap-2 min-w-0">
+          <span className="text-sm text-slate-600">
+            Total:{" "}
+            <strong className="text-slate-800">{total}</strong> atlet
+          </span>
+          <span className="text-sm text-slate-400">
+            Menampilkan {athletes.length} dari {total}
+          </span>
+        </div>
 
-      {/* Table with infinite scroll sentinel */}
-      <AthleteTable
-        athletes={athletes}
-        loading={loading}
-        isFetchingNextPage={isFetchingNextPage}
-        hasNextPage={hasNextPage}
-        sentinelRef={sentinelRef}
-        onView={openDetailModal}
-        onEdit={openEditModal}
-        onDelete={handleDeleteRequest}
-      />
+        {/* Table with infinite scroll sentinel */}
+        <AthleteTable
+          athletes={athletes}
+          loading={loading}
+          isFetchingNextPage={isFetchingNextPage}
+          hasNextPage={hasNextPage}
+          sentinelRef={sentinelRef}
+          onView={openDetailModal}
+          onEdit={openEditModal}
+          onDelete={handleDeleteRequest}
+        />
+      </div>
 
       {/* Form Modal */}
       <AthleteFormModal

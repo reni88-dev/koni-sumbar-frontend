@@ -61,6 +61,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
   const educationLevel = athlete.education_level?.name || athlete.education_level_name || athlete.education_level_id;
   const organizationName = athlete.organization?.name || athlete.organization_name;
   const competitionClassName = athlete.competition_class?.name || athlete.competition_class_name;
+  const caborName = athlete.cabor?.display_name || athlete.cabor?.name;
   const currentCluster = athlete.current_cluster_label || 'Atlet Non Binaan';
   const currentSubCluster = athlete.current_sub_cluster_label;
   const activeStatus = athlete.is_active ? 'Aktif' : 'Nonaktif';
@@ -167,7 +168,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
     </div>
     <div class="summary-box">
       <div class="label">Cabang Olahraga</div>
-      <div class="value">${escapeHtml(athlete.cabor?.name)}</div>
+      <div class="value">${escapeHtml(caborName)}</div>
     </div>
     <div class="summary-box">
       <div class="label">Status</div>
@@ -207,7 +208,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
   <div class="section">
     <h3>Olahraga dan Karir</h3>
     <div class="grid">
-      ${renderPrintRow('Cabang Olahraga', athlete.cabor?.name)}
+      ${renderPrintRow('Cabang Olahraga', caborName)}
       ${renderPrintRow('Kelas Pertandingan', competitionClassName)}
       ${renderPrintRow('Organisasi', organizationName)}
       ${renderPrintRow('Tahun Mulai Karir', athlete.career_start_year)}
@@ -421,7 +422,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
                     {athlete.nik ? `NIK ${athlete.nik}` : `${display(athlete.birth_place)}, ${formatDate(athlete.birth_date)}`}
                   </p>
                   <div className="mt-4 flex flex-wrap items-center gap-2">
-                    {athlete.cabor && <Badge variant="sport">{athlete.cabor.name}</Badge>}
+                    {athlete.cabor && <Badge variant="sport">{caborName}</Badge>}
                     {competitionClassName && <Badge variant="class">{competitionClassName}</Badge>}
                     {organizationName && <Badge variant="organization">{organizationName}</Badge>}
                     <Badge variant={athlete.is_active ? 'active' : 'inactive'}>{activeStatus}</Badge>
@@ -488,7 +489,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
               </ProfileSection>
 
               <ProfileSection title="Olahraga dan Organisasi" icon={Layers} iconClassName="text-indigo-600">
-                <ProfileField label="Cabang Olahraga" value={athlete.cabor?.name} />
+                <ProfileField label="Cabang Olahraga" value={caborName} />
                 <ProfileField label="Kelas Pertandingan" value={competitionClassName} />
                 <ProfileField label="Organisasi" value={organizationName} />
                 <ProfileField label="Kluster Aktif" value={currentCluster} />

@@ -1,7 +1,7 @@
 import { Search } from "lucide-react";
 
 const selectClass =
-  "px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none";
+  "px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none max-w-full";
 
 /**
  * AthleteFilters
@@ -38,16 +38,16 @@ export function AthleteFilters({
   subClusters,
 }) {
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="flex flex-wrap gap-3 min-w-0 flex-1 max-w-full">
       {/* Search */}
-      <div className="relative">
+      <div className="relative w-full sm:w-64 max-w-full">
         <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
         <input
           type="text"
           placeholder="Cari nama atau NIK..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none w-64"
+          className="pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none w-full"
         />
       </div>
 
@@ -60,7 +60,7 @@ export function AthleteFilters({
         <option value="">Semua Cabor</option>
         {cabors.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.name}
+            {c.display_name || c.name}
           </option>
         ))}
       </select>

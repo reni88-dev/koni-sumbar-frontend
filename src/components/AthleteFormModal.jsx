@@ -176,9 +176,9 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
 
   const fetchCabors = async () => {
     try {
-      const res = await api.get('/api/cabors/all');
+      const res = await api.get('/api/cabors/all', { params: { level: 'discipline' } });
       // Ensure data is array and has valid IDs
-      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
+      const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id).map(item => ({ ...item, name: item.display_name || item.name })) : [];
       setCabors(data);
     } catch (e) { 
       console.error('Failed to fetch cabors:', e);

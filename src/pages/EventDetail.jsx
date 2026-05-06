@@ -335,7 +335,7 @@ export function EventDetailPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
-                        {ea.cabor?.name || '-'}
+                        {ea.cabor?.display_name || ea.cabor?.name || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

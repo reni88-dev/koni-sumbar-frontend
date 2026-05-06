@@ -32,7 +32,9 @@ export function AssignmentTable({ assignments, loading, onEdit, onDelete }) {
                 </td>
               </tr>
             ) : (
-              assignments.map((item) => (
+              assignments.map((item) => {
+                const caborName = item.cabor?.display_name || item.cabor?.name;
+                return (
                 <motion.tr
                   key={item.id}
                   initial={{ opacity: 0 }}
@@ -57,7 +59,7 @@ export function AssignmentTable({ assignments, loading, onEdit, onDelete }) {
                   </td>
                   <td className="px-6 py-4">
                     {item.cabor ? (
-                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">{item.cabor.name}</span>
+                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">{caborName}</span>
                     ) : '-'}
                   </td>
                   <td className="px-6 py-4">
@@ -90,7 +92,8 @@ export function AssignmentTable({ assignments, loading, onEdit, onDelete }) {
                     </div>
                   </td>
                 </motion.tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

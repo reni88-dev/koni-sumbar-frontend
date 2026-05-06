@@ -112,7 +112,7 @@ export function PrintCoachAthleteList({ filterParams, filters }) {
         <td style="text-align:center;">${i + 1}</td>
         <td style="font-weight:500;">${a.coach?.name || '-'}</td>
         <td>${a.athlete?.name || '-'}</td>
-        <td>${a.cabor?.name || '-'}</td>
+        <td>${a.cabor?.display_name || a.cabor?.name || '-'}</td>
         <td style="text-align:center;">${roleLabels[a.role] || a.role || '-'}</td>
         <td style="text-align:center;"><span class="badge ${a.is_active ? 'badge-active' : 'badge-inactive'}">${a.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
       </tr>`).join('')}

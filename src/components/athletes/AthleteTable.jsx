@@ -30,9 +30,9 @@ export function AthleteTable({
     "text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider";
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-w-0 max-w-full">
+      <div className="overflow-x-auto max-w-full">
+        <table className="w-full min-w-[900px]">
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
               <th className={thClass}>Atlet</th>

@@ -66,7 +66,7 @@ export function OrganizationsPage() {
   // Dropdown data
   const { data: allRegions = [] } = useRegionsAll();
   const { data: parentOrgs = [] } = useOrganizationsAll();
-  const { data: allCabors = [] } = useCaborsAll();
+  const { data: allCabors = [] } = useCaborsAll({ level: 'sport' });
 
   const organizations = orgsData?.data || [];
   const pagination = {

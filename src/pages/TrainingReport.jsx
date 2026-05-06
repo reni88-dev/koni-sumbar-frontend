@@ -13,7 +13,10 @@ export function TrainingReportPage() {
   const [cabors, setCabors] = useState([]);
 
   useEffect(() => {
-    api.get('/api/cabors/all').then(r => setCabors(Array.isArray(r.data) ? r.data : r.data?.data || [])).catch(() => {});
+    api.get('/api/cabors/all', { params: { level: 'discipline' } }).then(r => {
+      const data = Array.isArray(r.data) ? r.data : r.data?.data || [];
+      setCabors(data.map(c => ({ ...c, name: c.display_name || c.name })));
+    }).catch(() => {});
   }, []);
 
   const { data, isLoading } = useTrainingReport({
@@ -54,7 +57,7 @@ export function TrainingReportPage() {
             <select value={caborId} onChange={e => setCaborId(e.target.value)}
               className="px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm">
               <option value="">Semua Cabor</option>
-              {cabors.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {cabors.map(c => <option key={c.id} value={c.id}>{c.display_name || c.name}</option>)}
             </select>
 
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}

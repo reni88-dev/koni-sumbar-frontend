@@ -139,7 +139,7 @@ export function PrintAttendanceReport({ session, attendanceData }) {
       ${timeRange ? `<span>🕐 ${timeRange}</span>` : ''}
       <span>📍 ${session.location_name || '-'}</span>
       ${session.coach ? `<span>👤 ${session.coach.name}</span>` : ''}
-      ${session.cabor ? `<span>🏅 ${session.cabor.name}</span>` : ''}
+      ${session.cabor ? `<span>🏅 ${session.cabor.display_name || session.cabor.name}</span>` : ''}
     </div>
   </div>
 

@@ -145,7 +145,7 @@ export function CoachesPage() {
             >
               <option value="">Semua Cabor</option>
               {cabors.map((cabor) => (
-                <option key={cabor.id} value={cabor.id}>{cabor.name}</option>
+                <option key={cabor.id} value={cabor.id}>{cabor.display_name || cabor.name}</option>
               ))}
             </select>
           </div>
@@ -219,7 +219,7 @@ export function CoachesPage() {
                       </div>
                     </td>
                     <td className="py-4 px-4">
-                      <span className="text-slate-600">{coach.cabor?.name || '-'}</span>
+                      <span className="text-slate-600">{coach.cabor?.display_name || coach.cabor?.name || '-'}</span>
                     </td>
                     <td className="py-4 px-4">
                       <div>
@@ -354,7 +354,7 @@ export function CoachesPage() {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-slate-800">{selectedCoach.name}</h3>
-                    <p className="text-slate-500">{selectedCoach.cabor?.name || '-'}</p>
+                    <p className="text-slate-500">{selectedCoach.cabor?.display_name || selectedCoach.cabor?.name || '-'}</p>
                     <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium mt-1 ${
                       selectedCoach.is_active 
                         ? 'bg-green-100 text-green-700' 

@@ -33,6 +33,7 @@ import MonevDetail from './pages/MonevDetail';
 import MonevEventForm from './pages/MonevEventForm';
 import MonevEventDetail from './pages/MonevEventDetail';
 import MonevEvents from './pages/MonevEvents';
+import { SettingsPage } from './pages/Settings';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './hooks/useAuth';
 
@@ -64,6 +65,7 @@ function App() {
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />      {/* Protected Routes */}
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route
         path="/dashboard"
         element={

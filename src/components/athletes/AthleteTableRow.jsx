@@ -16,6 +16,7 @@ const genderLabels = { male: "Laki-laki", female: "Perempuan" };
  */
 export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
   const initial = athlete.name?.charAt(0).toUpperCase() || "?";
+  const caborName = athlete.cabor?.display_name || athlete.cabor?.name || "-";
 
   return (
     <tr className="hover:bg-slate-50 transition-colors">
@@ -47,7 +48,7 @@ export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
       {/* Cabor */}
       <td className="px-6 py-4">
         <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm whitespace-nowrap">
-          {athlete.cabor?.name || "-"}
+          {caborName}
         </span>
       </td>
 

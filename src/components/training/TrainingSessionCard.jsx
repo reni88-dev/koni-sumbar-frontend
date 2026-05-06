@@ -21,6 +21,7 @@ export function TrainingSessionCard({ session, onDelete, isDeleting }) {
   const navigate = useNavigate();
   const statusInfo = STATUS_LABELS[session.status] || STATUS_LABELS.scheduled;
   const [showConfirm, setShowConfirm] = useState(false);
+  const caborName = session.cabor?.display_name || session.cabor?.name;
 
   return (
     <>
@@ -56,7 +57,7 @@ export function TrainingSessionCard({ session, onDelete, isDeleting }) {
             </div>
             <div className="flex gap-4 mt-2 text-sm text-slate-500">
               {session.coach && <span>Pelatih: <strong>{session.coach.name}</strong></span>}
-              {session.cabor && <span>Cabor: <strong>{session.cabor.name}</strong></span>}
+              {session.cabor && <span>Cabor: <strong>{caborName}</strong></span>}
             </div>
           </div>
           <div className="flex items-center gap-3 ml-4">

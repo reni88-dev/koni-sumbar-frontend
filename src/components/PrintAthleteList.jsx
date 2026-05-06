@@ -119,7 +119,7 @@ export function PrintAthleteList({ filters, filterParams, total }) {
       <tr>
         <td style="text-align:center;">${i + 1}</td>
         <td style="font-weight:500;">${a.name || '-'}</td>
-        <td>${a.cabor?.name || '-'}</td>
+        <td>${a.cabor?.display_name || a.cabor?.name || '-'}</td>
         <td>${a.birth_place ? a.birth_place + ', ' : ''}${formatDate(a.birth_date)}</td>
         <td style="text-align:center;"><span class="badge ${a.gender === 'male' ? 'badge-male' : 'badge-female'}">${genderLabels[a.gender] || '-'}</span></td>
         <td style="text-align:center;"><span class="badge ${a.is_active ? 'badge-active' : 'badge-inactive'}">${a.is_active ? 'Aktif' : 'Nonaktif'}</span></td>

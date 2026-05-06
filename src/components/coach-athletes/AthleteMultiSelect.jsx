@@ -95,6 +95,7 @@ export function AthleteMultiSelect({ value = [], onChange, disabled, caborId }) 
               ) : (
                 athletes.map(athlete => {
                   const selected = value.includes(athlete.id);
+                  const caborName = athlete.cabor?.display_name || athlete.cabor?.name || 'Tanpa Cabor';
                   return (
                     <button
                       key={athlete.id}
@@ -107,7 +108,7 @@ export function AthleteMultiSelect({ value = [], onChange, disabled, caborId }) 
                       <div className="min-w-0">
                         <p className="font-medium text-sm text-slate-800 truncate">{athlete.name}</p>
                         <p className="text-xs text-slate-400 truncate">
-                          {athlete.cabor?.name || 'Tanpa Cabor'}
+                          {caborName}
                           {athlete.nik && ` • NIK: ${athlete.nik}`}
                         </p>
                       </div>

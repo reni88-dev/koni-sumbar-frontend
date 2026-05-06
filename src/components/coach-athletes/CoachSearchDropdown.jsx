@@ -25,6 +25,7 @@ export function CoachSearchDropdown({ value, onChange, disabled }) {
   }, []);
 
   const selectedCoach = value ? coaches.find(c => c.id === value) : null;
+  const selectedCaborName = selectedCoach?.cabor?.display_name || selectedCoach?.cabor?.name;
 
   return (
     <div className="relative" ref={ref}>
@@ -37,7 +38,7 @@ export function CoachSearchDropdown({ value, onChange, disabled }) {
         {value ? (
           <span className="truncate">
             <span className="font-medium">{selectedCoach?.name || `Coach #${value}`}</span>
-            {selectedCoach?.cabor?.name && <span className="text-slate-400 ml-1">• {selectedCoach.cabor.name}</span>}
+            {selectedCaborName && <span className="text-slate-400 ml-1">• {selectedCaborName}</span>}
           </span>
         ) : (
           <span className="text-slate-400">Pilih Pelatih...</span>
@@ -84,7 +85,7 @@ export function CoachSearchDropdown({ value, onChange, disabled }) {
                     <div className="min-w-0">
                       <p className="font-medium text-sm text-slate-800 truncate">{coach.name}</p>
                       <p className="text-xs text-slate-400 truncate">
-                        {coach.cabor?.name || 'Tanpa Cabor'}
+                        {coach.cabor?.display_name || coach.cabor?.name || 'Tanpa Cabor'}
                         {coach.nik && ` • NIK: ${coach.nik}`}
                       </p>
                     </div>

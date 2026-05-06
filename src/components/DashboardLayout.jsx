@@ -19,6 +19,12 @@ export function DashboardLayout({ children, title, subtitle }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
+  const profilePath = user?.role?.name === 'athlete'
+    ? '/portal/atlet'
+    : user?.role?.name === 'coach'
+      ? '/portal/pelatih'
+      : '/settings';
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -34,7 +40,7 @@ export function DashboardLayout({ children, title, subtitle }) {
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-64 min-h-screen flex flex-col">
+      <main className="flex-1 lg:ml-64 min-h-screen flex flex-col min-w-0">
         {/* Top Header / Navbar */}
         <header className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-20 px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -93,11 +99,17 @@ export function DashboardLayout({ children, title, subtitle }) {
                         <p className="text-sm font-bold text-slate-700 truncate">{user?.email}</p>
                       </div>
                       <div className="p-2">
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                        <button
+                          onClick={() => { setIsProfileOpen(false); navigate(profilePath); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                        >
                           <User className="w-4 h-4" />
                             Profile Saya
                         </button>
-                        <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
+                        <button
+                          onClick={() => { setIsProfileOpen(false); navigate('/settings'); }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                        >
                           <Settings className="w-4 h-4" />
                             Pengaturan
                         </button>
@@ -119,7 +131,7 @@ export function DashboardLayout({ children, title, subtitle }) {
         </header>
 
         {/* Page Content */}
-        <div id="main-scroll-container" className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <div id="main-scroll-container" className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden">
           {/* Page Header */}
           {(title || subtitle) && (
             <div className="mb-8">
