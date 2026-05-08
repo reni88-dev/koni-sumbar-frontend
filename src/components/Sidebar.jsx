@@ -175,6 +175,7 @@ function SidebarContent({ onNavigate }) {
     { icon: Shield, label: 'Data Role', path: '/master/roles', permission: 'roles.view' },
     { icon: Trophy, label: 'Cabor', path: '/master/cabors', permission: 'cabors.view' },
     { icon: Layers, label: 'Cluster Atlet', path: '/master/athlete-clusters', permission: 'athlete_cluster_master.view' },
+    { icon: Layers, label: 'Cluster Pelatih', path: '/master/coach-clusters', permission: 'coach_cluster_master.view' },
     { icon: MapPin, label: 'Wilayah', path: '/master/regions', permission: 'regions.view' },
     { icon: Building2, label: 'Organisasi', path: '/master/organizations', permission: 'organizations.view' },
     { icon: GraduationCap, label: 'Jenjang Pendidikan', path: '/master/education-levels', permission: 'education_levels.view' },

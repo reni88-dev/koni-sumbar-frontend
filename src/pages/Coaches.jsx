@@ -6,17 +6,19 @@ import {
   Edit2, 
   Trash2, 
   User,
-  X,
   Loader2,
   AlertCircle,
   Filter,
-  Eye
+  Eye,
+  Layers
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CoachFormModal } from '../components/CoachFormModal';
+import { CoachDetailModal } from '../components/CoachDetailModal';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { useCoaches, useDeleteCoach } from '../hooks/queries/useCoaches';
 import { useCaborsAll } from '../hooks/queries/useCabors';
+import { useCoachClustersAll, useCoachSubClustersByCluster } from '../hooks/queries/useCoachClusterMaster';
 import api from '../api/axios';
 
 export function CoachesPage() {
@@ -24,6 +26,8 @@ export function CoachesPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterCabor, setFilterCabor] = useState('');
   const [filterActive, setFilterActive] = useState('');
+  const [filterCluster, setFilterCluster] = useState('');
+  const [filterSubCluster, setFilterSubCluster] = useState('');
   const [page, setPage] = useState(1);
   
   // Modal states
@@ -33,10 +37,10 @@ export function CoachesPage() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [coachToDelete, setCoachToDelete] = useState(null);
 
-  const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
-
   // TanStack Query hooks
   const { data: cabors = [] } = useCaborsAll();
+  const { data: clusters = [] } = useCoachClustersAll();
+  const { data: subClusters = [] } = useCoachSubClustersByCluster(filterCluster);
   const { 
     data: coachesData, 
     isLoading: loading,
@@ -45,7 +49,9 @@ export function CoachesPage() {
     page, 
     search: debouncedSearch, 
     caborId: filterCabor, 
-    isActive: filterActive
+    isActive: filterActive,
+    clusterId: filterCluster,
+    subClusterId: filterSubCluster
   });
   
   const deleteCoachMutation = useDeleteCoach();
@@ -69,7 +75,13 @@ export function CoachesPage() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [filterCabor, filterActive]);
+  }, [filterCabor, filterActive, filterCluster, filterSubCluster]);
+
+  useEffect(() => {
+    if (filterSubCluster && !subClusters.some((item) => String(item.id) === String(filterSubCluster))) {
+      setFilterSubCluster('');
+    }
+  }, [filterSubCluster, subClusters]);
 
   const openCreateModal = () => {
     setSelectedCoach(null);
@@ -115,11 +127,6 @@ export function CoachesPage() {
     }
   };
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  };
-
   return (
     <DashboardLayout title="Data Pelatih" subtitle="Kelola data pelatih dan informasi lengkapnya">
       {/* Action Bar */}
@@ -159,6 +166,26 @@ export function CoachesPage() {
             <option value="true">Aktif</option>
             <option value="false">Tidak Aktif</option>
           </select>
+
+          <select
+            value={filterCluster}
+            onChange={(e) => setFilterCluster(e.target.value)}
+            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none appearance-none cursor-pointer"
+          >
+            <option value="">Semua Cluster</option>
+            {clusters.map((cluster) => <option key={cluster.id} value={cluster.id}>{cluster.name}</option>)}
+          </select>
+
+          {filterCluster && subClusters.length > 0 && (
+            <select
+              value={filterSubCluster}
+              onChange={(e) => setFilterSubCluster(e.target.value)}
+              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none appearance-none cursor-pointer"
+            >
+              <option value="">Semua Sub-Kluster</option>
+              {subClusters.map((subCluster) => <option key={subCluster.id} value={subCluster.id}>{subCluster.name}</option>)}
+            </select>
+          )}
         </div>
 
         <button
@@ -189,6 +216,7 @@ export function CoachesPage() {
                   <th className="text-left py-4 px-6 font-semibold text-slate-600">Pelatih</th>
                   <th className="text-left py-4 px-4 font-semibold text-slate-600">Cabor</th>
                   <th className="text-left py-4 px-4 font-semibold text-slate-600">Lisensi</th>
+                  <th className="text-left py-4 px-4 font-semibold text-slate-600">Kluster</th>
                   <th className="text-left py-4 px-4 font-semibold text-slate-600">Telepon</th>
                   <th className="text-center py-4 px-4 font-semibold text-slate-600">Status</th>
                   <th className="text-center py-4 px-4 font-semibold text-slate-600">Aksi</th>
@@ -227,6 +255,15 @@ export function CoachesPage() {
                         {coach.license_level && (
                           <p className="text-xs text-slate-400">{coach.license_level}</p>
                         )}
+                      </div>
+                    </td>
+                    <td className="py-4 px-4">
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Layers className="w-4 h-4 text-slate-400" />
+                        <div>
+                          <p className="text-sm font-medium">{coach.current_cluster_label || 'Pelatih Non Binaan'}</p>
+                          {coach.current_sub_cluster_label && <p className="text-xs text-slate-400">{coach.current_sub_cluster_label}</p>}
+                        </div>
                       </div>
                     </td>
                     <td className="py-4 px-4">
@@ -310,123 +347,11 @@ export function CoachesPage() {
         onSuccess={handleFormSuccess}
       />
 
-      {/* Detail Modal */}
-      <AnimatePresence>
-        {isDetailModalOpen && selectedCoach && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-              onClick={() => setIsDetailModalOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden"
-            >
-              <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-white">Detail Pelatih</h2>
-                <button
-                  onClick={() => setIsDetailModalOpen(false)}
-                  className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                >
-                  <X className="w-5 h-5 text-white" />
-                </button>
-              </div>
-              <div className="p-6 max-h-[70vh] overflow-y-auto">
-                {/* Photo & Name */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-20 h-20 rounded-full bg-slate-100 overflow-hidden flex-shrink-0">
-                    {selectedCoach.photo ? (
-                      <ProtectedImage
-                        src={`/api/coaches/${selectedCoach.id}/photo?t=${selectedCoach.updated_at}`}
-                        alt={selectedCoach.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <User className="w-10 h-10 text-slate-400" />
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-800">{selectedCoach.name}</h3>
-                    <p className="text-slate-500">{selectedCoach.cabor?.display_name || selectedCoach.cabor?.name || '-'}</p>
-                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium mt-1 ${
-                      selectedCoach.is_active 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {selectedCoach.is_active ? 'Aktif' : 'Tidak Aktif'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Details Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">NIK</p>
-                    <p className="text-slate-700">{selectedCoach.nik || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Jenis Kelamin</p>
-                    <p className="text-slate-700">{genderLabels[selectedCoach.gender] || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Tempat Lahir</p>
-                    <p className="text-slate-700">{selectedCoach.birth_place || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Tanggal Lahir</p>
-                    <p className="text-slate-700">{formatDate(selectedCoach.birth_date)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Agama</p>
-                    <p className="text-slate-700">{selectedCoach.religion || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">No. Telepon</p>
-                    <p className="text-slate-700">{selectedCoach.phone || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Email</p>
-                    <p className="text-slate-700">{selectedCoach.email || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Nomor Lisensi</p>
-                    <p className="text-slate-700">{selectedCoach.license_number || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Level Lisensi</p>
-                    <p className="text-slate-700">{selectedCoach.license_level || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Tahun Mulai Melatih</p>
-                    <p className="text-slate-700">{selectedCoach.coaching_start_year || '-'}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 uppercase">Spesialisasi</p>
-                    <p className="text-slate-700">{selectedCoach.specialization || '-'}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-xs text-slate-400 uppercase">Alamat</p>
-                    <p className="text-slate-700">{selectedCoach.address || '-'}</p>
-                  </div>
-                  {selectedCoach.achievements && (
-                    <div className="col-span-2">
-                      <p className="text-xs text-slate-400 uppercase">Prestasi</p>
-                      <p className="text-slate-700 whitespace-pre-wrap">{selectedCoach.achievements}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <CoachDetailModal
+        isOpen={isDetailModalOpen}
+        onClose={() => setIsDetailModalOpen(false)}
+        coach={selectedCoach}
+      />
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>

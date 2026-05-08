@@ -11,6 +11,8 @@ export const portalKeys = {
   athletes: () => [...portalKeys.all, 'athletes'],
   clusters: () => [...portalKeys.all, 'profile', 'clusters'],
   funds: (filters) => [...portalKeys.all, 'profile', 'development-funds', filters],
+  coachClusters: () => [...portalKeys.all, 'profile', 'coach-clusters'],
+  coachFunds: (filters) => [...portalKeys.all, 'profile', 'coach-development-funds', filters],
 };
 
 // Fetch user's portal profile
@@ -57,6 +59,33 @@ export function usePortalDevelopmentFunds(filters = {}) {
     queryKey: portalKeys.funds(filters),
     queryFn: async () => {
       const response = await api.get('/api/portal/profile/development-funds', {
+        params: {
+          page: filters.page || 1,
+          per_page: filters.perPage || 15,
+          year: filters.year || undefined,
+          month: filters.month || undefined,
+        },
+      });
+      return response.data;
+    },
+  });
+}
+
+export function usePortalCoachClusterHistories() {
+  return useQuery({
+    queryKey: portalKeys.coachClusters(),
+    queryFn: async () => {
+      const response = await api.get('/api/portal/profile/coach-clusters');
+      return response.data;
+    },
+  });
+}
+
+export function usePortalCoachDevelopmentFunds(filters = {}) {
+  return useQuery({
+    queryKey: portalKeys.coachFunds(filters),
+    queryFn: async () => {
+      const response = await api.get('/api/portal/profile/coach-development-funds', {
         params: {
           page: filters.page || 1,
           per_page: filters.perPage || 15,

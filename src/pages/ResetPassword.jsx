@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Lock, ShieldCheck, Loader2, AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, Loader2, AlertCircle, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import api from '../api/axios';
 
 import koniLogo from '../assets/koni-sumbar.jpg';
 
 export function ResetPassword() {
+  const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -24,6 +25,20 @@ export function ResetPassword() {
     setError('');
     setIsLoading(true);
 
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setError('Email wajib diisi');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setError('Format email tidak valid');
+      setIsLoading(false);
+      return;
+    }
+
     if (newPassword.length < 8) {
       setError('Password minimal 8 karakter');
       setIsLoading(false);
@@ -38,6 +53,7 @@ export function ResetPassword() {
 
     try {
       await api.post('/api/reset-password', {
+        email: trimmedEmail,
         new_password: newPassword,
         confirm_password: confirmPassword,
       });
@@ -88,7 +104,7 @@ export function ResetPassword() {
             </div>
             <h1 className="text-5xl font-bold mb-4 tracking-tight">Keamanan<br/>Akun</h1>
             <p className="text-amber-100 text-xl max-w-md leading-relaxed">
-              Demi keamanan, Anda wajib membuat password baru untuk melanjutkan.
+              Demi keamanan, lengkapi email aktif dan buat password baru untuk melanjutkan.
             </p>
           </motion.div>
           
@@ -131,16 +147,16 @@ export function ResetPassword() {
               <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle className="w-10 h-10 text-green-600" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-800 mb-2">Password Berhasil Diubah!</h2>
+              <h2 className="text-2xl font-bold text-slate-800 mb-2">Email dan Password Berhasil Diperbarui!</h2>
               <p className="text-slate-500">Mengalihkan ke dashboard...</p>
             </motion.div>
           ) : (
             <>
               <div className="mb-10">
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">Buat Password Baru 🔐</h2>
+                <h2 className="text-3xl font-bold text-slate-800 mb-2">Lengkapi Data Akun</h2>
                 <p className="text-slate-500">
                   Halo <span className="font-semibold text-slate-700">{user?.name}</span>,<br/>
-                  silakan buat password baru untuk keamanan akun Anda.
+                  silakan isi email aktif dan buat password baru untuk keamanan akun Anda.
                 </p>
               </div>
 
@@ -160,6 +176,23 @@ export function ResetPassword() {
                 </AnimatePresence>
 
                 <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 ml-1">Email Aktif</label>
+                    <div className="relative group">
+                      <div className="absolute left-4 top-3.5 text-slate-400 group-focus-within:text-amber-500 transition-colors">
+                        <Mail className="w-5 h-5" />
+                      </div>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-amber-100 focus:border-amber-500 transition-all outline-none text-slate-700 font-medium"
+                        placeholder="nama@email.com"
+                        required
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-slate-700 ml-1">Password Baru</label>
                     <div className="relative group">
@@ -221,7 +254,7 @@ export function ResetPassword() {
                   ) : (
                     <>
                       <ShieldCheck className="w-5 h-5" />
-                      <span>Simpan Password Baru</span>
+                      <span>Simpan Email & Password</span>
                     </>
                   )}
                 </button>

@@ -6,6 +6,7 @@ import { UsersPage } from './pages/master/Users';
 import { RolesPage } from './pages/master/Roles';
 import { CaborsPage } from './pages/master/Cabors';
 import { AthleteClustersPage } from './pages/master/AthleteClusters';
+import { CoachClustersPage } from './pages/master/CoachClusters';
 import { EducationLevelsPage } from './pages/master/EducationLevels';
 import { CompetitionClassesPage } from './pages/master/CompetitionClasses';
 import { RegionsPage } from './pages/master/Regions';
@@ -305,6 +306,14 @@ function App() {
         element={
           <ProtectedRoute>
             <AthleteClustersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/coach-clusters"
+        element={
+          <ProtectedRoute>
+            <CoachClustersPage />
           </ProtectedRoute>
         }
       />

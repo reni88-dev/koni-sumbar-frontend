@@ -11,15 +11,19 @@ export const coachKeys = {
 };
 
 // Fetch coaches with pagination and filters
-export function useCoaches({ page = 1, search = '', caborId = '', isActive = '', perPage = 10 } = {}) {
+export function useCoaches({ page = 1, search = '', caborId = '', isActive = '', clusterId = '', subClusterId = '', clusterType = '', subClusterType = '', perPage = 10 } = {}) {
   return useQuery({
-    queryKey: coachKeys.list({ page, search, caborId, isActive, perPage }),
+    queryKey: coachKeys.list({ page, search, caborId, isActive, clusterId, subClusterId, clusterType, subClusterType, perPage }),
     queryFn: async () => {
       const response = await api.get('/api/coaches', {
         params: { 
           page, 
           search: search || undefined, 
           cabor_id: caborId || undefined, 
+          cluster_id: clusterId || undefined,
+          sub_cluster_id: subClusterId || undefined,
+          cluster_type: clusterType || undefined,
+          sub_cluster_type: subClusterType || undefined,
           is_active: isActive !== '' ? isActive : undefined, 
           per_page: perPage 
         }

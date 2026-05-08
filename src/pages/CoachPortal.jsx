@@ -2,24 +2,37 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, Users, Calendar, Award, MapPin, Clock, Phone, Mail,
-  Loader2, Edit2, Save, X, CheckCircle, AlertCircle
+  Loader2, Edit2, Save, X, Layers, Wallet
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
-import { usePortalProfile, usePortalEvents, usePortalDashboard, usePortalAthletes, useUpdatePortalProfile } from '../hooks/queries/usePortal';
+import { usePortalProfile, usePortalEvents, usePortalDashboard, usePortalAthletes, useUpdatePortalProfile, usePortalCoachClusterHistories, usePortalCoachDevelopmentFunds } from '../hooks/queries/usePortal';
+
+const currentYear = new Date().getFullYear();
+const GENDER_LABELS = { male: 'Laki-laki', female: 'Perempuan' };
+const textOrDash = (value) => value || '-';
+const formatDate = (value) => value ? new Date(value).toLocaleDateString('id-ID') : '-';
+const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
 
 export function CoachPortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
+  const [fundYear, setFundYear] = useState(currentYear);
   
   const { data: profile, isLoading: profileLoading } = usePortalProfile();
   const { data: events, isLoading: eventsLoading } = usePortalEvents();
   const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard();
   const { data: athletes, isLoading: athletesLoading } = usePortalAthletes();
+  const { data: clustersData, isLoading: clustersLoading } = usePortalCoachClusterHistories();
+  const { data: fundsData, isLoading: fundsLoading } = usePortalCoachDevelopmentFunds({ year: fundYear, perPage: 100 });
   const updateProfile = useUpdatePortalProfile();
+  const clusters = clustersData?.data || [];
+  const funds = fundsData?.data || [];
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
+    { id: 'clusters', label: 'Kluster', icon: Layers },
+    { id: 'funds', label: 'Dana Pembinaan', icon: Wallet },
     { id: 'athletes', label: 'Atlet Saya', icon: Users },
     { id: 'events', label: 'Event', icon: Calendar },
   ];
@@ -219,10 +232,17 @@ export function CoachPortal() {
                     <label className="text-xs text-slate-500 uppercase tracking-wider">No. Lisensi</label>
                     <p className="text-slate-800 font-medium">{profile?.details?.license_number || '-'}</p>
                   </div>
+                  <div>
+                    <label className="text-xs text-slate-500 uppercase tracking-wider">Kluster Aktif</label>
+                    <p className="text-slate-800 font-medium">{[profile?.details?.current_cluster_label, profile?.details?.current_sub_cluster_label].filter(Boolean).join(' - ') || 'Pelatih Non Binaan'}</p>
+                  </div>
                 </div>
               </div>
             </div>
           )}
+
+          {activeTab === 'clusters' && <ClustersTab coach={profile?.details} clusters={clusters} loading={clustersLoading} />}
+          {activeTab === 'funds' && <FundsTab funds={funds} fundsData={fundsData} loading={fundsLoading} year={fundYear} setYear={setFundYear} />}
 
           {/* Athletes Tab */}
           {activeTab === 'athletes' && (
@@ -257,7 +277,7 @@ export function CoachPortal() {
                         <h4 className="font-medium text-slate-800 truncate">{athlete.name}</h4>
                         <div className="flex items-center gap-3 text-sm text-slate-500">
                           {athlete.gender && (
-                            <span>{athlete.gender === 'L' ? 'Laki-laki' : 'Perempuan'}</span>
+                            <span>{GENDER_LABELS[athlete.gender] || athlete.gender}</span>
                           )}
                           {athlete.birth_date && (
                             <span>• {new Date(athlete.birth_date).toLocaleDateString('id-ID')}</span>
@@ -340,4 +360,20 @@ export function CoachPortal() {
       </div>
     </DashboardLayout>
   );
+}
+
+function ClustersTab({ coach, clusters, loading }) {
+  return <div className="space-y-4"><h3 className="text-lg font-bold text-slate-800">Riwayat Kluster</h3><div className="p-4 bg-red-50 rounded-2xl border border-red-100"><p className="text-sm text-red-700">Kluster Aktif</p><p className="text-xl font-bold text-red-900">{[coach?.current_cluster_label, coach?.current_sub_cluster_label].filter(Boolean).join(' - ') || 'Pelatih Non Binaan'}</p></div>{loading ? <Loading /> : clusters.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-slate-500 border-b"><th className="py-3">Kluster</th><th>Sub Kluster</th><th>Mulai</th><th>Selesai</th><th>Perubahan</th><th>Alasan</th></tr></thead><tbody>{clusters.map((item) => <tr key={item.id} className="border-b border-slate-100"><td className="py-3 font-medium text-slate-800">{item.cluster_label}</td><td>{textOrDash(item.sub_cluster_label)}</td><td>{formatDate(item.start_date)}</td><td>{item.end_date ? formatDate(item.end_date) : <span className="text-green-700 font-medium">Aktif</span>}</td><td>{item.change_label}</td><td>{textOrDash(item.reason)}</td></tr>)}</tbody></table></div> : <Empty icon={Layers} text="Belum ada riwayat kluster" />}</div>;
+}
+
+function FundsTab({ funds, fundsData, loading, year, setYear }) {
+  return <div className="space-y-4"><div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h3 className="text-lg font-bold text-slate-800">Dana Pembinaan</h3><p className="text-sm text-slate-500">Data read-only milik akun pelatih ini.</p></div><input type="number" value={year} onChange={(e) => setYear(Number(e.target.value) || currentYear)} className="w-32 px-3 py-2 border border-slate-200 rounded-lg" /></div><div className="p-4 bg-green-50 rounded-2xl border border-green-100"><p className="text-sm text-green-700">Total Tahun {year}</p><p className="text-2xl font-bold text-green-900">{formatCurrency(fundsData?.total_amount || funds.reduce((sum, item) => sum + Number(item.amount || 0), 0))}</p></div>{loading ? <Loading /> : funds.length ? <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-slate-500 border-b"><th className="py-3">Tanggal</th><th>Bulan</th><th>Nominal</th><th>Kluster</th><th>Keterangan</th></tr></thead><tbody>{funds.map((item) => <tr key={item.id} className="border-b border-slate-100"><td className="py-3">{formatDate(item.fund_date)}</td><td>{item.month}/{item.year}</td><td className="font-semibold text-slate-800">{formatCurrency(item.amount)}</td><td>{textOrDash(item.cluster_history?.sub_cluster_label || item.cluster_history?.cluster_label)}</td><td>{textOrDash(item.description)}</td></tr>)}</tbody></table></div> : <Empty icon={Wallet} text="Belum ada data dana pembinaan" />}</div>;
+}
+
+function Loading() {
+  return <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-red-600" /></div>;
+}
+
+function Empty({ icon: Icon, text }) {
+  return <div className="text-center py-12 text-slate-400"><Icon className="w-12 h-12 mx-auto mb-3 opacity-50" /><p>{text}</p></div>;
 }
