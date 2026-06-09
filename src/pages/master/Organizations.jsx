@@ -261,7 +261,7 @@ export function OrganizationsPage() {
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-1">
                         {org.cabors?.slice(0, 3).map(c => (
-                          <span key={c.id} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{c.name}</span>
+                          <span key={c.id} className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded text-xs">{c.display_name || c.name}</span>
                         ))}
                         {(org.cabors?.length || 0) > 3 && (
                           <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-xs">+{org.cabors.length - 3}</span>
@@ -506,10 +506,10 @@ export function OrganizationsPage() {
             />
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:items-center"
             >
-              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={e => e.stopPropagation()}>
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[calc(100vh-2rem)] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between shrink-0">
                   <div>
                     <h2 className="text-lg font-bold text-slate-800">Kelola Cabor</h2>
                     <p className="text-sm text-slate-500">{caborOrg.name}</p>
@@ -518,9 +518,9 @@ export function OrganizationsPage() {
                     <X className="w-5 h-5 text-slate-500" />
                   </button>
                 </div>
-                <div className="p-6">
+                <div className="p-6 flex flex-col min-h-0 flex-1">
                   {/* Add cabor */}
-                  <div className="flex gap-2 mb-4">
+                  <div className="flex gap-2 mb-4 shrink-0">
                     <select
                       value={selectedCaborId}
                       onChange={e => setSelectedCaborId(e.target.value)}
@@ -530,7 +530,7 @@ export function OrganizationsPage() {
                       {allCabors
                         .filter(c => !caborOrg.cabors?.some(oc => oc.id === c.id))
                         .map(c => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
+                          <option key={c.id} value={c.id}>{c.display_name || c.name}</option>
                         ))
                       }
                     </select>
@@ -544,13 +544,13 @@ export function OrganizationsPage() {
                   </div>
 
                   {/* Current cabors */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 overflow-y-auto pr-1 min-h-0">
                     {caborOrg.cabors?.length === 0 && (
                       <p className="text-sm text-slate-400 text-center py-4">Belum ada cabor terdaftar</p>
                     )}
                     {caborOrg.cabors?.map(c => (
                       <div key={c.id} className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl">
-                        <span className="text-sm font-medium text-slate-700">{c.name}</span>
+                        <span className="text-sm font-medium text-slate-700">{c.display_name || c.name}</span>
                         <button
                           onClick={() => handleUnlinkCabor(c.id)}
                           disabled={unlinkCaborMutation.isPending}

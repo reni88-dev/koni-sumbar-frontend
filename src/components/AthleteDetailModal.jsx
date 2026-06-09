@@ -106,7 +106,9 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
   );
 
   const buildPrintHtml = ({ histories, funds, clusterError, fundsError }) => {
-    const now = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    const printedAt = new Date();
+    const printedDate = printedAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    const printedTime = printedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
     const totalFunds = funds.reduce((sum, fund) => sum + Number(fund.amount || 0), 0);
     const printAchievements = topAchievements.length > 0 ? topAchievements : ['-'];
 
@@ -114,14 +116,13 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>Profil Atlet - ${escapeHtml(athlete.name)}</title>
+  <title>PROFIL ATLET KONI SUMATERA BARAT</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #1e293b; padding: 22px; font-size: 11px; line-height: 1.45; }
     .header { text-align: center; border-bottom: 2px solid #dc2626; padding-bottom: 14px; margin-bottom: 16px; }
     .header h1 { font-size: 17px; color: #dc2626; margin-bottom: 2px; }
-    .header h2 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
-    .date { font-size: 10px; color: #64748b; }
+    .header h2 { font-size: 14px; font-weight: 600; margin-bottom: 0; }
     .summary { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
     .summary-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: #f8fafc; }
     .summary-box .label { color: #64748b; font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
@@ -145,7 +146,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
     .empty { padding: 10px; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; background: #f8fafc; }
     .warning { padding: 10px; border: 1px solid #fecaca; border-radius: 8px; color: #991b1b; background: #fef2f2; }
     .total { margin-top: 8px; text-align: right; font-size: 12px; font-weight: 700; }
-    .footer { margin-top: 22px; text-align: center; font-size: 9px; color: #94a3b8; }
+    .footer { margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 10px; text-align: center; font-size: 9px; color: #64748b; }
 
     @media print {
       @page { margin: 12mm; }
@@ -156,9 +157,8 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
 </head>
 <body>
   <div class="header">
-    <h1>KONI SUMATERA BARAT</h1>
-    <h2>Profil Atlet</h2>
-    <div class="date">Dicetak pada: ${escapeHtml(now)}</div>
+    <h1>PROFIL ATLET</h1>
+    <h2>KONI SUMATERA BARAT</h2>
   </div>
 
   <div class="summary">
@@ -303,7 +303,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
       <div class="total">Total Biaya Pembinaan: ${escapeHtml(formatCurrency(totalFunds))}</div>`}
   </div>
 
-  <div class="footer">Profil Atlet KONI Sumatera Barat</div>
+  <div class="footer">Dicetak oleh : KONI Sumbar pada tanggal ${escapeHtml(printedDate)} jam ${escapeHtml(printedTime)}</div>
 </body>
 </html>`;
   };

@@ -4,8 +4,9 @@ import { Plus, Search, Edit2, Trash2, Trophy, X, Loader2, AlertCircle, Users, Up
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { ProtectedImage } from '../../components/ProtectedImage';
 import { useCabors, useCaborSports, useCreateCabor, useUpdateCabor, useDeleteCabor } from '../../hooks/queries/useCabors';
+import { useFederationsAll } from '../../hooks/queries/useFederations';
 
-const emptyForm = { level: 'sport', parent_id: '', name: '', slug: '', code: '', description: '', federation: '', sort_order: 0, is_active: true };
+const emptyForm = { level: 'sport', parent_id: '', name: '', slug: '', code: '', description: '', federation_id: '', federation: '', sort_order: 0, is_active: true };
 
 export function CaborsPage() {
   const [search, setSearch] = useState('');
@@ -24,6 +25,7 @@ export function CaborsPage() {
 
   const { data: caborsData, isLoading: loading } = useCabors({ search: debouncedSearch, perPage: 100, tree: filterLevel === '', level: filterLevel });
   const { data: sports = [] } = useCaborSports();
+  const { data: federations = [] } = useFederationsAll();
   const createCaborMutation = useCreateCabor();
   const updateCaborMutation = useUpdateCabor();
   const deleteCaborMutation = useDeleteCabor();
@@ -35,7 +37,17 @@ export function CaborsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const rows = filterLevel === '' ? cabors.flatMap((cabor) => [cabor, ...(cabor.children || [])]) : cabors;
+  const rows = filterLevel === ''
+    ? cabors.flatMap((cabor) => {
+        if (cabor.level === 'sport') {
+          return [
+            { ...cabor, rowType: 'sport', depth: 0 },
+            ...(cabor.children || []).map((child) => ({ ...child, rowType: 'discipline', depth: 1 })),
+          ];
+        }
+        return [{ ...cabor, rowType: 'orphan-discipline', depth: 0 }];
+      })
+    : cabors.map((cabor) => ({ ...cabor, rowType: cabor.level || 'discipline', depth: 0 }));
 
   const handleLogoChange = (e) => {
     const file = e.target.files[0];
@@ -60,7 +72,7 @@ export function CaborsPage() {
   const openCreateModal = (level = 'sport', parent = null) => {
     setModalMode('create');
     setSelectedCabor(null);
-    setFormData({ ...emptyForm, level, parent_id: parent?.id || '', federation: parent?.federation || '' });
+    setFormData({ ...emptyForm, level, parent_id: parent?.id || '', federation_id: parent?.federation_id || '', federation: parent?.federation || '' });
     setLogoFile(null);
     setLogoPreview(null);
     setFormErrors({});
@@ -77,6 +89,7 @@ export function CaborsPage() {
       slug: cabor.slug || '',
       code: cabor.code || '',
       description: cabor.description || '',
+      federation_id: cabor.federation_id || '',
       federation: cabor.federation || '',
       sort_order: cabor.sort_order || 0,
       is_active: cabor.is_active,
@@ -101,6 +114,7 @@ export function CaborsPage() {
     try {
       const data = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'federation' && formData.federation_id) return;
         if (key === 'is_active') data.append(key, value ? '1' : '0');
         else if (value !== null && value !== undefined) data.append(key, value);
       });
@@ -172,18 +186,18 @@ export function CaborsPage() {
               ) : rows.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-12 text-center text-slate-500">Tidak ada data cabor</td></tr>
               ) : rows.map((cabor) => (
-                <tr key={cabor.id} className={`${cabor.level === 'sport' ? 'bg-slate-50/60' : 'hover:bg-slate-50'} transition-colors`}>
+                <tr key={cabor.id} className={`${cabor.rowType === 'sport' ? 'bg-slate-50/80 border-t-2 border-slate-200' : cabor.rowType === 'orphan-discipline' ? 'bg-amber-50/30 hover:bg-amber-50/50' : 'hover:bg-slate-50'} transition-colors`}>
                   <td className="px-6 py-4">
-                    <div className={`flex items-center gap-3 ${cabor.level === 'discipline' ? 'pl-8' : ''}`}>
+                    <div className={`flex items-center gap-3 ${cabor.depth === 1 ? 'pl-8' : ''}`}>
                       {cabor.logo ? <ProtectedImage src={`/api/storage/${cabor.logo}`} alt={cabor.name} className="w-10 h-10 object-contain rounded-lg border border-slate-200 bg-white" fallback={<Trophy className="w-5 h-5 text-slate-300" />} /> : <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 flex items-center justify-center"><Trophy className="w-5 h-5 text-slate-300" /></div>}
                       <div>
                         <div className={`font-medium ${cabor.level === 'sport' ? 'text-slate-900' : 'text-slate-700'}`}>{cabor.name}</div>
-                        <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${cabor.level === 'sport' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-700'}`}>{cabor.level === 'sport' ? 'Cabor Induk' : 'Disiplin'}</span>
+                        <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${cabor.level === 'sport' ? 'bg-indigo-100 text-indigo-700' : cabor.rowType === 'orphan-discipline' ? 'bg-orange-100 text-orange-700' : 'bg-amber-100 text-amber-700'}`}>{cabor.level === 'sport' ? 'Cabor Induk' : cabor.rowType === 'orphan-discipline' ? 'Disiplin tanpa induk' : 'Disiplin'}</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-slate-500">{cabor.parent_name || '-'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-500">{cabor.federation || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500">{cabor.rowType === 'orphan-discipline' ? 'Belum ada induk' : cabor.parent_name || '-'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500">{cabor.federation_display_name || cabor.federation_name || cabor.federation || '-'}</td>
                   <td className="px-6 py-4 text-center"><span className="inline-flex items-center gap-1 text-sm text-slate-600"><Users className="w-4 h-4" />{cabor.athletes_count || 0}</span></td>
                   <td className="px-6 py-4 text-center"><span className={`px-2 py-1 rounded-full text-xs font-medium ${cabor.is_active ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>{cabor.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
                   <td className="px-6 py-4"><div className="flex items-center justify-end gap-2">
@@ -217,7 +231,7 @@ export function CaborsPage() {
                   {formData.level === 'discipline' && <div><label className="block text-sm font-medium text-slate-700 mb-1">Cabor Induk</label><select value={formData.parent_id} onChange={e => setFormData({ ...formData, parent_id: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"><option value="">Pilih Cabor Induk</option>{sports.map(s => <option key={s.id} value={s.id}>{s.raw_name || s.name}</option>)}</select>{formErrors.parent_id && <p className="text-red-500 text-xs mt-1">{formErrors.parent_id[0]}</p>}</div>}
                   <div><label className="block text-sm font-medium text-slate-700 mb-1">Nama</label><input type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" required />{formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name[0]}</p>}</div>
                   <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm font-medium text-slate-700 mb-1">Slug</label><input type="text" value={formData.slug} onChange={e => setFormData({ ...formData, slug: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div><div><label className="block text-sm font-medium text-slate-700 mb-1">Kode</label><input type="text" value={formData.code} onChange={e => setFormData({ ...formData, code: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div></div>
-                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Federasi</label><input type="text" value={formData.federation} onChange={e => setFormData({ ...formData, federation: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div>
+                  <div><label className="block text-sm font-medium text-slate-700 mb-1">Federasi</label><select value={formData.federation_id} onChange={e => setFormData({ ...formData, federation_id: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"><option value="">Pilih Federasi</option>{federations.map(f => <option key={f.id} value={f.id}>{f.display_name || f.name}</option>)}</select>{!formData.federation_id && formData.federation && <p className="text-xs text-slate-500 mt-1">Legacy: {formData.federation}</p>}</div>
                   <div><label className="block text-sm font-medium text-slate-700 mb-1">Deskripsi</label><textarea value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none" rows={3} /></div>
                   <div className="grid grid-cols-2 gap-3"><div><label className="block text-sm font-medium text-slate-700 mb-1">Sort Order</label><input type="number" value={formData.sort_order} onChange={e => setFormData({ ...formData, sort_order: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" /></div><div className="flex items-end pb-3 gap-3"><input type="checkbox" id="is_active" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })} className="w-4 h-4 accent-red-600" /><label htmlFor="is_active" className="text-sm text-slate-700">Aktif</label></div></div>
                   <div><label className="block text-sm font-medium text-slate-700 mb-2">Logo</label><div className="flex items-center gap-4"><div className="w-20 h-20 bg-slate-100 rounded-xl flex items-center justify-center overflow-hidden border-2 border-dashed border-slate-300">{logoPreview ? (logoPreview.startsWith('/api/') ? <ProtectedImage src={logoPreview} alt="Preview" className="w-full h-full object-contain" fallback={<Trophy className="w-8 h-8 text-slate-400" />} /> : <img src={logoPreview} alt="Preview" className="w-full h-full object-contain" />) : <Trophy className="w-8 h-8 text-slate-400" />}</div><label className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-colors"><Upload className="w-4 h-4" /><span className="text-sm font-medium">Upload Logo</span><input type="file" accept="image/*" onChange={handleLogoChange} className="hidden" /></label></div></div>

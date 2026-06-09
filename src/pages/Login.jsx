@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation, Navigate } from "react-router-dom";
+import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -210,12 +210,12 @@ export function Login() {
                 />
                 <span>Ingat saya</span>
               </label>
-              <a
-                href="#"
+              <Link
+                to="/forgot-password"
                 className="text-red-600 font-medium hover:text-red-700 hover:underline"
               >
                 Lupa password?
-              </a>
+              </Link>
             </div>
 
             <button

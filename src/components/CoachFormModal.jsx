@@ -31,6 +31,13 @@ function formatDateForInput(dateString) {
   }
 }
 
+function getCoachSaveErrorMessage(err) {
+  const serverMessage = err.response?.data?.message || err.response?.data?.error;
+  if (serverMessage) return serverMessage;
+  if (err.response?.status === 409) return 'Data pelatih sudah terdaftar. Periksa kembali email atau NIK.';
+  return 'Gagal menyimpan data pelatih';
+}
+
 export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -266,8 +273,10 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
 
       onSuccess();
     } catch (err) {
-      console.error('Failed to save coach:', err);
-      setError(err.response?.data?.message || 'Gagal menyimpan data pelatih');
+      if (!err.response || err.response.status >= 500) {
+        console.error('Failed to save coach:', err);
+      }
+      setError(getCoachSaveErrorMessage(err));
     } finally {
       setLoading(false);
     }

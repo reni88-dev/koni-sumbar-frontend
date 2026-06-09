@@ -1,10 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { PublicResetPassword } from './pages/PublicResetPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { UsersPage } from './pages/master/Users';
 import { RolesPage } from './pages/master/Roles';
 import { CaborsPage } from './pages/master/Cabors';
+import { FederationsPage } from './pages/master/Federations';
 import { AthleteClustersPage } from './pages/master/AthleteClusters';
 import { CoachClustersPage } from './pages/master/CoachClusters';
 import { EducationLevelsPage } from './pages/master/EducationLevels';
@@ -65,6 +68,8 @@ function App() {
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/:token" element={<PublicResetPassword />} />
       <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />      {/* Protected Routes */}
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route
@@ -298,6 +303,14 @@ function App() {
         element={
           <ProtectedRoute>
             <CaborsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/federations"
+        element={
+          <ProtectedRoute>
+            <FederationsPage />
           </ProtectedRoute>
         }
       />

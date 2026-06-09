@@ -174,6 +174,7 @@ function SidebarContent({ onNavigate }) {
     { icon: Users, label: 'Data User', path: '/master/users', permission: 'users.view' },
     { icon: Shield, label: 'Data Role', path: '/master/roles', permission: 'roles.view' },
     { icon: Trophy, label: 'Cabor', path: '/master/cabors', permission: 'cabors.view' },
+    { icon: Shield, label: 'Federasi', path: '/master/federations', permission: 'cabors.view' },
     { icon: Layers, label: 'Cluster Atlet', path: '/master/athlete-clusters', permission: 'athlete_cluster_master.view' },
     { icon: Layers, label: 'Cluster Pelatih', path: '/master/coach-clusters', permission: 'coach_cluster_master.view' },
     { icon: MapPin, label: 'Wilayah', path: '/master/regions', permission: 'regions.view' },
