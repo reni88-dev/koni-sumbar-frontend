@@ -9,7 +9,7 @@ import { Download, Loader2, ChevronDown, FileSpreadsheet, FileText } from "lucid
  *  - isExporting  {boolean}       - shows spinner while export is in progress
  *  - onExport     {(type) => void} - called with "csv" or "pdf"
  */
-export function AthleteExportButton({ isExporting, onExport }) {
+export function AthleteExportButton({ isExporting, isImporting = false, onExport, onDownloadTemplate, onImport }) {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSelect = (type) => {
@@ -21,10 +21,10 @@ export function AthleteExportButton({ isExporting, onExport }) {
     <div className="relative">
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        disabled={isExporting}
+        disabled={isExporting || isImporting}
         className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors"
       >
-        {isExporting ? (
+        {isExporting || isImporting ? (
           <Loader2 className="w-5 h-5 animate-spin" />
         ) : (
           <Download className="w-5 h-5" />
@@ -53,9 +53,41 @@ export function AthleteExportButton({ isExporting, onExport }) {
               <FileText className="w-5 h-5 text-red-600" />
               <span className="text-sm font-medium">PDF (.pdf)</span>
             </button>
+
+            {(onDownloadTemplate || onImport) && (
+              <div className="my-2 border-t border-slate-100" />
+            )}
+
+            {onDownloadTemplate && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onDownloadTemplate();
+                }}
+                className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors"
+              >
+                <Download className="w-5 h-5 text-blue-600" />
+                <span className="text-sm font-medium">Download Template Excel</span>
+              </button>
+            )}
+
+            {onImport && (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  onImport();
+                }}
+                disabled={isImporting}
+                className="w-full px-4 py-2.5 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                <FileSpreadsheet className="w-5 h-5 text-emerald-600" />
+                <span className="text-sm font-medium">Import Excel (.xlsx)</span>
+              </button>
+            )}
           </div>
         </>
       )}
     </div>
   );
 }
+

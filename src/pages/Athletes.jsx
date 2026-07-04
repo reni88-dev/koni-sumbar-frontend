@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, CheckCircle2 } from "lucide-react";
+import { Plus, X, CheckCircle2, Download, Upload, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DashboardLayout } from "../components/DashboardLayout";
@@ -42,10 +42,13 @@ export function AthletesPage() {
 
   // ── Export / UI state ─────────────────────────────────────────────────────
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   const [successMessage, setSuccessMessage] = useState("");
 
   // ── Refs ──────────────────────────────────────────────────────────────────
   const sentinelRef = useRef(null);
+  const importFileInputRef = useRef(null);
   const queryClient = useQueryClient();
 
   // ── Data hooks ────────────────────────────────────────────────────────────
@@ -252,6 +255,62 @@ export function AthletesPage() {
     }
   };
 
+  const handleDownloadImportTemplate = async () => {
+    setIsExporting(true);
+    try {
+      const response = await api.get("/api/athletes/import/template", {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "template_import_atlet_koni.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Download import template failed:", error);
+      alert("Gagal mengunduh template import. Silakan coba lagi.");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    importFileInputRef.current?.click();
+  };
+
+  const handleImportFile = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".xlsx")) {
+      alert("File import harus berformat .xlsx");
+      return;
+    }
+
+    setIsImporting(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await api.post("/api/athletes/import", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setImportResult(response.data);
+      setSuccessMessage("Import data atlet selesai.");
+      setTimeout(() => setSuccessMessage(""), 3000);
+      queryClient.invalidateQueries({ queryKey: athleteKeys.lists() });
+    } catch (error) {
+      console.error("Import athletes failed:", error);
+      alert(error.response?.data?.message || "Gagal mengimport data atlet. Silakan coba lagi.");
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <DashboardLayout
@@ -304,10 +363,48 @@ export function AthletesPage() {
           />
 
           <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <input
+              ref={importFileInputRef}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={handleImportFile}
+              className="hidden"
+            />
+
             <AthleteExportButton
               isExporting={isExporting}
               onExport={handleExport}
             />
+
+            <button
+              type="button"
+              onClick={handleDownloadImportTemplate}
+              disabled={isExporting || isImporting}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-xl font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
+              title="Download template Excel untuk import data atlet"
+            >
+              {isExporting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Download className="w-5 h-5" />
+              )}
+              <span>Template Excel</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleImportClick}
+              disabled={isImporting || isExporting}
+              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+              title="Import data atlet dari file Excel .xlsx"
+            >
+              {isImporting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Upload className="w-5 h-5" />
+              )}
+              <span>Import Excel</span>
+            </button>
 
             <PrintAthleteList
               total={total}
@@ -382,6 +479,114 @@ export function AthletesPage() {
         />
       </div>
 
+      {/* Import Result Modal */}
+      <AnimatePresence>
+        {importResult && (
+          <>
+            <motion.div
+              key="import-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
+              onClick={() => setImportResult(null)}
+            />
+            <motion.div
+              key="import-content"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div
+                className="bg-white rounded-2xl shadow-xl w-full max-w-2xl p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex items-start justify-between gap-4 mb-5">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">
+                      Hasil Import Data Atlet
+                    </h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {importResult.message || "Import selesai"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setImportResult(null)}
+                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <p className="text-xs text-slate-500">Total Diproses</p>
+                    <p className="text-2xl font-bold text-slate-800">
+                      {importResult.total_rows || 0}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-green-50 rounded-xl border border-green-100">
+                    <p className="text-xs text-green-700">Berhasil</p>
+                    <p className="text-2xl font-bold text-green-700">
+                      {importResult.success_count || 0}
+                    </p>
+                  </div>
+                  <div className="p-4 bg-red-50 rounded-xl border border-red-100">
+                    <p className="text-xs text-red-700">Gagal</p>
+                    <p className="text-2xl font-bold text-red-700">
+                      {importResult.failed_count || 0}
+                    </p>
+                  </div>
+                </div>
+
+                {importResult.errors?.length > 0 ? (
+                  <div className="max-h-72 overflow-y-auto border border-slate-100 rounded-xl">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50 sticky top-0">
+                        <tr>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-600 w-24">
+                            Baris
+                          </th>
+                          <th className="text-left px-4 py-3 font-semibold text-slate-600">
+                            Error
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {importResult.errors.map((error, index) => (
+                          <tr key={`${error.row}-${index}`}>
+                            <td className="px-4 py-3 text-slate-700">
+                              {error.row}
+                            </td>
+                            <td className="px-4 py-3 text-red-600">
+                              {error.message}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-4 bg-green-50 text-green-700 rounded-xl text-sm">
+                    Tidak ada error pada file import.
+                  </div>
+                )}
+
+                <div className="mt-5 flex justify-end">
+                  <button
+                    onClick={() => setImportResult(null)}
+                    className="px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Form Modal */}
       <AthleteFormModal
         isOpen={isFormModalOpen}
@@ -408,3 +613,9 @@ export function AthletesPage() {
     </DashboardLayout>
   );
 }
+
+
+
+
+
+

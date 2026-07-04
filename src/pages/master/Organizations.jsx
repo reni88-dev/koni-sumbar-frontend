@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Search, Edit2, Trash2, Building2, X, Loader2, AlertCircle,
-  MapPin, Link2, Unlink
+  MapPin, Link2, Unlink, ChevronDown
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { 
@@ -30,6 +30,28 @@ const TYPE_COLORS = {
   komcab: 'bg-green-100 text-green-700',
 };
 
+const toNullInt64 = (value) => ({
+  Int64: value ? Number(value) : 0,
+  Valid: Boolean(value),
+});
+
+const toNullString = (value) => {
+  const trimmed = value?.trim() || '';
+  return {
+    String: trimmed,
+    Valid: Boolean(trimmed),
+  };
+};
+
+const getOrganizationSubmitError = (error) => {
+  const message = error.response?.data?.message || error.response?.data?.error;
+
+  if (error.response?.status === 400 && message === 'Invalid request body') {
+    return 'Data organisasi tidak dapat diproses. Pastikan pilihan induk organisasi/wilayah valid dan format isian sudah benar.';
+  }
+
+  return message || 'Gagal menyimpan organisasi. Silakan coba lagi.';
+};
 export function OrganizationsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -46,6 +68,10 @@ export function OrganizationsPage() {
   const [caborOrg, setCaborOrg] = useState(null);
   const [selectedCaborId, setSelectedCaborId] = useState('');
 
+  // Region search states
+  const [regionSearch, setRegionSearch] = useState('');
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+
   // Form states
   const [formData, setFormData] = useState({
     name: '', type: 'pengprov', parent_id: null, region_id: null,
@@ -53,6 +79,7 @@ export function OrganizationsPage() {
     chairman_name: '', secretary_name: '', is_active: true
   });
   const [formErrors, setFormErrors] = useState({});
+  const [submitError, setSubmitError] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
 
   // TanStack Query hooks
@@ -92,6 +119,9 @@ export function OrganizationsPage() {
       chairman_name: '', secretary_name: '', is_active: true
     });
     setFormErrors({});
+    setSubmitError(null);
+    setRegionSearch('');
+    setIsRegionDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -108,23 +138,45 @@ export function OrganizationsPage() {
       is_active: org.is_active
     });
     setFormErrors({});
+    setSubmitError(null);
+    setRegionSearch(org.region?.name || '');
+    setIsRegionDropdownOpen(false);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormErrors({});
+    setSubmitError(null);
+
+    // Backend Organization model uses sql.Null* fields, so optional values
+    // must be sent in the shape expected by Go's JSON decoder.
+    const payload = {
+      name: formData.name.trim(),
+      type: formData.type,
+      parent_id: toNullInt64(formData.parent_id),
+      region_id: toNullInt64(formData.region_id),
+      address: toNullString(formData.address),
+      phone: toNullString(formData.phone),
+      email: toNullString(formData.email),
+      website: toNullString(formData.website),
+      chairman_name: toNullString(formData.chairman_name),
+      secretary_name: toNullString(formData.secretary_name),
+      is_active: formData.is_active,
+    };
 
     try {
       if (modalMode === 'create') {
-        await createMutation.mutateAsync(formData);
+        await createMutation.mutateAsync(payload);
       } else {
-        await updateMutation.mutateAsync({ id: selectedOrg.id, data: formData });
+        await updateMutation.mutateAsync({ id: selectedOrg.id, data: payload });
       }
       setIsModalOpen(false);
     } catch (error) {
-      if (error.response?.status === 422) {
-        setFormErrors(error.response.data.errors || {});
+      if (error.response?.status === 422 && error.response.data.errors) {
+        setFormErrors(error.response.data.errors);
+      } else {
+        setSubmitError(getOrganizationSubmitError(error));
       }
     }
   };
@@ -349,6 +401,12 @@ export function OrganizationsPage() {
                   </button>
                 </div>
                 <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                  {submitError && (
+                    <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
+                      <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                      <p className="text-sm text-red-700">{submitError}</p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-slate-700 mb-1">Nama Organisasi</label>
@@ -394,16 +452,81 @@ export function OrganizationsPage() {
 
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-slate-700 mb-1">Wilayah</label>
-                      <select
-                        value={formData.region_id || ''}
-                        onChange={e => setFormData({...formData, region_id: e.target.value ? parseInt(e.target.value) : null})}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      >
-                        <option value="">-- Tidak ada --</option>
-                        {allRegions.map(r => (
-                          <option key={r.id} value={r.id}>{r.name}</option>
-                        ))}
-                      </select>
+                      <div className="relative">
+                        <MapPin className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
+                        <input
+                          type="text"
+                          value={regionSearch}
+                          onFocus={() => setIsRegionDropdownOpen(true)}
+                          onChange={e => {
+                            setRegionSearch(e.target.value);
+                            setIsRegionDropdownOpen(true);
+                            if (!e.target.value) {
+                              setFormData(prev => ({ ...prev, region_id: null }));
+                            }
+                          }}
+                          onBlur={() => setTimeout(() => setIsRegionDropdownOpen(false), 150)}
+                          placeholder="Ketik untuk mencari wilayah..."
+                          className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                          autoComplete="off"
+                        />
+                        <ChevronDown className={`absolute right-3.5 top-3 text-slate-400 w-4 h-4 transition-transform ${isRegionDropdownOpen ? 'rotate-180' : ''}`} />
+                        {isRegionDropdownOpen && (
+                          <div className="absolute z-30 mt-1.5 max-h-52 w-full overflow-auto rounded-xl border border-slate-200 bg-white shadow-xl">
+                            {/* Clear option */}
+                            <button
+                              type="button"
+                              onMouseDown={e => e.preventDefault()}
+                              onClick={() => {
+                                setFormData(prev => ({ ...prev, region_id: null }));
+                                setRegionSearch('');
+                                setIsRegionDropdownOpen(false);
+                              }}
+                              className={`w-full px-4 py-2.5 text-left text-sm hover:bg-slate-50 text-slate-400 italic border-b border-slate-100 ${!formData.region_id ? 'bg-red-50 text-red-600 not-italic font-medium' : ''}`}
+                            >
+                              — Tidak ada wilayah —
+                            </button>
+                            {allRegions
+                              .filter(r => {
+                                if (!regionSearch) return true;
+                                const q = regionSearch.toLowerCase();
+                                return r.name?.toLowerCase().includes(q) || r.province_name?.toLowerCase().includes(q);
+                              })
+                              .slice(0, 50)
+                              .map(r => (
+                                <button
+                                  key={r.id}
+                                  type="button"
+                                  onMouseDown={e => e.preventDefault()}
+                                  onClick={() => {
+                                    setFormData(prev => ({ ...prev, region_id: r.id }));
+                                    setRegionSearch(r.name);
+                                    setIsRegionDropdownOpen(false);
+                                  }}
+                                  className={`w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 transition-colors ${
+                                    formData.region_id === r.id ? 'bg-red-50 text-red-700 font-medium' : 'text-slate-700'
+                                  }`}
+                                >
+                                  <span className="block">{r.name}</span>
+                                  {r.province_name && <span className="block text-xs text-slate-400">{r.province_name}</span>}
+                                </button>
+                              ))}
+                            {allRegions.filter(r => {
+                              if (!regionSearch) return true;
+                              const q = regionSearch.toLowerCase();
+                              return r.name?.toLowerCase().includes(q) || r.province_name?.toLowerCase().includes(q);
+                            }).length === 0 && (
+                              <div className="px-4 py-3 text-sm text-slate-400">Wilayah tidak ditemukan.</div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {formData.region_id && (
+                        <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {allRegions.find(r => r.id === formData.region_id)?.name || 'Wilayah terpilih'}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -617,3 +740,4 @@ export function OrganizationsPage() {
     </DashboardLayout>
   );
 }
+

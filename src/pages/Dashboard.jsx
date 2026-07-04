@@ -31,12 +31,12 @@ export function Dashboard() {
         const data = response.data;
         
         setStats([
-          { label: 'Total Atlet', value: data.total_athletes.toLocaleString('id-ID'), change: 'Aktif', icon: Users, color: 'bg-blue-500' },
-          { label: 'Total Pelatih', value: data.total_coaches.toLocaleString('id-ID'), change: 'Aktif', icon: UserCheck, color: 'bg-purple-500' },
-          { label: 'Cabang Olahraga', value: data.total_cabor.toString(), change: 'Cabor', icon: Trophy, color: 'bg-yellow-500' },
-          { label: 'Organisasi', value: data.total_organizations.toString(), change: 'Terdaftar', icon: Building2, color: 'bg-teal-500' },
-          { label: 'Medali Emas', value: data.gold_medals.toString(), change: '-', icon: Medal, color: 'bg-red-500' },
-          { label: 'Event Aktif', value: data.active_events.toString(), change: 'Running', icon: Calendar, color: 'bg-green-500' },
+          { label: 'Total Atlet', value: (data.total_athletes ?? 0).toLocaleString('id-ID'), change: 'Aktif', icon: Users, color: 'bg-blue-500' },
+          { label: 'Total Pelatih', value: (data.total_coaches ?? 0).toLocaleString('id-ID'), change: 'Aktif', icon: UserCheck, color: 'bg-purple-500' },
+          { label: 'Cabang Olahraga', value: (data.total_cabor ?? 0).toString(), change: 'Cabor', icon: Trophy, color: 'bg-yellow-500' },
+          { label: 'Organisasi', value: (data.total_organizations ?? 0).toString(), change: 'Terdaftar', icon: Building2, color: 'bg-teal-500' },
+          { label: 'Medali Emas', value: (data.gold_medals ?? 0).toString(), change: '-', icon: Medal, color: 'bg-red-500' },
+          { label: 'Event Aktif', value: (data.active_events ?? 0).toString(), change: 'Running', icon: Calendar, color: 'bg-green-500' },
         ]);
       } catch (error) {
         console.error('Failed to fetch dashboard stats:', error);
