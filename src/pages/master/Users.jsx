@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -15,6 +15,7 @@ import { DashboardLayout } from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../../hooks/queries/useMasterData';
 import { useRolesAll } from '../../hooks/queries/useMasterData';
+import { useOrganizationsAll } from '../../hooks/queries/useOrganizations';
 import { PrintUserList } from '../../components/PrintUserList';
 
 export function UsersPage() {
@@ -33,12 +34,16 @@ export function UsersPage() {
   const [userToDelete, setUserToDelete] = useState(null);
 
   // Form states
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role_id: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', role_id: '', organization_id: '' });
   const [formErrors, setFormErrors] = useState({});
 
   // TanStack Query hooks
   const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch, roleId: filterRole, sort: filterSort });
   const { data: roles = [] } = useRolesAll();
+  const { data: organizations = [] } = useOrganizationsAll();
+  const activeOrganizations = organizations.filter((organization) => organization?.is_active !== false);
+  const selectedRole = roles.find((role) => String(role.id) === String(formData.role_id));
+  const organizationRequired = ['porprov_kontingen', 'porprov_admin_kabkota'].includes(selectedRole?.name);
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const deleteUserMutation = useDeleteUser();
@@ -61,7 +66,7 @@ export function UsersPage() {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setFormData({ name: '', email: '', password: '', role_id: '' });
+    setFormData({ name: '', email: '', password: '', role_id: '', organization_id: '' });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -73,7 +78,8 @@ export function UsersPage() {
       name: user.name, 
       email: user.email, 
       password: '',
-      role_id: user.role_id || ''
+      role_id: user.role_id || '',
+      organization_id: user.organization_id?.toString() || ''
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -83,8 +89,13 @@ export function UsersPage() {
     e.preventDefault();
     setFormErrors({});
 
+    if (organizationRequired && !formData.organization_id) {
+      setFormErrors({ organization_id: ['Organisasi wajib dipilih untuk role ini'] });
+      return;
+    }
+
     try {
-      const data = { ...formData };
+      const data = { ...formData, organization_id: formData.organization_id || null };
       if (modalMode === 'edit' && !data.password) {
         delete data.password;
       }
@@ -177,19 +188,20 @@ export function UsersPage() {
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nama</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organisasi</th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
+                  <td colSpan={5} className="px-6 py-12 text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
                     Tidak ada data user
                   </td>
                 </tr>
@@ -209,6 +221,9 @@ export function UsersPage() {
                       <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm">
                         {user.role?.name || '-'}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {user.organization?.name || '-'}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
@@ -348,6 +363,25 @@ export function UsersPage() {
                         <option key={role.id} value={role.id}>{role.name}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Organisasi {organizationRequired && <span className="text-red-600">*</span>}
+                    </label>
+                    <select
+                      value={formData.organization_id}
+                      onChange={e => setFormData({...formData, organization_id: e.target.value})}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      required={organizationRequired}
+                    >
+                      <option value="">{organizationRequired ? '-- Pilih Organisasi --' : '-- Tanpa Organisasi --'}</option>
+                      {activeOrganizations.map(organization => (
+                        <option key={organization.id} value={organization.id}>{organization.name} ({organization.type})</option>
+                      ))}
+                    </select>
+                    {organizationRequired && <p className="text-slate-500 text-xs mt-1">Wajib untuk role Kontingen dan Admin Kontingen Kab/Kota.</p>}
+                    {formErrors.organization_id && <p className="text-red-500 text-xs mt-1">{formErrors.organization_id[0]}</p>}
                   </div>
                   
                   <div className="flex gap-3 pt-4">
