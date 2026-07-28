@@ -1,4 +1,10 @@
 import axios from "axios";
+import {
+  ROLE_ACCESS_DISABLED_EVENT,
+  ROLE_ACCESS_DISABLED_MESSAGE,
+  ROLE_ACCESS_DISABLED_STORAGE_KEY,
+  isRoleAccessDisabledError,
+} from "../lib/roleAccess";
 
 const api = axios.create({
   baseURL: "https://api.satudata.konisumbar.or.id",
@@ -28,6 +34,17 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    const isLoginRequest = error.config?.url === "/api/login";
+
+    if (isRoleAccessDisabledError(error) && !isLoginRequest) {
+      const message = error.response?.data?.message || ROLE_ACCESS_DISABLED_MESSAGE;
+      localStorage.removeItem("token");
+      sessionStorage.setItem(ROLE_ACCESS_DISABLED_STORAGE_KEY, message);
+      window.dispatchEvent(
+        new CustomEvent(ROLE_ACCESS_DISABLED_EVENT, { detail: { message } }),
+      );
+    }
+
     // Handle 401 Unauthorized
     if (error.response?.status === 401) {
       localStorage.removeItem("token");

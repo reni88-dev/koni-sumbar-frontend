@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  ROLE_ACCESS_DISABLED_MESSAGE,
+  isRoleAccessDisabledError,
+} from "../lib/roleAccess";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   User,
   Lock,
@@ -40,7 +44,9 @@ export function Login() {
       await login(email, password);
       navigate(from, { replace: true });
     } catch (err) {
-      if (err.response?.status === 401) {
+      if (isRoleAccessDisabledError(err)) {
+        setError(err.response?.data?.message || ROLE_ACCESS_DISABLED_MESSAGE);
+      } else if (err.response?.status === 401) {
         setError("Email atau password salah.");
       } else if (err.response?.status === 422) {
         setError(err.response.data.message || "Invalid credentials.");
@@ -62,7 +68,7 @@ export function Login() {
         <div className="absolute bottom-0 left-0 w-full h-1/2 bg-slate-100/50 backdrop-blur-3xl"></div>
 
         {/* Abstract Shape */}
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 0.1, scale: 1 }}
           transition={{ duration: 1.5, ease: "easeOut" }}
@@ -74,7 +80,7 @@ export function Login() {
       <div className="hidden lg:flex w-1/2 relative z-10 flex-col justify-center px-12 text-white">
         <div className="absolute inset-0 bg-red-600 skew-x-12 -translate-x-32 shadow-2xl"></div>
         <div className="active relative pl-20">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -95,9 +101,9 @@ export function Login() {
               Sistem Informasi Manajemen Data Keolahragaan Provinsi Sumatera
               Barat.
             </p>
-          </motion.div>
+          </Motion.div>
 
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
@@ -115,13 +121,13 @@ export function Login() {
               <div className="w-2 h-2 rounded-full bg-yellow-400"></div>
               <span>Manajemen Event Olahraga</span>
             </div>
-          </motion.div>
+          </Motion.div>
         </div>
       </div>
 
       {/* Right Side - Login Form */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8 relative z-20">
-        <motion.div
+        <Motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
@@ -139,7 +145,7 @@ export function Login() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <AnimatePresence>
               {error && (
-                <motion.div
+                <Motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
@@ -147,7 +153,7 @@ export function Login() {
                 >
                   <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
                   <span>{error}</span>
-                </motion.div>
+                </Motion.div>
               )}
             </AnimatePresence>
 
@@ -241,7 +247,7 @@ export function Login() {
               All rights reserved.
             </p>
           </div>
-        </motion.div>
+        </Motion.div>
       </div>
 
       <style>{`

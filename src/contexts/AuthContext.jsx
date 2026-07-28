@@ -1,13 +1,34 @@
-import { createContext, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
-
-export const AuthContext = createContext(null);
+import { RoleAccessDisabledDialog } from '../components/RoleAccessDisabledDialog';
+import {
+  ROLE_ACCESS_DISABLED_EVENT,
+  ROLE_ACCESS_DISABLED_MESSAGE,
+  ROLE_ACCESS_DISABLED_STORAGE_KEY,
+} from '../lib/roleAccess';
+import { AuthContext } from './auth-context';
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [roleAccessMessage, setRoleAccessMessage] = useState(
+    () => sessionStorage.getItem(ROLE_ACCESS_DISABLED_STORAGE_KEY) || '',
+  );
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  const clearSession = useCallback(() => {
+    localStorage.removeItem('token');
+    setUser(null);
+    queryClient.clear();
+  }, [queryClient]);
+
+  const clearRoleAccessNotice = useCallback(() => {
+    sessionStorage.removeItem(ROLE_ACCESS_DISABLED_STORAGE_KEY);
+    setRoleAccessMessage('');
+  }, []);
 
   // Fetch current user
   const fetchUser = useCallback(async () => {
@@ -21,12 +42,11 @@ export function AuthProvider({ children }) {
       const response = await api.get('/api/user');
       setUser(response.data);
       return response.data;
-    } catch (error) {
-      localStorage.removeItem('token');
-      setUser(null);
+    } catch {
+      clearSession();
       return null;
     }
-  }, []);
+  }, [clearSession]);
 
   // Login
   const login = async (email, password) => {
@@ -36,14 +56,16 @@ export function AuthProvider({ children }) {
       },
     });
     const { token, user: userData } = response.data;
-    
+
+    clearRoleAccessNotice();
+
     // Store JWT token
     localStorage.setItem('token', token);
     setUser(userData);
-    
+
     // Clear any cached data from previous user
     queryClient.clear();
-    
+
     return response.data;
   };
 
@@ -52,10 +74,7 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/api/logout');
     } finally {
-      localStorage.removeItem('token');
-      setUser(null);
-      // Clear all cached queries to prevent stale data
-      queryClient.clear();
+      clearSession();
     }
   };
 
@@ -69,15 +88,30 @@ export function AuthProvider({ children }) {
     });
     
     if (response.data.token) {
+      clearRoleAccessNotice();
       localStorage.setItem('token', response.data.token);
       setUser(response.data.user);
+      queryClient.clear();
     }
-    
+
     return response.data;
   };
 
   // Check auth status on mount
   useEffect(() => {
+    const handleUnauthorized = () => {
+      clearSession();
+    };
+
+    const handleRoleAccessDisabled = (event) => {
+      const message = event.detail?.message || ROLE_ACCESS_DISABLED_MESSAGE;
+      clearSession();
+      setRoleAccessMessage((currentMessage) => currentMessage || message);
+    };
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized);
+    window.addEventListener(ROLE_ACCESS_DISABLED_EVENT, handleRoleAccessDisabled);
+
     const initAuth = async () => {
       try {
         await fetchUser();
@@ -89,18 +123,17 @@ export function AuthProvider({ children }) {
     };
 
     initAuth();
-
-    // Listen for unauthorized events
-    const handleUnauthorized = () => {
-      localStorage.removeItem('token');
-      setUser(null);
-    };
-
-    window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => {
       window.removeEventListener('auth:unauthorized', handleUnauthorized);
+      window.removeEventListener(ROLE_ACCESS_DISABLED_EVENT, handleRoleAccessDisabled);
     };
-  }, [fetchUser]);
+  }, [clearSession, fetchUser]);
+
+  const handleReturnToLogin = useCallback(() => {
+    clearRoleAccessNotice();
+    clearSession();
+    navigate('/login', { replace: true });
+  }, [clearRoleAccessNotice, clearSession, navigate]);
 
   const value = {
     user,
@@ -115,6 +148,10 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={value}>
       {children}
+      <RoleAccessDisabledDialog
+        message={roleAccessMessage}
+        onReturnToLogin={handleReturnToLogin}
+      />
     </AuthContext.Provider>
   );
 }

@@ -1,0 +1,447 @@
+# MEMORY.md
+
+## Fungsi Dokumen
+
+Dokumen ini adalah basis pengetahuan terkurasi untuk repository `koni-sumbar-frontend`. Isinya merupakan snapshot fakta yang diverifikasi dari source dan command lokal, bukan log percakapan, bukan spesifikasi masa depan, dan bukan pengganti inspeksi kode terbaru.
+
+- Kebijakan kerja wajib: [`AGENTS.md`](./AGENTS.md)
+- Command dan prosedur operasional: [`TOOLS.md`](./TOOLS.md)
+
+Jika branch, commit, dependency, backend sibling, atau source berubah, verifikasi ulang fakta yang relevan sebelum mengandalkan snapshot ini.
+
+## Snapshot Repository
+
+Snapshot diverifikasi pada **2026-07-28** di Windows, timezone `Asia/Jakarta`.
+
+| Item | Nilai pada snapshot |
+| --- | --- |
+| Repository | `koni-sumbar-frontend` |
+| Package | `frontend@0.0.0`, private, ESM |
+| Branch | `coach-cluster`, tracking `origin/coach-cluster` |
+| Commit | `de95dc3c9e92711b8e80de3d3ef62b52286adc7f` (`de95dc3`) |
+| Commit subject | `update atlit form` |
+| Waktu commit | `2026-07-28T07:13:50+07:00` |
+| Working tree awal | Bersih sebelum tiga dokumen operasional dibuat |
+| Git line ending | `core.autocrlf=true` |
+| Backend sibling saat diperiksa | `../golang-koni-sumbar`, branch `refactor`, commit `53622d5e27f48f4fa7714f434d9f5bf11260e441` |
+
+Snapshot branch/commit bukan fakta permanen. Selalu mulai sesi baru dengan status, branch, dan commit terbaru.
+
+## Toolchain dan Stack
+
+### Toolchain Lokal
+
+- Windows PowerShell `5.1.26100.8655`.
+- Git `2.55.0.windows.2`.
+- Node.js `v24.18.0`.
+- npm dan npx `11.16.0`.
+
+### Dependency Utama yang Terpasang
+
+Versi berikut berasal dari `npm ls --depth=0` pada snapshot lockfile/node_modules aktif:
+
+- React `19.2.3` dan React DOM `19.2.3`.
+- React Router DOM `7.12.0`.
+- Vite `7.3.1` dengan `@vitejs/plugin-react` `5.1.2`.
+- Tailwind CSS `4.1.18` dan `@tailwindcss/vite` `4.1.18`.
+- TanStack React Query `5.90.16`.
+- Axios `1.13.2`.
+- Framer Motion `12.25.0`.
+- Lucide React `0.562.0`.
+- Leaflet `1.9.4` dan React Leaflet `5.0.0`.
+- React Markdown `10.1.0`, Remark GFM `4.0.1`.
+- ESLint `9.39.2` dengan plugin React Hooks dan React Refresh.
+
+`package.json` memakai range caret untuk dependency. `package-lock.json` adalah sumber instalasi reproducible dan harus dipertahankan kecuali perubahan dependency memang diminta.
+
+## Entrypoint dan Wiring Aktif
+
+Entrypoint browser adalah [`src/main.jsx`](./src/main.jsx). Urutan provider aktif:
+
+1. `StrictMode`;
+2. `QueryClientProvider` memakai singleton `queryClient`;
+3. `BrowserRouter`;
+4. `AuthProvider`;
+5. `App`.
+
+`src/App.jsx` memasang `VersionChecker` di luar `Routes`, lalu mendaftarkan seluruh route publik dan protected. Tidak ada lazy route atau code splitting route pada snapshot; seluruh page di-import statis ke bundle utama.
+
+Vite config hanya mengaktifkan:
+
+- `@vitejs/plugin-react`;
+- `@tailwindcss/vite`.
+
+Source memakai JavaScript/JSX, bukan TypeScript. Tailwind masuk melalui `@import "tailwindcss"` di `src/index.css`.
+
+## Struktur Source
+
+Pada snapshot setelah fitur role access terdapat 126 file di bawah `src/`: 36 `.js`, 87 `.jsx`, satu `.css`, dan dua asset gambar/SVG.
+
+- `src/main.jsx`: bootstrap React dan provider global.
+- `src/App.jsx`: route aktif dan `SmartDashboard`.
+- `src/api/axios.js`: API client global/interceptor.
+- `src/contexts/AuthContext.jsx`: state session user, cleanup cache, listener auth global, dan dialog role access disabled.
+- `src/contexts/auth-context.js`: object `AuthContext` terpisah agar file provider tetap kompatibel dengan Fast Refresh.
+- `src/hooks/useAuth.js`: consumer AuthContext.
+- `src/hooks/usePermission.js`: helper permission presentasional.
+- `src/hooks/useMonev.js`: fetching/state Monev manual.
+- `src/hooks/queries/`: 19 file hook domain plus barrel `index.js`.
+- `src/lib/queryClient.js`: default TanStack Query.
+- `src/pages/`: page utama, portal, auth, event, training, Monev, form builder, log, AI, dan settings.
+- `src/pages/master/`: user, role, cabor, federasi, cluster, pendidikan, kelas pertandingan, wilayah, organisasi, dan venue.
+- `src/components/`: layout, sidebar, route guard, protected image, modal, print, dan component domain.
+- `src/components/athletes/`: filter, tabel/row, delete, export, dan utility atlet.
+- `src/components/athlete-clusters/` dan `coach-clusters/`: histori, perpindahan cluster, dan dana pembinaan.
+- `src/components/coach-athletes/`: assignment pelatih-atlet.
+- `src/components/training/`: schedule, session, attendance, photo, report, dan print.
+- `src/assets/`: logo KONI dan asset template React yang belum dihapus.
+
+Banyak page/component berukuran besar dan menyimpan state/form logic langsung. Refactor pemecahan component harus dilakukan bertahap dan hanya bila termasuk scope.
+
+## Route Family Aktif
+
+Semua route berikut berasal dari `src/App.jsx` pada snapshot.
+
+### Publik
+
+- `/login`
+- `/forgot-password`
+- `/reset-password/:token`
+
+### Protected Umum dan Portal
+
+- `/reset-password`
+- `/settings`
+- `/dashboard`
+- `/portal/atlet`
+- `/portal/pelatih`
+
+`SmartDashboard` mengarahkan role `athlete` ke `/portal/atlet` dan role `coach` ke `/portal/pelatih`. Role lain melihat dashboard reguler.
+
+### Pembinaan dan Training
+
+- `/atlet`
+- `/pelatih`
+- `/coach-athletes`
+- `/training`
+- `/training/report`
+- `/training/:id`
+
+### Monitoring dan Evaluasi
+
+- `/monev`
+- `/monev/events`
+- `/monev/events/create`
+- `/monev/events/:id`
+- `/monev/events/:id/edit`
+- `/monev/submit/:eventId`
+- `/monev/submissions/:id`
+- `/monev/submissions/:id/edit`
+
+### Event dan Form Builder
+
+- `/event`
+- `/event/:id`
+- `/form-builder`
+- `/form-builder/create`
+- `/form-builder/:id/edit`
+- `/form-builder/:id/fill`
+- `/form-builder/:id/submissions`
+
+### Master Data
+
+- `/master/users`
+- `/master/roles`
+- `/master/cabors`
+- `/master/federations`
+- `/master/athlete-clusters`
+- `/master/coach-clusters`
+- `/master/education-levels`
+- `/master/competition-classes`
+- `/master/regions`
+- `/master/organizations`
+- `/master/venues`
+
+### Sistem dan Fallback
+
+- `/activity-logs`
+- `/ai-analytics`
+- `/` diarahkan ke `/dashboard`.
+- `*` diarahkan ke `/dashboard`.
+
+Seluruh route selain tiga route publik dibungkus `ProtectedRoute`, tetapi route guard tidak memeriksa permission per route.
+
+Pada halaman Data Role, field backend `access_enabled` yang belum ada diperlakukan aktif untuk rollout kompatibel. Badge menampilkan `Aktif`, `Dinonaktifkan`, atau `Selalu Aktif`; hanya superadmin melihat toggle role non-superadmin. Mutation memakai `PUT /api/master/roles/{id}/access` dan meng-invalidasi seluruh `roleKeys.all`.
+
+## Sidebar dan Permission Flow
+
+`src/components/Sidebar.jsx` membentuk navigasi dinamis dari user aktif.
+
+- Wildcard permission `*` dianggap mempunyai semua permission.
+- Super admin dikenali melalui wildcard atau role name `super_admin`.
+- Athlete dan coach memperoleh link dashboard portal masing-masing.
+- Item pembinaan, kegiatan, master data, dan settings difilter berdasarkan permission string.
+- Activity Log dan AI Analytics hanya ditampilkan untuk super admin.
+- Submenu aktif dibuka berdasarkan exact pathname dan dapat ditutup manual.
+
+Permission yang dipakai UI mencakup antara lain:
+
+- `athletes.view`, `coaches.view`, `coaching.view`;
+- `training.view`, `training.report`;
+- `events.view`, `monev.view`, `monev.manage`, `forms.view`;
+- `users.view`, `roles.view`, `cabors.view`;
+- `athlete_cluster_master.view`, `coach_cluster_master.view`;
+- `regions.view`, `organizations.view`, `education_levels.view`, `competition_classes.view`, `venues.view`;
+- `settings.view`;
+- permission cluster/dana yang diperiksa component detail seperti `athlete_clusters.manage`, `development_funds.view`, `coach_clusters.manage`, dan `coach_development_funds.manage`.
+
+`usePermission` menyediakan `can`, `canAny`, dan `canAll`. Beberapa page juga memakai role name langsung, misalnya `admin_monev`, `athlete`, dan `coach`.
+
+**Fakta keamanan penting:** permission frontend hanya mengatur visibilitas dan interaksi UI. Backend sibling tetap harus menegakkan permission, role, dan organization scope. `ProtectedRoute` saat ini hanya memeriksa auth dan `must_reset_password`.
+
+## Auth Flow Aktual
+
+### Login dan Bootstrap
+
+1. Login page mengambil target kembali dari `location.state.from.pathname`, default `/dashboard`.
+2. `AuthContext.login` mengirim `URLSearchParams` ke `/api/login` dengan content type form-urlencoded.
+3. Response diharapkan berisi `token` dan `user`.
+4. Token disimpan sebagai `localStorage['token']`; user disimpan di state context.
+5. Query cache dibersihkan untuk mencegah data user sebelumnya tersisa.
+6. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
+7. Token hilang atau request user gagal menghasilkan state unauthenticated.
+8. Login role nonaktif menerima `403 ROLE_ACCESS_DISABLED` dan menampilkan pesan backend secara inline tanpa menyimpan token.
+
+### Axios Interceptor
+
+Request interceptor menambahkan `Authorization: Bearer <token>` kecuali URL persis berada pada daftar public endpoint:
+
+- `/api/login`
+- `/api/forgot-password`
+- `/api/reset-password/confirm`
+
+Response `401` menghapus token dan mengirim event browser `auth:unauthorized`. AuthProvider memakai satu `clearSession()` untuk menghapus token, user, dan QueryClient.
+
+Response protected `403` hanya diperlakukan sebagai penonaktifan role bila payload mempunyai `code: ROLE_ACCESS_DISABLED`. Axios menghapus token, menyimpan pesan pada `sessionStorage['auth:role-access-disabled-message']`, lalu dispatch `auth:role-access-disabled`. AuthProvider memasang listener sebelum bootstrap `/api/user`, mendeduplikasi kegagalan request paralel, menampilkan dialog global satu tombol, dan mengarahkan kembali ke `/login`. Generic `403` tetap diteruskan sebagai error biasa.
+
+### Logout dan Password Reset
+
+- Logout memanggil `/api/logout`, lalu dalam `finally` menghapus token, user, dan seluruh query cache.
+- Forgot password memanggil `/api/forgot-password`.
+- Public reset memakai token route dan `/api/reset-password/confirm`, lalu mengarahkan ke login.
+- Forced reset memakai `/api/reset-password`, memanggil ulang `fetchUser`, lalu menuju dashboard.
+- `ProtectedRoute` memaksa user dengan `must_reset_password` ke `/reset-password`.
+
+Ada method `register` di AuthContext yang memanggil `/api/register`, tetapi `src/App.jsx` tidak mendaftarkan page/route register pada snapshot.
+
+## Query Cache dan Data Fetching
+
+Query client global menetapkan:
+
+- `staleTime: 5 * 60 * 1000`;
+- `retry: 1`;
+- `refetchOnWindowFocus: false`.
+
+Root query key yang terverifikasi:
+
+- `activityLogs`, `errorLogs`, `userActivity`;
+- `athletes`, `athleteClusters`, `athleteClusterMaster`;
+- `coaches`, `coachClusters`, `coachClusterMaster`, `coach-athletes`;
+- `cabors`, `federations`, `educationLevels`, `competitionClasses`;
+- `roles`, `permissions`, `users`;
+- `regions`, `organizations`, `venues`;
+- `events`, `training`, `portal`;
+- `formBuilder` dan `formTemplates`.
+
+Factory key menambahkan list/detail/filter/dropdown/report/session/schedule sesuai domain. Mutation umumnya menginvalidasi root domain atau key detail terkait. Mutation cluster juga menginvalidasi daftar atlet/pelatih yang terpengaruh.
+
+Data layer belum seragam:
+
+- banyak master data, atlet/pelatih, event, training, portal, log, cluster, dan form memakai TanStack Query;
+- `useMonev.js` memakai `useState`/`useEffect` serta Axios manual;
+- sejumlah page/modal tetap memanggil Axios langsung untuk detail, dropdown, dashboard stats, import/export, phone check, wilayah, settings, form fill, dan portal/profile lookup tertentu.
+
+Ini adalah baseline aktual, bukan pola ideal yang sudah selesai dikonsolidasikan.
+
+## API Base URL Aktif
+
+`src/api/axios.js` saat ini mempunyai:
+
+```js
+baseURL: "https://api.satudata.konisumbar.or.id"
+```
+
+Alternatif Easypanel dan `import.meta.env.VITE_API_URL || 'http://localhost:8080'` hanya berada dalam komentar.
+
+`Dockerfile` mendefinisikan:
+
+```dockerfile
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+```
+
+Namun build argument tersebut **belum memengaruhi Axios aktif**. Menjalankan Docker build dengan `--build-arg VITE_API_URL=...` tidak cukup untuk mengganti target API selama source Axios tidak membaca env tersebut.
+
+## API Endpoint Families yang Dikonsumsi
+
+Daftar ini merangkum caller frontend; periksa file caller dan backend untuk detail method/payload/response.
+
+| Family | Contoh endpoint aktif |
+| --- | --- |
+| Auth/session | `/api/login`, `/api/user`, `/api/logout`, `/api/forgot-password`, `/api/reset-password`, `/api/reset-password/confirm` |
+| Settings | `/api/settings/me`, `/api/settings/me/password` |
+| Dashboard | `/api/dashboard/stats` |
+| User/role/permission | `/api/master/users`, `/api/master/roles`, `/api/master/roles/all`, `/api/master/permissions`, role permissions |
+| Cabor/federasi | `/api/master/cabors`, `/api/cabors/all`, `/api/master/federations`, `/api/federations/all` |
+| Cluster master | athlete/coach cluster dan sub-cluster di `/api/master/...` |
+| Atlet | `/api/athletes`, detail, import/template, export, cluster, development funds |
+| Pelatih | `/api/coaches`, detail, import/template, cluster, coach development funds |
+| Pelatih-atlet | `/api/coach-athletes` dan detail assignment |
+| Event | `/api/events`, athlete registration/status, available athletes |
+| Training | `/api/training/sessions`, attendance, check-in, complete, photo, report, schedules, generate sessions |
+| Monev | `/api/monev/events`, my-events, submissions, assignable-users, upload-photo |
+| Form builder baru | `/api/form-builder/models`, templates, submissions, reference/records |
+| Form template lama | `/api/form-templates`, available-models, model-fields, submissions |
+| Portal | `/api/portal/profile`, clusters/funds, events, submissions, dashboard, athletes |
+| Activity/error log | `/api/activity-logs`, stats/users/detail/cleanup/export; `/api/error-logs`, resolve; user activity stats |
+| Master lain | education levels, competition classes, regions, organizations, venues |
+| Proxy/helper | `/api/wilayah/...`, `/api/check-phone` |
+| Protected storage | `/api/storage/...` |
+| AI | `/api/ai/chat` |
+
+Backend sibling juga mempunyai family Porprov, tetapi repository frontend ini tidak ditemukan memanggil `/api/porprov/...` pada snapshot.
+
+## Domain UI Utama
+
+- **Atlet:** infinite/page list, filter, form multipart, detail, print/export/import, cluster history, dan dana pembinaan.
+- **Pelatih:** list/filter, form multipart, detail, import, cluster, dana pembinaan, dan relasi atlet.
+- **Master data:** user/role/permission, cabor/federasi, cluster/sub-cluster, pendidikan, kelas pertandingan, wilayah, organisasi, venue.
+- **Event:** CRUD event dan registrasi/status atlet dalam event.
+- **Training:** jadwal, generate session, session detail, attendance, check-in/complete, photo, report, dan print.
+- **Monev:** event Monev, assignment, submission monitoring, photo, role `admin_monev`, dan detail/edit.
+- **Form builder:** model/field metadata, template, fill/reference record, submission, dan grading-related UI.
+- **Portal:** profile atlet/pelatih, cluster/fund, event, submission, dashboard, serta atlet binaan pelatih.
+- **Operasional sistem:** activity/error logs, settings, AI analytics, version checker.
+
+## Multipart, Protected Media, dan Blob
+
+`FormData` dipakai pada athlete/coach form, cabor/event/venue, cluster movement document, training photo, Monev photo, dan import spreadsheet.
+
+Protected media diambil melalui Axios dengan `responseType: 'blob'` agar bearer token ikut terkirim. `ProtectedImage` membuat object URL dan menampilkan fallback/loading. Download export/template/log juga membuat object URL sementara dan melakukan revoke.
+
+Source mempunyai beberapa preview object URL, timer debounce, `AbortController`, event listener, dan interval version checker. Perubahan pada area tersebut harus memeriksa cleanup; keberadaan cleanup di sebagian component tidak membuktikan semua lifecycle sudah bebas leak.
+
+## Docker, Nginx, dan Runtime Static
+
+`Dockerfile` mempunyai dua stage:
+
+1. `node:20-alpine` menjalankan `npm ci` dan `npm run build` dengan memory limit 4096 MB;
+2. `nginx:stable-alpine` menyajikan isi `dist` pada port 80.
+
+`nginx.conf`:
+
+- root `/usr/share/nginx/html`;
+- SPA fallback `try_files $uri $uri/ /index.html`;
+- gzip untuk text/CSS/JS/XML/JSON;
+- security header dasar;
+- static asset cache satu tahun dengan `public, immutable`;
+- `index.html` no-store/no-cache;
+- `/health` mengembalikan `OK`.
+
+Docker tidak tersedia pada mesin snapshot, sehingga image build, container startup, header runtime, dan health endpoint belum divalidasi lokal dalam pekerjaan dokumentasi ini.
+
+## Version Checker
+
+`VersionChecker`:
+
+- dilewati pada mode Vite development (`import.meta.env.DEV`);
+- fetch `/?_v=<timestamp>` dengan `cache: 'no-store'`;
+- mengambil baseline saat mount;
+- polling setiap 30 detik;
+- menampilkan banner jika hash yang dihitung berubah;
+- dapat di-dismiss atau melakukan full reload;
+- membersihkan interval pada effect cleanup.
+
+Implementasi mencoba mengekstrak referensi asset dengan regex tertentu. Jika tidak cocok, hash fallback hanya memakai panjang HTML. Karena nama asset Vite dapat berubah format, efektivitas deteksi perlu diuji bila logic version checker disentuh.
+
+## Test dan Automation
+
+Pada snapshot:
+
+- tidak ada script `test` di `package.json`;
+- tidak ditemukan file `*.test.*` atau `*.spec.*` di source repository;
+- tidak ditemukan konfigurasi Vitest, Jest, Playwright, atau Cypress;
+- tidak ditemukan workflow CI di `.github/workflows`.
+
+Karena itu repository **belum mempunyai automated test suite**. Jangan mengklaim test coverage atau regression suite yang belum ada. Validasi aktif mengandalkan targeted ESLint, full lint baseline, production build, review kontrak, dan browser/runtime check manual bila tersedia.
+
+## Baseline Validasi
+
+Baseline diverifikasi pada **2026-07-28** sebelum source aplikasi diubah.
+
+### Build
+
+`npm run build` berhasil:
+
+- Vite `7.3.1`;
+- 2.614 module transformed;
+- bundle JS utama sekitar `1,464.86 kB` minified, `369.44 kB` gzip;
+- terdapat warning non-blocking bahwa chunk lebih besar dari 500 kB.
+
+Warning ukuran chunk adalah baseline, bukan kegagalan build. Tidak ada route-level code splitting pada snapshot.
+
+Validasi setelah fitur role access pada tanggal yang sama juga berhasil: 2.617 module transformed, bundle JS utama sekitar `1,472.48 kB` minified/`371.37 kB` gzip, dengan warning chunk >500 kB yang sama.
+
+### Lint
+
+`npm run lint` gagal dengan:
+
+```text
+135 problems (116 errors, 19 warnings)
+```
+
+Issue baseline mencakup unused variable/import, React Hooks dependency, `set-state-in-effect`, dan rule lain pada banyak file lama. Pekerjaan sempit tidak boleh memperbaiki seluruh 135 problem tanpa scope. Namun file yang disentuh tidak boleh menambah problem baru; gunakan targeted ESLint dan bandingkan full output terhadap baseline.
+
+Setelah fitur role access, targeted ESLint seluruh file yang disentuh lulus. Full lint tetap nonzero dengan `130 problems (111 errors, 19 warnings)`; lima error baseline hilang karena cleanup import/context pada file yang memang disentuh, dan tidak ada issue baru dari fitur ini.
+
+## Watchlist: Jangan Ikuti Asumsi Usang
+
+1. **README masih template Vite generik.** Ia tidak menjelaskan domain KONI, route, auth, API, Docker, atau baseline repository aktual.
+2. **API URL production hardcoded.** `VITE_API_URL` ada di Dockerfile tetapi belum dibaca Axios aktif.
+3. **Route protection terbatas.** `ProtectedRoute` hanya memeriksa loading auth, authenticated state, dan `must_reset_password`; bukan permission per route.
+4. **Permission UI bukan boundary keamanan.** Sidebar/tombol yang tersembunyi tidak mencegah direct URL atau request manual. Backend harus tetap enforce.
+5. **Data fetching belum konsisten.** TanStack Query hidup berdampingan dengan Axios/state manual, terutama Monev, form/detail/dropdown/import/export, dan beberapa page besar.
+6. **Tidak ada automated test suite.** Build/lint tidak membuktikan seluruh browser flow, auth, upload, atau cache behavior.
+7. **Full lint sudah merah.** Baseline 116 error dan 19 warning harus dipisahkan dari regresi baru.
+8. **Bundle utama besar.** Build hijau tetapi menghasilkan warning chunk >500 kB; jangan menyatakan optimasi code splitting sudah aktif.
+9. **Version detection perlu dibuktikan.** Regex asset pada `VersionChecker` dapat jatuh ke fallback panjang HTML.
+10. **Route dan sidebar adalah dua sumber yang harus sinkron.** Route yang ada di `App.jsx` tidak otomatis muncul/terguard di sidebar.
+11. **Register tidak diroute.** AuthContext mempunyai method register, tetapi tidak ada route/page register aktif.
+12. **Form builder mempunyai dua family API.** Hook/source masih memuat `/api/form-builder` dan `/api/form-templates`; jangan menggabungkan atau menghapus family tanpa audit consumer/backend.
+13. **Docker belum tervalidasi lokal.** Docker tidak tersedia pada snapshot.
+14. **Line ending dapat berubah otomatis.** `core.autocrlf=true`; hindari normalisasi repository-wide.
+15. **Asset template masih ada.** `src/assets/react.svg` dan README template bukan bukti fitur React demo masih diroute.
+
+## Aturan Pemeliharaan MEMORY
+
+Perbarui bagian snapshot/fakta volatil setelah perubahan yang menyentuh:
+
+- provider/entrypoint/router;
+- auth, token storage, permission, atau route guard;
+- API base URL/interceptor dan environment variable;
+- query client, query key root, atau strategi invalidation;
+- route family, sidebar, atau domain page;
+- endpoint/payload/response family penting;
+- dependency/toolchain/script npm;
+- Docker/Nginx/version checker;
+- test suite/CI;
+- baseline build/lint.
+
+Aturan umum:
+
+- simpan hanya fakta yang stabil, terverifikasi, dan mencegah kesalahan berulang;
+- beri tanggal pada fakta yang bergantung waktu;
+- jangan menyimpan secret, token, password, data pribadi, dump, atau payload sensitif;
+- jangan menjadikan MEMORY sebagai changelog percakapan;
+- hapus atau koreksi fakta usang setelah source berubah;
+- untuk keputusan kerja, tetap ikuti [`AGENTS.md`](./AGENTS.md) dan inspeksi source aktif.

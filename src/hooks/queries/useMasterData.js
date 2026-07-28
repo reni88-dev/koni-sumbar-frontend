@@ -152,6 +152,21 @@ export function useUpdateRolePermissions() {
   });
 }
 
+export function useSetRoleAccess() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ roleId, accessEnabled }) => {
+      const response = await api.put(`/api/master/roles/${roleId}/access`, {
+        access_enabled: accessEnabled,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    },
+  });
+}
+
 // ==================== PERMISSIONS ====================
 export const permissionKeys = {
   all: ['permissions'],

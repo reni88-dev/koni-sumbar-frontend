@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState } from 'react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -12,19 +12,52 @@ import {
   Check,
   Users,
   LayoutGrid,
-  List
+  List,
+  Power,
+  PowerOff
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
+import { useAuth } from '../../hooks/useAuth';
 import { 
   useRoles, 
   usePermissionsGrouped, 
   useCreateRole, 
   useUpdateRole, 
   useDeleteRole,
-  useUpdateRolePermissions 
+  useUpdateRolePermissions,
+  useSetRoleAccess
 } from '../../hooks/queries/useMasterData';
 
+function isRoleAccessEnabled(role) {
+  return role.access_enabled !== false;
+}
+
+function RoleAccessBadge({ role }) {
+  if (role.name === 'super_admin') {
+    return (
+      <span className="inline-flex rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700">
+        Selalu Aktif
+      </span>
+    );
+  }
+
+  if (!isRoleAccessEnabled(role)) {
+    return (
+      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+        Dinonaktifkan
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+      Aktif
+    </span>
+  );
+}
+
 export function RolesPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('list');
   
@@ -34,6 +67,8 @@ export function RolesPage() {
   const [selectedRole, setSelectedRole] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
+  const [roleAccessTarget, setRoleAccessTarget] = useState(null);
+  const [roleAccessError, setRoleAccessError] = useState('');
   
   // Permission editor
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
@@ -51,6 +86,8 @@ export function RolesPage() {
   const updateRoleMutation = useUpdateRole();
   const deleteRoleMutation = useDeleteRole();
   const updatePermissionsMutation = useUpdateRolePermissions();
+  const setRoleAccessMutation = useSetRoleAccess();
+  const isSuperAdmin = user?.role?.name === 'super_admin';
 
   const filteredRoles = roles.filter(role => 
     role.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -141,7 +178,41 @@ export function RolesPage() {
     }
   };
 
+  const openRoleAccessDialog = (role) => {
+    setRoleAccessError('');
+    setRoleAccessTarget(role);
+  };
+
+  const closeRoleAccessDialog = () => {
+    if (setRoleAccessMutation.isPending) return;
+    setRoleAccessTarget(null);
+    setRoleAccessError('');
+  };
+
+  const handleRoleAccessChange = async () => {
+    if (!roleAccessTarget) return;
+
+    const accessEnabled = !isRoleAccessEnabled(roleAccessTarget);
+    setRoleAccessError('');
+
+    try {
+      await setRoleAccessMutation.mutateAsync({
+        roleId: roleAccessTarget.id,
+        accessEnabled,
+      });
+      setRoleAccessTarget(null);
+    } catch (error) {
+      setRoleAccessError(
+        error.response?.data?.message ||
+          'Gagal memperbarui status akses role. Silakan coba lagi.',
+      );
+    }
+  };
+
   const formLoading = createRoleMutation.isPending || updateRoleMutation.isPending;
+  const targetWillBeEnabled = roleAccessTarget
+    ? !isRoleAccessEnabled(roleAccessTarget)
+    : false;
 
   return (
     <DashboardLayout title="Data Role" subtitle="Kelola role dan hak akses pengguna">
@@ -198,7 +269,7 @@ export function RolesPage() {
             </div>
           ) : (
             filteredRoles.map((role) => (
-              <motion.div
+              <Motion.div
                 key={role.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -214,6 +285,26 @@ export function RolesPage() {
                   </div>
                   {role.name !== 'super_admin' && (
                     <div className="flex gap-1">
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => openRoleAccessDialog(role)}
+                          disabled={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
+                          className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                            isRoleAccessEnabled(role)
+                              ? 'text-slate-500 hover:bg-red-50 hover:text-red-600'
+                              : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'
+                          }`}
+                          title={isRoleAccessEnabled(role) ? 'Nonaktifkan akses' : 'Aktifkan akses'}
+                        >
+                          {setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : isRoleAccessEnabled(role) ? (
+                            <PowerOff className="w-4 h-4" />
+                          ) : (
+                            <Power className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
                       <button
                         onClick={() => openEditModal(role)}
                         className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
@@ -231,7 +322,10 @@ export function RolesPage() {
                 </div>
                 
                 <h3 className="font-bold text-slate-800 text-lg mb-1">{role.display_name}</h3>
-                <p className="text-sm text-slate-500 mb-4">{role.description || '-'}</p>
+                <p className="text-sm text-slate-500 mb-3">{role.description || '-'}</p>
+                <div className="mb-4">
+                  <RoleAccessBadge role={role} />
+                </div>
                 
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -252,7 +346,7 @@ export function RolesPage() {
                     </button>
                   )}
                 </div>
-              </motion.div>
+              </Motion.div>
             ))
           )}
         </div>
@@ -266,6 +360,7 @@ export function RolesPage() {
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Slug</th>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Deskripsi</th>
+                  <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status Akses</th>
                   <th className="text-center px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Permission</th>
                   <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
                 </tr>
@@ -273,13 +368,13 @@ export function RolesPage() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
+                    <td colSpan={6} className="px-6 py-12 text-center">
                       <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                     </td>
                   </tr>
                 ) : filteredRoles.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                       Tidak ada data role
                     </td>
                   </tr>
@@ -303,6 +398,9 @@ export function RolesPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate">{role.description || '-'}</td>
                       <td className="px-6 py-4 text-center">
+                        <RoleAccessBadge role={role} />
+                      </td>
+                      <td className="px-6 py-4 text-center">
                         {role.name === 'super_admin' ? (
                           <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">All Access</span>
                         ) : (
@@ -318,6 +416,26 @@ export function RolesPage() {
                         <div className="flex items-center justify-end gap-2">
                           {role.name !== 'super_admin' && (
                             <>
+                              {isSuperAdmin && (
+                                <button
+                                  onClick={() => openRoleAccessDialog(role)}
+                                  disabled={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
+                                  className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    isRoleAccessEnabled(role)
+                                      ? 'text-slate-500 hover:bg-red-50 hover:text-red-600'
+                                      : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'
+                                  }`}
+                                  title={isRoleAccessEnabled(role) ? 'Nonaktifkan akses' : 'Aktifkan akses'}
+                                >
+                                  {setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : isRoleAccessEnabled(role) ? (
+                                    <PowerOff className="w-4 h-4" />
+                                  ) : (
+                                    <Power className="w-4 h-4" />
+                                  )}
+                                </button>
+                              )}
                               <button
                                 onClick={() => openEditModal(role)}
                                 className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
@@ -347,14 +465,14 @@ export function RolesPage() {
       <AnimatePresence>
         {isModalOpen && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
               onClick={() => setIsModalOpen(false)}
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -423,7 +541,7 @@ export function RolesPage() {
                   </div>
                 </form>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>
@@ -432,14 +550,14 @@ export function RolesPage() {
       <AnimatePresence>
         {isPermissionModalOpen && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
               onClick={() => setIsPermissionModalOpen(false)}
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -524,7 +642,88 @@ export function RolesPage() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Role Access Confirmation Modal */}
+      <AnimatePresence>
+        {roleAccessTarget && (
+          <>
+            <Motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
+              onClick={closeRoleAccessDialog}
+            />
+            <Motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="role-access-dialog-title"
+                className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                  targetWillBeEnabled ? 'bg-emerald-100' : 'bg-red-100'
+                }`}>
+                  {targetWillBeEnabled ? (
+                    <Power className="w-8 h-8 text-emerald-600" />
+                  ) : (
+                    <PowerOff className="w-8 h-8 text-red-600" />
+                  )}
+                </div>
+                <h3 id="role-access-dialog-title" className="text-lg font-bold text-slate-800 mb-2 text-center">
+                  {targetWillBeEnabled ? 'Aktifkan Akses Role?' : 'Nonaktifkan Akses Role?'}
+                </h3>
+                <p className="text-slate-500 text-sm text-center mb-3">
+                  Role <strong>{roleAccessTarget.display_name}</strong> akan {targetWillBeEnabled ? 'diaktifkan kembali' : 'dinonaktifkan sementara'}.
+                </p>
+                <p className="text-slate-500 text-sm text-center mb-6">
+                  {targetWillBeEnabled
+                    ? 'Pengguna role ini dapat login kembali, tetapi sesi lama tetap harus login ulang.'
+                    : 'Pengguna tidak dapat login dan sesi aktif akan dihentikan pada permintaan API berikutnya.'}
+                </p>
+
+                {roleAccessError && (
+                  <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{roleAccessError}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={closeRoleAccessDialog}
+                    disabled={setRoleAccessMutation.isPending}
+                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRoleAccessChange}
+                    disabled={setRoleAccessMutation.isPending}
+                    className={`flex-1 px-4 py-2.5 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                      targetWillBeEnabled
+                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                        : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                  >
+                    {setRoleAccessMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {targetWillBeEnabled ? 'Aktifkan' : 'Nonaktifkan'}
+                  </button>
+                </div>
+              </div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>
@@ -533,14 +732,14 @@ export function RolesPage() {
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
               onClick={() => setIsDeleteModalOpen(false)}
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -570,7 +769,7 @@ export function RolesPage() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>
