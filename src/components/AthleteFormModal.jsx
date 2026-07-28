@@ -226,11 +226,19 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     }
   };
 
-  // Handle cabor change - fetch competition classes for selected cabor
+  // Handle cabor change and only load competition classes when editing
   const handleCaborChange = (caborId) => {
-    updateField('cabor_id', caborId);
-    updateField('competition_class_id', ''); // Reset competition class
-    fetchCompetitionClasses(caborId);
+    setFormData(prev => ({
+      ...prev,
+      cabor_id: caborId,
+      competition_class_id: ''
+    }));
+
+    if (athlete) {
+      fetchCompetitionClasses(caborId);
+    } else {
+      setCompetitionClasses([]);
+    }
   };
 
   const handlePhotoChange = (e) => {
@@ -407,7 +415,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     setFormData(prev => ({ ...prev, top_achievements: newAchievements }));
   };
 
-  // Validate current step - all fields are required
+  // Validate current step
   const isStepValid = () => {
     if (step === 1) {
       // Step 1: Data Pribadi
@@ -420,7 +428,6 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         formData.gender !== '' &&
         formData.religion !== '' &&
         formData.cabor_id !== '' &&
-        formData.competition_class_id !== '' &&
         formData.address.trim() !== ''
       );
     }
@@ -443,14 +450,16 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       return formData.career_start_year !== '';
     }
     // Step 4: Data Orang Tua
+    const fatherPhone = formData.father_phone.trim();
+    const motherPhone = formData.mother_phone.trim();
+
     return (
       formData.father_name.trim() !== '' &&
       formData.mother_name.trim() !== '' &&
       formData.parent_address.trim() !== '' &&
-      formData.father_phone.trim() !== '' &&
-      formData.mother_phone.trim() !== '' &&
-      fatherPhoneStatus === 'valid' &&
-      motherPhoneStatus === 'valid'
+      (fatherPhone !== '' || motherPhone !== '') &&
+      (fatherPhone === '' || fatherPhoneStatus === 'valid') &&
+      (motherPhone === '' || motherPhoneStatus === 'valid')
     );
   };
 
@@ -741,16 +750,18 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                       placeholder="Cari & pilih cabor..."
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Kelas Pertandingan</label>
-                    <SearchableSelect
-                      options={competitionClasses}
-                      value={formData.competition_class_id}
-                      onChange={(val) => updateField('competition_class_id', val)}
-                      placeholder={formData.cabor_id ? 'Pilih Kelas' : 'Pilih Cabor terlebih dahulu'}
-                      disabled={!formData.cabor_id}
-                    />
-                  </div>
+                  {athlete && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Kelas Pertandingan</label>
+                      <SearchableSelect
+                        options={competitionClasses}
+                        value={formData.competition_class_id}
+                        onChange={(val) => updateField('competition_class_id', val)}
+                        placeholder={formData.cabor_id ? 'Pilih Kelas' : 'Pilih Cabor terlebih dahulu'}
+                        disabled={!formData.cabor_id}
+                      />
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Organisasi</label>
                     <SearchableSelect
@@ -997,10 +1008,16 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                   />
                 </div>
 
+                <div>
+                  <p className="text-sm text-slate-600">
+                    Minimal salah satu nomor WhatsApp orang tua/wali wajib diisi dan terverifikasi.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   {/* Father Phone */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ayah <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ayah/Wali</label>
                     <div className="relative">
                       <input
                         type="text"
@@ -1028,7 +1045,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
 
                   {/* Mother Phone */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ibu <span className="text-red-500">*</span></label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ibu/Wali</label>
                     <div className="relative">
                       <input
                         type="text"

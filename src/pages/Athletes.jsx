@@ -420,26 +420,26 @@ export function AthletesPage() {
               filters={{
                 cabor: filterCabor
                   ? (() => {
-                      const cabor = cabors.find(
-                        (c) => String(c.id) === String(filterCabor)
-                      );
-                      return cabor?.display_name || cabor?.name;
-                    })()
+                    const cabor = cabors.find(
+                      (c) => String(c.id) === String(filterCabor)
+                    );
+                    return cabor?.display_name || cabor?.name;
+                  })()
                   : "",
                 gender: filterGender,
                 organization: filterOrganization
                   ? organizations.find(
-                      (o) => String(o.id) === String(filterOrganization)
-                    )?.name
+                    (o) => String(o.id) === String(filterOrganization)
+                  )?.name
                   : "",
                 cluster: filterCluster
                   ? clusters.find((c) => String(c.id) === String(filterCluster))
-                      ?.name
+                    ?.name
                   : "",
                 subCluster: filterSubCluster
                   ? subClusters.find(
-                      (c) => String(c.id) === String(filterSubCluster)
-                    )?.name
+                    (c) => String(c.id) === String(filterSubCluster)
+                  )?.name
                   : "",
                 search: debouncedSearch,
               }}
