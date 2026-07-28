@@ -31,6 +31,13 @@ const MARITAL_STATUSES = [
   { value: 'divorced', label: 'Cerai' },
   { value: 'widowed', label: 'Duda/Janda' }
 ];
+const IDENTITY_PATTERN = /^[0-9]{16}$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MotionDiv = motion.div;
+
+const firstFieldError = (fieldError) => (
+  Array.isArray(fieldError) ? fieldError[0] : fieldError
+);
 
 // Helper to format date for input type="date" (YYYY-MM-DD)
 const formatDateForInput = (dateString) => {
@@ -78,6 +85,12 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const phoneCheckRef = useRef(null);
   const initialPhoneValuesRef = useRef({ phone: '', father_phone: '', mother_phone: '' });
 
+  // Email availability validation state
+  const [emailStatus, setEmailStatus] = useState('idle');
+  const [emailMessage, setEmailMessage] = useState('');
+  const emailCheckRef = useRef(null);
+  const emailRequestIdRef = useRef(0);
+
   // Parent phone validation state
   const [fatherPhoneStatus, setFatherPhoneStatus] = useState('idle');
   const [fatherPhoneMessage, setFatherPhoneMessage] = useState('');
@@ -93,6 +106,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       fetchEducationLevels();
       setStep(1);
       setErrors({});
+      setErrorMessage('');
+      emailCheckRef.current?.abort();
+      emailRequestIdRef.current += 1;
+      setEmailStatus('idle');
+      setEmailMessage('');
       
       if (athlete) {
         initialPhoneValuesRef.current = {
@@ -267,7 +285,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     const phone = formData.phone?.trim();
 
     // Existing saved numbers should not block edit flow unless the user changes them.
-    if (athlete && phone && phone === initialPhoneValuesRef.current.phone.trim()) {
+    if (athlete?.id && phone && phone === initialPhoneValuesRef.current.phone.trim()) {
       setPhoneStatus('valid');
       setPhoneMessage('Nomor tersimpan');
       return;
@@ -323,12 +341,76 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [formData.phone]);
+  }, [formData.phone, athlete?.id]);
 
+  // Debounced email availability validation against the backend.
+  useEffect(() => {
+    emailCheckRef.current?.abort();
+    emailCheckRef.current = null;
+    const requestId = ++emailRequestIdRef.current;
+    const email = formData.email?.trim();
+
+    if (!isOpen || !email) {
+      setEmailStatus('idle');
+      setEmailMessage('');
+      return;
+    }
+
+    if (!EMAIL_PATTERN.test(email)) {
+      setEmailStatus('invalid');
+      setEmailMessage('Format email tidak valid');
+      return;
+    }
+
+    const controller = new AbortController();
+    emailCheckRef.current = controller;
+    setEmailStatus('checking');
+    setEmailMessage('Memeriksa email...');
+
+    const timer = setTimeout(async () => {
+      try {
+        const params = { email };
+        if (athlete?.id) {
+          params.athlete_id = athlete.id;
+        }
+        const response = await api.get('/api/athletes/check-email', {
+          params,
+          signal: controller.signal
+        });
+
+        if (controller.signal.aborted || emailRequestIdRef.current !== requestId) {
+          return;
+        }
+        if (response.data.available) {
+          setEmailStatus('valid');
+          setEmailMessage('Email tersedia');
+        } else {
+          setEmailStatus('invalid');
+          setEmailMessage('Email sudah terdaftar');
+        }
+      } catch (error) {
+        if (
+          error.name === 'CanceledError' ||
+          error.code === 'ERR_CANCELED' ||
+          controller.signal.aborted ||
+          emailRequestIdRef.current !== requestId
+        ) {
+          return;
+        }
+        setEmailStatus('error');
+        setEmailMessage('Gagal memeriksa email, coba lagi');
+      }
+    }, 800);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [formData.email, isOpen, athlete?.id]);
   // Father phone validation
   useEffect(() => {
     const phone = formData.father_phone?.trim();
-    if (athlete && phone && phone === initialPhoneValuesRef.current.father_phone.trim()) {
+    if (athlete?.id && phone && phone === initialPhoneValuesRef.current.father_phone.trim()) {
       setFatherPhoneStatus('valid');
       setFatherPhoneMessage('Nomor tersimpan');
       return;
@@ -363,12 +445,12 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       }
     }, 800);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [formData.father_phone]);
+  }, [formData.father_phone, athlete?.id]);
 
   // Mother phone validation
   useEffect(() => {
     const phone = formData.mother_phone?.trim();
-    if (athlete && phone && phone === initialPhoneValuesRef.current.mother_phone.trim()) {
+    if (athlete?.id && phone && phone === initialPhoneValuesRef.current.mother_phone.trim()) {
       setMotherPhoneStatus('valid');
       setMotherPhoneMessage('Nomor tersimpan');
       return;
@@ -403,10 +485,16 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       }
     }, 800);
     return () => { clearTimeout(timer); controller.abort(); };
-  }, [formData.mother_phone]);
+  }, [formData.mother_phone, athlete?.id]);
 
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    setErrors(prev => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
 
   const updateAchievement = (index, value) => {
@@ -421,8 +509,8 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       // Step 1: Data Pribadi
       return (
         formData.name.trim() !== '' &&
-        formData.nik.trim() !== '' &&
-        formData.no_kk.trim() !== '' &&
+        IDENTITY_PATTERN.test(formData.nik) &&
+        IDENTITY_PATTERN.test(formData.no_kk) &&
         formData.birth_place.trim() !== '' &&
         formData.birth_date !== '' &&
         formData.gender !== '' &&
@@ -442,7 +530,8 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         formData.marital_status !== '' &&
         formData.phone.trim() !== '' &&
         formData.email.trim() !== '' &&
-        phoneStatus === 'valid' // WhatsApp number must be validated
+        phoneStatus === 'valid' &&
+        emailStatus === 'valid'
       );
     }
     // Step 3: Karir & Prestasi (prestasi optional)
@@ -485,10 +574,33 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   };
 
   const handleSubmit = async () => {
-    // Safety check: ensure phone is WhatsApp-validated
+    const identityErrors = {};
+    if (!IDENTITY_PATTERN.test(formData.nik)) {
+      identityErrors.nik = ['NIK harus tepat 16 digit angka'];
+    }
+    if (!IDENTITY_PATTERN.test(formData.no_kk)) {
+      identityErrors.no_kk = ['No. KK harus tepat 16 digit angka'];
+    }
+    if (Object.keys(identityErrors).length > 0) {
+      setErrors(identityErrors);
+      setErrorMessage(firstFieldError(Object.values(identityErrors)[0]));
+      setStep(1);
+      setTimeout(() => formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+      return;
+    }
+
+    const contactErrors = {};
     if (phoneStatus !== 'valid') {
-      setErrors({ phone: 'Nomor WhatsApp harus valid sebelum menyimpan data' });
+      contactErrors.phone = ['Nomor WhatsApp harus valid sebelum menyimpan data'];
+    }
+    if (emailStatus !== 'valid') {
+      contactErrors.email = [emailMessage || 'Email harus berhasil diperiksa sebelum menyimpan data'];
+    }
+    if (Object.keys(contactErrors).length > 0) {
+      setErrors(contactErrors);
+      setErrorMessage(firstFieldError(Object.values(contactErrors)[0]));
       setStep(2);
+      setTimeout(() => formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
       return;
     }
 
@@ -528,8 +640,18 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       onSuccess();
     } catch (error) {
       if (error.response?.status === 422) {
-        const errData = error.response.data.errors || {};
+        const rawErrors = error.response.data.errors || {};
+        const errData = Object.fromEntries(
+          Object.entries(rawErrors).map(([field, messages]) => [
+            field,
+            Array.isArray(messages) ? messages : [String(messages)]
+          ])
+        );
         setErrors(errData);
+        if (errData.email) {
+          setEmailStatus('invalid');
+          setEmailMessage(firstFieldError(errData.email) || 'Email sudah terdaftar');
+        }
         
         // Build error message from all errors
         const messages = Object.values(errData).flat();
@@ -564,11 +686,14 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     }
   };
 
+  const nikInvalid = Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik));
+  const noKKInvalid = Boolean(errors.no_kk) || (formData.no_kk !== '' && !IDENTITY_PATTERN.test(formData.no_kk));
+
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <motion.div
+      <MotionDiv
         key="backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -576,7 +701,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
         onClick={onClose}
       />
-      <motion.div
+      <MotionDiv
         key="modal-content"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -668,16 +793,26 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                     {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">NIK</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">NIK *</label>
                     <input
                       type="text"
+                      inputMode="numeric"
                       value={formData.nik}
                       onChange={e => updateField('nik', e.target.value.replace(/\D/g, '').slice(0, 16))}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none font-mono"
+                      className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 outline-none font-mono transition-colors ${
+                        nikInvalid
+                          ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500'
+                          : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
+                      }`}
                       placeholder="16 digit NIK"
                       maxLength={16}
                     />
-                    {errors.nik && <p className="text-red-500 text-xs mt-1">{errors.nik[0]}</p>}
+                    <div className="mt-1 flex items-start justify-between gap-2 text-xs">
+                      <p className={nikInvalid ? 'text-red-500' : 'text-slate-500'}>
+                        {firstFieldError(errors.nik) || (nikInvalid ? 'NIK harus tepat 16 digit angka' : 'NIK wajib tepat 16 digit angka')}
+                      </p>
+                      <span className={nikInvalid ? 'text-red-500' : 'text-slate-400'}>{formData.nik.length}/16 digit</span>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">No. Atlit Nasional</label>
@@ -690,15 +825,26 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">No. KK</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">No. KK *</label>
                     <input
                       type="text"
+                      inputMode="numeric"
                       value={formData.no_kk}
                       onChange={e => updateField('no_kk', e.target.value.replace(/\D/g, '').slice(0, 16))}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none font-mono"
-                      placeholder="16 digit No KK"
+                      className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 outline-none font-mono transition-colors ${
+                        noKKInvalid
+                          ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500'
+                          : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
+                      }`}
+                      placeholder="16 digit No. KK"
                       maxLength={16}
                     />
+                    <div className="mt-1 flex items-start justify-between gap-2 text-xs">
+                      <p className={noKKInvalid ? 'text-red-500' : 'text-slate-500'}>
+                        {firstFieldError(errors.no_kk) || (noKKInvalid ? 'No. KK harus tepat 16 digit angka' : 'No. KK wajib tepat 16 digit angka')}
+                      </p>
+                      <span className={noKKInvalid ? 'text-red-500' : 'text-slate-400'}>{formData.no_kk.length}/16 digit</span>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Tempat Lahir</label>
@@ -890,14 +1036,38 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={formData.email}
-                      onChange={e => updateField('email', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="email@example.com"
-                    />
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        value={formData.email}
+                        onChange={e => updateField('email', e.target.value)}
+                        className={`w-full px-4 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none transition-colors ${
+                          emailStatus === 'valid'
+                            ? 'border-green-400 bg-green-50 focus:ring-green-100 focus:border-green-500'
+                            : emailStatus === 'invalid' || emailStatus === 'error' || errors.email
+                              ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500'
+                              : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
+                        }`}
+                        placeholder="email@example.com"
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {emailStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
+                        {emailStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {(emailStatus === 'invalid' || emailStatus === 'error') && <XCircle className="w-4 h-4 text-red-500" />}
+                      </div>
+                    </div>
+                    {(emailMessage || errors.email) && (
+                      <p className={`text-xs mt-1 ${
+                        emailStatus === 'valid'
+                          ? 'text-green-600'
+                          : emailStatus === 'invalid' || emailStatus === 'error' || errors.email
+                            ? 'text-red-500'
+                            : 'text-slate-500'
+                      }`}>
+                        {firstFieldError(errors.email) || emailMessage}
+                      </p>
+                    )}
                   </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Hobi</label>
@@ -1110,7 +1280,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
             )}
           </div>
         </div>
-      </motion.div>
+      </MotionDiv>
     </AnimatePresence>
   );
 }
