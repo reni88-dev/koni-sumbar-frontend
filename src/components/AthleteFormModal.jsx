@@ -33,11 +33,63 @@ const MARITAL_STATUSES = [
 ];
 const IDENTITY_PATTERN = /^[0-9]{16}$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_INPUT_PATTERN = /^\+?[0-9\s().-]+$/;
+const PHONE_PATTERN = /^628[0-9]{8,11}$/;
+const PHONE_CHECK_TIMEOUT_MS = 5000;
+const PHONE_CHECK_SKIPPED_MESSAGE = 'Format nomor valid; pengecekan WhatsApp dilewati';
 const MotionDiv = motion.div;
 
 const firstFieldError = (fieldError) => (
   Array.isArray(fieldError) ? fieldError[0] : fieldError
 );
+
+const normalizeIndonesianMobile = (value) => {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (!PHONE_INPUT_PATTERN.test(raw)) return null;
+
+  let phone = raw.replace(/\D/g, '');
+  if (phone.startsWith('62')) {
+    // Already normalized.
+  } else if (phone.startsWith('0')) {
+    phone = `62${phone.slice(1)}`;
+  } else if (phone.startsWith('8')) {
+    phone = `62${phone}`;
+  } else {
+    return null;
+  }
+
+  return PHONE_PATTERN.test(phone) ? phone : null;
+};
+
+const isCanceledRequest = (error) => (
+  error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED'
+);
+
+const checkWhatsAppPhone = async (phone, signal) => {
+  try {
+    const response = await api.get('/api/check-phone', {
+      params: { phone },
+      signal,
+      timeout: PHONE_CHECK_TIMEOUT_MS
+    });
+    const data = response.data;
+
+    if (data?.validationSkipped === true || data?.error) {
+      return { status: 'valid', message: PHONE_CHECK_SKIPPED_MESSAGE };
+    }
+    if (data?.numberExists === true) {
+      return { status: 'valid', message: 'WhatsApp aktif' };
+    }
+    if (data?.numberExists === false) {
+      return { status: 'invalid', message: 'Nomor tidak terdaftar di WhatsApp' };
+    }
+    return { status: 'valid', message: PHONE_CHECK_SKIPPED_MESSAGE };
+  } catch (error) {
+    if (isCanceledRequest(error)) throw error;
+    return { status: 'valid', message: PHONE_CHECK_SKIPPED_MESSAGE };
+  }
+};
 
 // Helper to format date for input type="date" (YYYY-MM-DD)
 const formatDateForInput = (dateString) => {
@@ -57,6 +109,7 @@ const formatDateForInput = (dateString) => {
 
 export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const formContainerRef = useRef(null);
+  const photoProcessingIdRef = useRef(0);
   const [step, setStep] = useState(1);
   const [cabors, setCabors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -79,6 +132,12 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
 
+  useEffect(() => () => {
+    if (photoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(photoPreview);
+    }
+  }, [photoPreview]);
+
   // Phone validation state
   const [phoneStatus, setPhoneStatus] = useState('idle');
   const [phoneMessage, setPhoneMessage] = useState('');
@@ -100,6 +159,16 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const motherPhoneCheckRef = useRef(null);
 
   useEffect(() => {
+    if (!isOpen) {
+      photoProcessingIdRef.current += 1;
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      return;
+    }
+
+    photoProcessingIdRef.current += 1;
+    setPhotoFile(null);
+
     if (isOpen) {
       fetchCabors();
       fetchOrganizations();
@@ -113,10 +182,13 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       setEmailMessage('');
       
       if (athlete) {
+        const savedPhone = normalizeIndonesianMobile(athlete.phone) ?? athlete.phone ?? '';
+        const savedFatherPhone = normalizeIndonesianMobile(athlete.father_phone) ?? athlete.father_phone ?? '';
+        const savedMotherPhone = normalizeIndonesianMobile(athlete.mother_phone) ?? athlete.mother_phone ?? '';
         initialPhoneValuesRef.current = {
-          phone: athlete.phone || '',
-          father_phone: athlete.father_phone || '',
-          mother_phone: athlete.mother_phone || '',
+          phone: savedPhone,
+          father_phone: savedFatherPhone,
+          mother_phone: savedMotherPhone,
         };
 
         // Fetch competition classes for the athlete's cabor
@@ -144,7 +216,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           hobby: athlete.hobby || '',
           height: athlete.height || '',
           weight: athlete.weight || '',
-          phone: athlete.phone || '',
+          phone: savedPhone,
           email: athlete.email || '',
           career_start_year: athlete.career_start_year || '',
           injury_illness_history: athlete.injury_illness_history || '',
@@ -156,17 +228,17 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           father_name: athlete.father_name || '',
           mother_name: athlete.mother_name || '',
           parent_address: athlete.parent_address || '',
-          father_phone: athlete.father_phone || '',
-          mother_phone: athlete.mother_phone || '',
+          father_phone: savedFatherPhone,
+          mother_phone: savedMotherPhone,
           is_active: athlete.is_active ?? true
         });
         setPhotoPreview(athlete.photo || null);
-        setPhoneStatus(athlete.phone ? 'valid' : 'idle');
-        setPhoneMessage(athlete.phone ? 'Nomor tersimpan' : '');
-        setFatherPhoneStatus(athlete.father_phone ? 'valid' : 'idle');
-        setFatherPhoneMessage(athlete.father_phone ? 'Nomor tersimpan' : '');
-        setMotherPhoneStatus(athlete.mother_phone ? 'valid' : 'idle');
-        setMotherPhoneMessage(athlete.mother_phone ? 'Nomor tersimpan' : '');
+        setPhoneStatus(savedPhone ? (normalizeIndonesianMobile(savedPhone) ? 'valid' : 'invalid') : 'idle');
+        setPhoneMessage(savedPhone ? (normalizeIndonesianMobile(savedPhone) ? 'Nomor tersimpan' : 'Format nomor WhatsApp tidak valid') : '');
+        setFatherPhoneStatus(savedFatherPhone ? (normalizeIndonesianMobile(savedFatherPhone) ? 'valid' : 'invalid') : 'idle');
+        setFatherPhoneMessage(savedFatherPhone ? (normalizeIndonesianMobile(savedFatherPhone) ? 'Nomor tersimpan' : 'Format nomor WhatsApp tidak valid') : '');
+        setMotherPhoneStatus(savedMotherPhone ? (normalizeIndonesianMobile(savedMotherPhone) ? 'valid' : 'invalid') : 'idle');
+        setMotherPhoneMessage(savedMotherPhone ? (normalizeIndonesianMobile(savedMotherPhone) ? 'Nomor tersimpan' : 'Format nomor WhatsApp tidak valid') : '');
       } else {
         initialPhoneValuesRef.current = { phone: '', father_phone: '', mother_phone: '' };
         setCompetitionClasses([]);
@@ -260,89 +332,106 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   };
 
   const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
+    const input = e.target;
+    const file = input.files?.[0];
+    input.value = '';
     if (!file) return;
+
+    const processingId = ++photoProcessingIdRef.current;
+    setPhotoFile(null);
+    setPhotoPreview(athlete?.photo || null);
+
+    const inputUrl = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
+      URL.revokeObjectURL(inputUrl);
+      if (processingId !== photoProcessingIdRef.current) return;
+
       const canvas = document.createElement('canvas');
       const MAX_WIDTH = 800;
       const scale = Math.min(MAX_WIDTH / img.width, 1);
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const context = canvas.getContext('2d');
+      if (!context) {
+        setErrorMessage('Foto gagal diproses. Silakan pilih file lain.');
+        return;
+      }
+      context.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((blob) => {
-        if (!blob) return;
+        if (processingId !== photoProcessingIdRef.current) return;
+        if (!blob) {
+          setErrorMessage('Foto gagal diproses. Silakan pilih file lain.');
+          return;
+        }
         const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() });
         setPhotoFile(compressed);
         setPhotoPreview(URL.createObjectURL(compressed));
       }, 'image/webp', 0.82);
     };
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => {
+      URL.revokeObjectURL(inputUrl);
+      if (processingId !== photoProcessingIdRef.current) return;
+      setPhotoFile(null);
+      setErrorMessage('Format foto tidak dapat diproses. Gunakan JPG, PNG, atau WebP.');
+    };
+    img.src = inputUrl;
   };
-
-  // Debounced phone validation via n8n webhook
+  // Debounced phone validation via n8n webhook with local fail-open fallback.
   useEffect(() => {
-    const phone = formData.phone?.trim();
-
-    // Existing saved numbers should not block edit flow unless the user changes them.
-    if (athlete?.id && phone && phone === initialPhoneValuesRef.current.phone.trim()) {
-      setPhoneStatus('valid');
-      setPhoneMessage('Nomor tersimpan');
-      return;
-    }
-    
-    // Reset if phone is empty or too short
-    if (!phone || phone.length < 8) {
+    if (!isOpen) {
       setPhoneStatus('idle');
       setPhoneMessage('');
       return;
     }
 
-    setPhoneStatus('checking');
-    setPhoneMessage('Memeriksa nomor...');
-
-    // Cancel previous request
-    if (phoneCheckRef.current) {
-      phoneCheckRef.current.abort();
+    const phone = formData.phone?.trim();
+    if (!phone) {
+      setPhoneStatus('idle');
+      setPhoneMessage('');
+      return;
+    }
+    const normalized = normalizeIndonesianMobile(phone);
+    if (!normalized) {
+      setPhoneStatus('invalid');
+      setPhoneMessage('Format nomor WhatsApp tidak valid');
+      return;
+    }
+    if (normalized !== phone) {
+      setPhoneStatus('checking');
+      setPhoneMessage('Memeriksa nomor...');
+      setFormData(prev => ({ ...prev, phone: normalized }));
+      return;
+    }
+    if (athlete?.id && normalized === initialPhoneValuesRef.current.phone) {
+      setPhoneStatus('valid');
+      setPhoneMessage('Nomor tersimpan');
+      return;
     }
 
+    setPhoneStatus('checking');
+    setPhoneMessage('Memeriksa nomor...');
+    phoneCheckRef.current?.abort();
     const controller = new AbortController();
     phoneCheckRef.current = controller;
-
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/api/check-phone?phone=${encodeURIComponent(phone)}`, {
-          signal: controller.signal
-        });
-        const data = res.data;
-
-        if (data.numberExists) {
-          // Extract number from chatId (remove @c.us)
-          const normalizedPhone = data.chatId?.replace('@c.us', '') || phone;
+        const result = await checkWhatsAppPhone(normalized, controller.signal);
+        if (controller.signal.aborted) return;
+        setPhoneStatus(result.status);
+        setPhoneMessage(result.message);
+      } catch (error) {
+        if (!isCanceledRequest(error)) {
           setPhoneStatus('valid');
-          setPhoneMessage(`WhatsApp aktif`);
-          // Update phone field with normalized number
-          if (normalizedPhone !== phone) {
-            setFormData(prev => ({ ...prev, phone: normalizedPhone }));
-          }
-        } else {
-          setPhoneStatus('invalid');
-          setPhoneMessage('Nomor tidak terdaftar di WhatsApp');
-        }
-      } catch (err) {
-        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
-          setPhoneStatus('idle');
-          setPhoneMessage('');
+          setPhoneMessage(PHONE_CHECK_SKIPPED_MESSAGE);
         }
       }
     }, 800);
-
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [formData.phone, athlete?.id]);
-
+  }, [formData.phone, athlete?.id, isOpen]);
   // Debounced email availability validation against the backend.
   useEffect(() => {
     emailCheckRef.current?.abort();
@@ -407,86 +496,116 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       controller.abort();
     };
   }, [formData.email, isOpen, athlete?.id]);
-  // Father phone validation
+  // Father phone validation.
   useEffect(() => {
-    const phone = formData.father_phone?.trim();
-    if (athlete?.id && phone && phone === initialPhoneValuesRef.current.father_phone.trim()) {
-      setFatherPhoneStatus('valid');
-      setFatherPhoneMessage('Nomor tersimpan');
-      return;
-    }
-    if (!phone || phone.length < 8) {
+    if (!isOpen) {
       setFatherPhoneStatus('idle');
       setFatherPhoneMessage('');
       return;
     }
+
+    const phone = formData.father_phone?.trim();
+    if (!phone) {
+      setFatherPhoneStatus('idle');
+      setFatherPhoneMessage('');
+      return;
+    }
+    const normalized = normalizeIndonesianMobile(phone);
+    if (!normalized) {
+      setFatherPhoneStatus('invalid');
+      setFatherPhoneMessage('Format nomor WhatsApp tidak valid');
+      return;
+    }
+    if (normalized !== phone) {
+      setFatherPhoneStatus('checking');
+      setFatherPhoneMessage('Memeriksa nomor...');
+      setFormData(prev => ({ ...prev, father_phone: normalized }));
+      return;
+    }
+    if (athlete?.id && normalized === initialPhoneValuesRef.current.father_phone) {
+      setFatherPhoneStatus('valid');
+      setFatherPhoneMessage('Nomor tersimpan');
+      return;
+    }
+
     setFatherPhoneStatus('checking');
     setFatherPhoneMessage('Memeriksa nomor...');
-    if (fatherPhoneCheckRef.current) fatherPhoneCheckRef.current.abort();
+    fatherPhoneCheckRef.current?.abort();
     const controller = new AbortController();
     fatherPhoneCheckRef.current = controller;
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/api/check-phone?phone=${encodeURIComponent(phone)}`, { signal: controller.signal });
-        if (res.data.numberExists) {
-          const normalized = res.data.chatId?.replace('@c.us', '') || phone;
+        const result = await checkWhatsAppPhone(normalized, controller.signal);
+        if (controller.signal.aborted) return;
+        setFatherPhoneStatus(result.status);
+        setFatherPhoneMessage(result.message);
+      } catch (error) {
+        if (!isCanceledRequest(error)) {
           setFatherPhoneStatus('valid');
-          setFatherPhoneMessage('WhatsApp aktif');
-          if (normalized !== phone) setFormData(prev => ({ ...prev, father_phone: normalized }));
-        } else {
-          setFatherPhoneStatus('invalid');
-          setFatherPhoneMessage('Nomor tidak terdaftar di WhatsApp');
-        }
-      } catch (err) {
-        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
-          setFatherPhoneStatus('idle');
-          setFatherPhoneMessage('');
+          setFatherPhoneMessage(PHONE_CHECK_SKIPPED_MESSAGE);
         }
       }
     }, 800);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [formData.father_phone, athlete?.id]);
-
-  // Mother phone validation
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [formData.father_phone, athlete?.id, isOpen]);
+  // Mother phone validation.
   useEffect(() => {
-    const phone = formData.mother_phone?.trim();
-    if (athlete?.id && phone && phone === initialPhoneValuesRef.current.mother_phone.trim()) {
-      setMotherPhoneStatus('valid');
-      setMotherPhoneMessage('Nomor tersimpan');
-      return;
-    }
-    if (!phone || phone.length < 8) {
+    if (!isOpen) {
       setMotherPhoneStatus('idle');
       setMotherPhoneMessage('');
       return;
     }
+
+    const phone = formData.mother_phone?.trim();
+    if (!phone) {
+      setMotherPhoneStatus('idle');
+      setMotherPhoneMessage('');
+      return;
+    }
+    const normalized = normalizeIndonesianMobile(phone);
+    if (!normalized) {
+      setMotherPhoneStatus('invalid');
+      setMotherPhoneMessage('Format nomor WhatsApp tidak valid');
+      return;
+    }
+    if (normalized !== phone) {
+      setMotherPhoneStatus('checking');
+      setMotherPhoneMessage('Memeriksa nomor...');
+      setFormData(prev => ({ ...prev, mother_phone: normalized }));
+      return;
+    }
+    if (athlete?.id && normalized === initialPhoneValuesRef.current.mother_phone) {
+      setMotherPhoneStatus('valid');
+      setMotherPhoneMessage('Nomor tersimpan');
+      return;
+    }
+
     setMotherPhoneStatus('checking');
     setMotherPhoneMessage('Memeriksa nomor...');
-    if (motherPhoneCheckRef.current) motherPhoneCheckRef.current.abort();
+    motherPhoneCheckRef.current?.abort();
     const controller = new AbortController();
     motherPhoneCheckRef.current = controller;
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get(`/api/check-phone?phone=${encodeURIComponent(phone)}`, { signal: controller.signal });
-        if (res.data.numberExists) {
-          const normalized = res.data.chatId?.replace('@c.us', '') || phone;
+        const result = await checkWhatsAppPhone(normalized, controller.signal);
+        if (controller.signal.aborted) return;
+        setMotherPhoneStatus(result.status);
+        setMotherPhoneMessage(result.message);
+      } catch (error) {
+        if (!isCanceledRequest(error)) {
           setMotherPhoneStatus('valid');
-          setMotherPhoneMessage('WhatsApp aktif');
-          if (normalized !== phone) setFormData(prev => ({ ...prev, mother_phone: normalized }));
-        } else {
-          setMotherPhoneStatus('invalid');
-          setMotherPhoneMessage('Nomor tidak terdaftar di WhatsApp');
-        }
-      } catch (err) {
-        if (err.name !== 'CanceledError' && err.code !== 'ERR_CANCELED') {
-          setMotherPhoneStatus('idle');
-          setMotherPhoneMessage('');
+          setMotherPhoneMessage(PHONE_CHECK_SKIPPED_MESSAGE);
         }
       }
     }, 800);
-    return () => { clearTimeout(timer); controller.abort(); };
-  }, [formData.mother_phone, athlete?.id]);
-
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [formData.mother_phone, athlete?.id, isOpen]);
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => {
@@ -589,9 +708,15 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       return;
     }
 
+    const normalizedPhone = normalizeIndonesianMobile(formData.phone);
+    const normalizedFatherPhone = normalizeIndonesianMobile(formData.father_phone);
+    const normalizedMotherPhone = normalizeIndonesianMobile(formData.mother_phone);
+
     const contactErrors = {};
-    if (phoneStatus !== 'valid') {
-      contactErrors.phone = ['Nomor WhatsApp harus valid sebelum menyimpan data'];
+    if (!normalizedPhone) {
+      contactErrors.phone = ['Format nomor WhatsApp tidak valid'];
+    } else if (phoneStatus !== 'valid') {
+      contactErrors.phone = [phoneMessage || 'Nomor WhatsApp harus valid sebelum menyimpan data'];
     }
     if (emailStatus !== 'valid') {
       contactErrors.email = [emailMessage || 'Email harus berhasil diperiksa sebelum menyimpan data'];
@@ -604,6 +729,35 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       return;
     }
 
+    const parentPhoneErrors = {};
+    if (formData.father_phone.trim() && !normalizedFatherPhone) {
+      parentPhoneErrors.father_phone = ['Format nomor WhatsApp tidak valid'];
+    } else if (normalizedFatherPhone && fatherPhoneStatus !== 'valid') {
+      parentPhoneErrors.father_phone = [fatherPhoneMessage || 'Nomor WhatsApp ayah/wali harus valid sebelum menyimpan data'];
+    }
+    if (formData.mother_phone.trim() && !normalizedMotherPhone) {
+      parentPhoneErrors.mother_phone = ['Format nomor WhatsApp tidak valid'];
+    } else if (normalizedMotherPhone && motherPhoneStatus !== 'valid') {
+      parentPhoneErrors.mother_phone = [motherPhoneMessage || 'Nomor WhatsApp ibu/wali harus valid sebelum menyimpan data'];
+    }
+    if (!formData.father_phone.trim() && !formData.mother_phone.trim()) {
+      parentPhoneErrors.father_phone = ['Minimal salah satu nomor WhatsApp orang tua/wali wajib diisi'];
+    }
+    if (Object.keys(parentPhoneErrors).length > 0) {
+      setErrors(parentPhoneErrors);
+      setErrorMessage(firstFieldError(Object.values(parentPhoneErrors)[0]));
+      setStep(4);
+      setTimeout(() => formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+      return;
+    }
+
+    const submissionData = {
+      ...formData,
+      phone: normalizedPhone,
+      father_phone: normalizedFatherPhone || '',
+      mother_phone: normalizedMotherPhone || ''
+    };
+
     setLoading(true);
     setErrors({});
     setErrorMessage('');
@@ -611,7 +765,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     try {
       const data = new FormData();
       
-      Object.entries(formData).forEach(([key, value]) => {
+      Object.entries(submissionData).forEach(([key, value]) => {
         if (key === 'top_achievements') {
           // Filter out empty strings and send as JSON
           const filtered = value.filter(v => v && v.trim() !== '');
@@ -628,13 +782,9 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
 
       if (athlete) {
         data.append('_method', 'PUT');
-        await api.post(`/api/athletes/${athlete.id}`, data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        await api.post(`/api/athletes/${athlete.id}`, data);
       } else {
-        await api.post('/api/athletes', data, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        await api.post('/api/athletes', data);
       }
       
       onSuccess();
@@ -651,6 +801,18 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         if (errData.email) {
           setEmailStatus('invalid');
           setEmailMessage(firstFieldError(errData.email) || 'Email sudah terdaftar');
+        }
+        if (errData.phone) {
+          setPhoneStatus('invalid');
+          setPhoneMessage(firstFieldError(errData.phone) || 'Format nomor WhatsApp tidak valid');
+        }
+        if (errData.father_phone) {
+          setFatherPhoneStatus('invalid');
+          setFatherPhoneMessage(firstFieldError(errData.father_phone) || 'Format nomor WhatsApp tidak valid');
+        }
+        if (errData.mother_phone) {
+          setMotherPhoneStatus('invalid');
+          setMotherPhoneMessage(firstFieldError(errData.mother_phone) || 'Format nomor WhatsApp tidak valid');
         }
         
         // Build error message from all errors
@@ -776,7 +938,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                   <label className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-colors">
                     <Upload className="w-4 h-4" />
                     <span className="text-sm font-medium">Upload Foto</span>
-                    <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} className="hidden" />
                   </label>
                 </div>
 

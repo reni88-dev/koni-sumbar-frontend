@@ -11,13 +11,16 @@ const api = axios.create({
   // baseURL: 'https://koni-sumbar-backend-golang.ka2h0x.easypanel.host',
   // baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: {
-    "Content-Type": "application/json",
     Accept: "application/json",
   },
 });
 
 // Request interceptor to add JWT Bearer token
 api.interceptors.request.use((config) => {
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    config.headers.setContentType(undefined);
+  }
+
   const token = localStorage.getItem("token");
   const publicEndpoints = [
     "/api/login",
