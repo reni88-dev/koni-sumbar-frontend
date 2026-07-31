@@ -38,7 +38,112 @@ const PHONE_PATTERN = /^628[0-9]{8,11}$/;
 const PHONE_CHECK_TIMEOUT_MS = 5000;
 const PHONE_CHECK_SKIPPED_MESSAGE = 'Format nomor valid; pengecekan WhatsApp dilewati';
 const MotionDiv = motion.div;
+const MAX_SOURCE_FILE_SIZE = 10 * 1024 * 1024;
+const DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
+const DOCUMENT_MIME_BY_EXTENSION = {
+  pdf: 'application/pdf',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  webp: 'image/webp'
+};
+const IDENTITY_DOCUMENT_LABELS = {
+  ktp: 'KTP',
+  family_card: 'Kartu Keluarga (KK)',
+  birth_certificate: 'Akte Kelahiran'
+};
 
+const parseDateInput = (value) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(year, month - 1, day);
+  if (
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+};
+
+const getAthleteAgeGroup = (birthDateValue, today = new Date()) => {
+  const birthDate = parseDateInput(birthDateValue);
+  if (!birthDate) return null;
+  const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  if (birthDate > currentDate) return null;
+  const seventeenthBirthday = new Date(
+    birthDate.getFullYear() + 17,
+    birthDate.getMonth(),
+    birthDate.getDate()
+  );
+  return currentDate >= seventeenthBirthday ? 'adult' : 'minor';
+};
+
+const isIdentityTypeValidForAge = (documentType, ageGroup) => (
+  ageGroup === 'adult'
+    ? documentType === 'ktp'
+    : ageGroup === 'minor' && ['family_card', 'birth_certificate'].includes(documentType)
+);
+
+const validateSourceFile = (file, { allowPDF }) => {
+  if (file.size > MAX_SOURCE_FILE_SIZE) {
+    throw new Error('Ukuran file sumber maksimal 10 MB.');
+  }
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  const expectedMime = DOCUMENT_MIME_BY_EXTENSION[extension];
+  if (!expectedMime || (!allowPDF && extension === 'pdf')) {
+    throw new Error(allowPDF
+      ? 'Format file harus PDF, JPG, PNG, atau WebP.'
+      : 'Format file harus JPG, PNG, atau WebP.');
+  }
+  if (file.type && file.type !== expectedMime) {
+    throw new Error('Ekstensi file tidak sesuai dengan tipe file.');
+  }
+  return { extension, expectedMime };
+};
+
+const compressImageToWebP = (file, { maxWidth, maxLongest }) => new Promise((resolve, reject) => {
+  const sourceUrl = URL.createObjectURL(file);
+  const image = new Image();
+  const release = () => URL.revokeObjectURL(sourceUrl);
+
+  image.onload = () => {
+    const canvas = document.createElement('canvas');
+    const widthScale = maxWidth ? Math.min(maxWidth / image.width, 1) : 1;
+    const longestScale = maxLongest ? Math.min(maxLongest / Math.max(image.width, image.height), 1) : 1;
+    const scale = Math.min(widthScale, longestScale);
+    canvas.width = Math.max(1, Math.round(image.width * scale));
+    canvas.height = Math.max(1, Math.round(image.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) {
+      release();
+      reject(new Error('File gambar gagal diproses. Silakan pilih file lain.'));
+      return;
+    }
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      release();
+      if (!blob) {
+        reject(new Error('File gambar gagal diproses. Silakan pilih file lain.'));
+        return;
+      }
+      const baseName = file.name.replace(/\.[^/.]+$/, '') || 'document';
+      resolve(new File([blob], `${baseName}.webp`, {
+        type: 'image/webp',
+        lastModified: Date.now()
+      }));
+    }, 'image/webp', 0.82);
+  };
+  image.onerror = () => {
+    release();
+    reject(new Error('Format gambar tidak dapat diproses. Gunakan JPG, PNG, atau WebP.'));
+  };
+  image.src = sourceUrl;
+});
 const firstFieldError = (fieldError) => (
   Array.isArray(fieldError) ? fieldError[0] : fieldError
 );
@@ -110,6 +215,9 @@ const formatDateForInput = (dateString) => {
 export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const formContainerRef = useRef(null);
   const photoProcessingIdRef = useRef(0);
+  const identityProcessingIdRef = useRef(0);
+  const bpjsProcessingIdRef = useRef(0);
+  const lastValidAgeGroupRef = useRef(null);
   const [step, setStep] = useState(1);
   const [cabors, setCabors] = useState([]);
   const [organizations, setOrganizations] = useState([]);
@@ -121,7 +229,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   
   const [formData, setFormData] = useState({
     cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', national_athlete_number: '', no_kk: '',
-    birth_place: '', birth_date: '', gender: '',
+    birth_place: '', birth_date: '', gender: '', identity_document_type: '',
     religion: '', address: '', blood_type: '', occupation: '',
     marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
     career_start_year: '', injury_illness_history: '',
@@ -131,6 +239,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [identityDocumentFile, setIdentityDocumentFile] = useState(null);
+  const [bpjsDocumentFile, setBPJSDocumentFile] = useState(null);
+  const [documentProcessing, setDocumentProcessing] = useState({ identity: false, bpjs: false });
+  const [documentErrors, setDocumentErrors] = useState({ identity: '', bpjs: '' });
 
   useEffect(() => () => {
     if (photoPreview?.startsWith('blob:')) {
@@ -159,15 +272,28 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const motherPhoneCheckRef = useRef(null);
 
   useEffect(() => {
+    photoProcessingIdRef.current += 1;
+    identityProcessingIdRef.current += 1;
+    bpjsProcessingIdRef.current += 1;
+    setPhotoFile(null);
+    setPhotoPreview(null);
+    setPhotoProcessing(false);
+    setIdentityDocumentFile(null);
+    setBPJSDocumentFile(null);
+    setDocumentProcessing({ identity: false, bpjs: false });
+    setDocumentErrors({ identity: '', bpjs: '' });
+    setLoading(false);
+    setErrors({});
+    setErrorMessage('');
+
     if (!isOpen) {
-      photoProcessingIdRef.current += 1;
-      setPhotoFile(null);
-      setPhotoPreview(null);
+      emailCheckRef.current?.abort();
+      phoneCheckRef.current?.abort();
+      fatherPhoneCheckRef.current?.abort();
+      motherPhoneCheckRef.current?.abort();
+      lastValidAgeGroupRef.current = null;
       return;
     }
-
-    photoProcessingIdRef.current += 1;
-    setPhotoFile(null);
 
     if (isOpen) {
       fetchCabors();
@@ -185,6 +311,14 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         const savedPhone = normalizeIndonesianMobile(athlete.phone) ?? athlete.phone ?? '';
         const savedFatherPhone = normalizeIndonesianMobile(athlete.father_phone) ?? athlete.father_phone ?? '';
         const savedMotherPhone = normalizeIndonesianMobile(athlete.mother_phone) ?? athlete.mother_phone ?? '';
+        const savedBirthDate = formatDateForInput(athlete.birth_date);
+        const savedAgeGroup = getAthleteAgeGroup(savedBirthDate);
+        lastValidAgeGroupRef.current = savedAgeGroup;
+        const savedIdentityType = savedAgeGroup === 'adult'
+          ? 'ktp'
+          : (['family_card', 'birth_certificate'].includes(athlete.identity_document_type)
+            ? athlete.identity_document_type
+            : '');
         initialPhoneValuesRef.current = {
           phone: savedPhone,
           father_phone: savedFatherPhone,
@@ -206,8 +340,9 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           national_athlete_number: athlete.national_athlete_number || '',
           no_kk: athlete.no_kk || '',
           birth_place: athlete.birth_place || '',
-          birth_date: formatDateForInput(athlete.birth_date),
+          birth_date: savedBirthDate,
           gender: athlete.gender || '',
+          identity_document_type: savedIdentityType,
           religion: athlete.religion || '',
           address: athlete.address || '',
           blood_type: athlete.blood_type || '',
@@ -241,10 +376,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         setMotherPhoneMessage(savedMotherPhone ? (normalizeIndonesianMobile(savedMotherPhone) ? 'Nomor tersimpan' : 'Format nomor WhatsApp tidak valid') : '');
       } else {
         initialPhoneValuesRef.current = { phone: '', father_phone: '', mother_phone: '' };
+        lastValidAgeGroupRef.current = null;
         setCompetitionClasses([]);
         setFormData({
           cabor_id: '', organization_id: '', education_level_id: '', competition_class_id: '', name: '', nik: '', national_athlete_number: '', no_kk: '',
-          birth_place: '', birth_date: '', gender: '',
+          birth_place: '', birth_date: '', gender: '', identity_document_type: '',
           religion: '', address: '', blood_type: '', occupation: '',
           marital_status: '', hobby: '', height: '', weight: '', phone: '', email: '',
           career_start_year: '', injury_illness_history: '',
@@ -263,6 +399,20 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       }
     }
   }, [isOpen, athlete]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const ageGroup = getAthleteAgeGroup(formData.birth_date);
+    setFormData(prev => {
+      if (ageGroup === 'adult' && prev.identity_document_type !== 'ktp') {
+        return { ...prev, identity_document_type: 'ktp' };
+      }
+      if (ageGroup === 'minor' && prev.identity_document_type === 'ktp') {
+        return { ...prev, identity_document_type: '' };
+      }
+      return prev;
+    });
+  }, [formData.birth_date, isOpen]);
 
   const fetchCabors = async () => {
     try {
@@ -331,7 +481,25 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     }
   };
 
-  const handlePhotoChange = (e) => {
+  const handleBirthDateChange = (value) => {
+    const previousAgeGroup = getAthleteAgeGroup(formData.birth_date) || lastValidAgeGroupRef.current;
+    const nextAgeGroup = getAthleteAgeGroup(value);
+    if (previousAgeGroup && nextAgeGroup && previousAgeGroup !== nextAgeGroup) {
+      identityProcessingIdRef.current += 1;
+      setIdentityDocumentFile(null);
+      setDocumentProcessing(prev => ({ ...prev, identity: false }));
+      setDocumentErrors(prev => ({
+        ...prev,
+        identity: 'Kelompok umur berubah. Unggah dokumen identitas pengganti yang sesuai.'
+      }));
+    }
+    if (nextAgeGroup) {
+      lastValidAgeGroupRef.current = nextAgeGroup;
+    }
+    updateField('birth_date', value);
+  };
+
+  const handlePhotoChange = async (e) => {
     const input = e.target;
     const file = input.files?.[0];
     input.value = '';
@@ -340,42 +508,79 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     const processingId = ++photoProcessingIdRef.current;
     setPhotoFile(null);
     setPhotoPreview(athlete?.photo || null);
+    setPhotoProcessing(true);
+    setErrorMessage('');
 
-    const inputUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(inputUrl);
+    try {
+      validateSourceFile(file, { allowPDF: false });
+      const compressed = await compressImageToWebP(file, { maxWidth: 800 });
       if (processingId !== photoProcessingIdRef.current) return;
-
-      const canvas = document.createElement('canvas');
-      const MAX_WIDTH = 800;
-      const scale = Math.min(MAX_WIDTH / img.width, 1);
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      const context = canvas.getContext('2d');
-      if (!context) {
-        setErrorMessage('Foto gagal diproses. Silakan pilih file lain.');
-        return;
-      }
-      context.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => {
-        if (processingId !== photoProcessingIdRef.current) return;
-        if (!blob) {
-          setErrorMessage('Foto gagal diproses. Silakan pilih file lain.');
-          return;
-        }
-        const compressed = new File([blob], file.name.replace(/\.[^/.]+$/, '') + '.webp', { type: 'image/webp', lastModified: Date.now() });
-        setPhotoFile(compressed);
-        setPhotoPreview(URL.createObjectURL(compressed));
-      }, 'image/webp', 0.82);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(inputUrl);
+      setPhotoFile(compressed);
+      setPhotoPreview(URL.createObjectURL(compressed));
+    } catch (error) {
       if (processingId !== photoProcessingIdRef.current) return;
       setPhotoFile(null);
-      setErrorMessage('Format foto tidak dapat diproses. Gunakan JPG, PNG, atau WebP.');
-    };
-    img.src = inputUrl;
+      setErrorMessage(error.message || 'Foto gagal diproses. Silakan pilih file lain.');
+    } finally {
+      if (processingId === photoProcessingIdRef.current) {
+        setPhotoProcessing(false);
+      }
+    }
+  };
+
+  const handleDocumentChange = (kind) => async (e) => {
+    const input = e.target;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    if (kind === 'identity' && !getAthleteAgeGroup(formData.birth_date)) {
+      setDocumentErrors(prev => ({ ...prev, identity: 'Isi tanggal lahir yang valid terlebih dahulu.' }));
+      return;
+    }
+
+    const processingRef = kind === 'identity' ? identityProcessingIdRef : bpjsProcessingIdRef;
+    const processingId = ++processingRef.current;
+    if (kind === 'identity') {
+      setIdentityDocumentFile(null);
+    } else {
+      setBPJSDocumentFile(null);
+    }
+    setDocumentErrors(prev => ({ ...prev, [kind]: '' }));
+    setDocumentProcessing(prev => ({ ...prev, [kind]: true }));
+
+    try {
+      const { extension } = validateSourceFile(file, { allowPDF: true });
+      const processedFile = extension === 'pdf'
+        ? file
+        : await compressImageToWebP(file, { maxLongest: 1600 });
+      if (processingId !== processingRef.current) return;
+      if (kind === 'identity') {
+        setIdentityDocumentFile(processedFile);
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next.identity_document;
+          return next;
+        });
+      } else {
+        setBPJSDocumentFile(processedFile);
+        setErrors(prev => {
+          const next = { ...prev };
+          delete next.bpjs_document;
+          return next;
+        });
+      }
+    } catch (error) {
+      if (processingId !== processingRef.current) return;
+      setDocumentErrors(prev => ({
+        ...prev,
+        [kind]: error.message || 'Dokumen gagal diproses. Silakan pilih file lain.'
+      }));
+    } finally {
+      if (processingId === processingRef.current) {
+        setDocumentProcessing(prev => ({ ...prev, [kind]: false }));
+      }
+    }
   };
   // Debounced phone validation via n8n webhook with local fail-open fallback.
   useEffect(() => {
@@ -622,6 +827,40 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     setFormData(prev => ({ ...prev, top_achievements: newAchievements }));
   };
 
+  const ageGroup = getAthleteAgeGroup(formData.birth_date);
+  const storedIdentityType = athlete?.identity_document_type || '';
+  const canReuseStoredIdentity = Boolean(athlete?.identity_document) &&
+    isIdentityTypeValidForAge(storedIdentityType, ageGroup) &&
+    formData.identity_document_type === storedIdentityType;
+  const canReuseStoredBPJS = Boolean(athlete?.bpjs_document);
+  const isAnyFileProcessing = photoProcessing || documentProcessing.identity || documentProcessing.bpjs;
+
+  const getDocumentValidationErrors = () => {
+    const validationErrors = {};
+    if (!ageGroup) {
+      validationErrors.birth_date = ['Tanggal lahir wajib valid dan tidak boleh di masa depan'];
+    } else if (!isIdentityTypeValidForAge(formData.identity_document_type, ageGroup)) {
+      validationErrors.identity_document_type = [ageGroup === 'adult'
+        ? 'Atlet berusia 17 tahun atau lebih wajib menggunakan KTP'
+        : 'Pilih KK atau Akte Kelahiran untuk atlet di bawah 17 tahun'];
+    }
+    if (!identityDocumentFile && !canReuseStoredIdentity) {
+      validationErrors.identity_document = [athlete?.identity_document
+        ? 'Dokumen identitas tersimpan tidak sesuai. Unggah dokumen pengganti.'
+        : 'Dokumen identitas wajib diunggah'];
+    }
+    if (!bpjsDocumentFile && !canReuseStoredBPJS) {
+      validationErrors.bpjs_document = ['Dokumen BPJS wajib diunggah'];
+    }
+    if (documentErrors.identity) {
+      validationErrors.identity_document = [documentErrors.identity];
+    }
+    if (documentErrors.bpjs) {
+      validationErrors.bpjs_document = [documentErrors.bpjs];
+    }
+    return validationErrors;
+  };
+
   // Validate current step
   const isStepValid = () => {
     if (step === 1) {
@@ -635,7 +874,9 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         formData.gender !== '' &&
         formData.religion !== '' &&
         formData.cabor_id !== '' &&
-        formData.address.trim() !== ''
+        formData.address.trim() !== '' &&
+        Object.keys(getDocumentValidationErrors()).length === 0 &&
+        !isAnyFileProcessing
       );
     }
     if (step === 2) {
@@ -693,7 +934,9 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   };
 
   const handleSubmit = async () => {
-    const identityErrors = {};
+    if (loading || isAnyFileProcessing) return;
+
+    const identityErrors = { ...getDocumentValidationErrors() };
     if (!IDENTITY_PATTERN.test(formData.nik)) {
       identityErrors.nik = ['NIK harus tepat 16 digit angka'];
     }
@@ -779,6 +1022,8 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       });
       
       if (photoFile) data.append('photo', photoFile);
+      if (identityDocumentFile) data.append('identity_document', identityDocumentFile);
+      if (bpjsDocumentFile) data.append('bpjs_document', bpjsDocumentFile);
 
       if (athlete) {
         data.append('_method', 'PUT');
@@ -820,7 +1065,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         setErrorMessage(messages.length > 0 ? messages[0] : 'Terjadi kesalahan validasi');
         
         // Determine which step has the first error and go there
-        const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address'];
+        const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address', 'identity_document_type', 'identity_document', 'bpjs_document'];
         const step2Fields = ['height', 'weight', 'blood_type', 'education_level_id', 'occupation', 'marital_status', 'phone', 'email'];
         const step4Fields = ['father_name', 'mother_name', 'parent_address', 'father_phone', 'mother_phone'];
         
@@ -870,7 +1115,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         exit={{ opacity: 0, scale: 0.95 }}
         className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
       >
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-8" onClick={e => e.stopPropagation()}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-4 max-h-[calc(100vh-2rem)] flex flex-col" onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-800">
@@ -891,11 +1136,11 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                   }`}>
                     {step > s.id ? <Check className="w-4 h-4" /> : s.id}
                   </div>
-                  <span className={`ml-2 text-sm ${step >= s.id ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>
+                  <span className={`hidden sm:inline ml-2 text-sm ${step >= s.id ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>
                     {s.title}
                   </span>
                   {i < STEPS.length - 1 && (
-                    <div className={`w-12 h-0.5 mx-4 ${step > s.id ? 'bg-red-600' : 'bg-slate-200'}`} />
+                    <div className={`w-4 sm:w-12 h-0.5 mx-1 sm:mx-4 ${step > s.id ? 'bg-red-600' : 'bg-slate-200'}`} />
                   )}
                 </div>
               ))}
@@ -903,7 +1148,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           </div>
 
           {/* Form Content */}
-          <div ref={formContainerRef} className="p-6 max-h-[50vh] overflow-y-auto">
+          <div ref={formContainerRef} className="p-4 sm:p-6 min-h-0 flex-1 overflow-y-auto">
             {/* Error Alert */}
             {errorMessage && (
               <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
@@ -935,15 +1180,15 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                       <User className="w-8 h-8 text-slate-400" />
                     )}
                   </div>
-                  <label className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl cursor-pointer transition-colors">
-                    <Upload className="w-4 h-4" />
-                    <span className="text-sm font-medium">Upload Foto</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} className="hidden" />
+                  <label className={`flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-xl transition-colors ${photoProcessing ? 'cursor-wait opacity-70' : 'hover:bg-slate-200 cursor-pointer'}`}>
+                    {photoProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    <span className="text-sm font-medium">{photoProcessing ? 'Memproses foto...' : 'Upload Foto'}</span>
+                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} disabled={photoProcessing} className="hidden" />
                   </label>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap *</label>
                     <input
                       type="text"
@@ -1022,10 +1267,88 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Lahir</label>
                     <DateInput
                       value={formData.birth_date}
-                      onChange={e => updateField('birth_date', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      onChange={e => handleBirthDateChange(e.target.value)}
+                      className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none ${errors.birth_date ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}
                     />
+                    {errors.birth_date && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.birth_date)}</p>}
                   </div>
+
+                  <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Jenis Dokumen Identitas *</label>
+                      {ageGroup === 'adult' ? (
+                        <input
+                          type="text"
+                          value="KTP"
+                          disabled
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-100 text-slate-600"
+                        />
+                      ) : ageGroup === 'minor' ? (
+                        <select
+                          value={formData.identity_document_type}
+                          onChange={e => updateField('identity_document_type', e.target.value)}
+                          className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none ${errors.identity_document_type ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
+                        >
+                          <option value="">Pilih jenis dokumen</option>
+                          <option value="family_card">Kartu Keluarga (KK)</option>
+                          <option value="birth_certificate">Akte Kelahiran</option>
+                        </select>
+                      ) : (
+                        <p className="text-sm text-amber-700 rounded-lg bg-amber-50 px-3 py-2">Isi tanggal lahir yang valid untuk menentukan dokumen identitas.</p>
+                      )}
+                      {errors.identity_document_type && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.identity_document_type)}</p>}
+                    </div>
+
+                    <div>
+                      <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed rounded-xl transition-colors ${!ageGroup || documentProcessing.identity ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'cursor-pointer bg-white border-slate-300 hover:border-red-400 hover:bg-red-50'}`}>
+                        {documentProcessing.identity ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        <span className="text-sm font-medium">{documentProcessing.identity ? 'Memproses dokumen...' : 'Pilih Dokumen Identitas'}</span>
+                        <input
+                          type="file"
+                          accept={DOCUMENT_ACCEPT}
+                          onChange={handleDocumentChange('identity')}
+                          disabled={!ageGroup || documentProcessing.identity}
+                          className="hidden"
+                        />
+                      </label>
+                      <p className="text-xs text-slate-500 mt-2">PDF dikirim tanpa kompresi. Gambar diubah ke WebP, maksimal sisi terpanjang 1600 px. File sumber maksimal 10 MB.</p>
+                      {identityDocumentFile ? (
+                        <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> File siap: {identityDocumentFile.name}</p>
+                      ) : canReuseStoredIdentity ? (
+                        <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> {IDENTITY_DOCUMENT_LABELS[storedIdentityType]} sudah tersimpan</p>
+                      ) : athlete?.identity_document ? (
+                        <p className="text-xs text-amber-700 mt-2">Dokumen tersimpan tidak sesuai dengan kelompok umur atau jenis yang dipilih; unggah pengganti.</p>
+                      ) : null}
+                      {(documentErrors.identity || errors.identity_document) && (
+                        <p className="text-red-500 text-xs mt-2">{documentErrors.identity || firstFieldError(errors.identity_document)}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Dokumen BPJS *</label>
+                    <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed rounded-xl transition-colors ${documentProcessing.bpjs ? 'cursor-wait bg-slate-100 text-slate-400' : 'cursor-pointer bg-white border-slate-300 hover:border-red-400 hover:bg-red-50'}`}>
+                      {documentProcessing.bpjs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      <span className="text-sm font-medium">{documentProcessing.bpjs ? 'Memproses dokumen...' : 'Pilih Dokumen BPJS'}</span>
+                      <input
+                        type="file"
+                        accept={DOCUMENT_ACCEPT}
+                        onChange={handleDocumentChange('bpjs')}
+                        disabled={documentProcessing.bpjs}
+                        className="hidden"
+                      />
+                    </label>
+                    <p className="text-xs text-slate-500 mt-2">PDF, JPG, PNG, atau WebP. File sumber maksimal 10 MB.</p>
+                    {bpjsDocumentFile ? (
+                      <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> File siap: {bpjsDocumentFile.name}</p>
+                    ) : canReuseStoredBPJS ? (
+                      <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Dokumen BPJS sudah tersimpan</p>
+                    ) : null}
+                    {(documentErrors.bpjs || errors.bpjs_document) && (
+                      <p className="text-red-500 text-xs mt-2">{documentErrors.bpjs || firstFieldError(errors.bpjs_document)}</p>
+                    )}
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Jenis Kelamin</label>
                     <select
@@ -1079,7 +1402,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                       placeholder="Cari & pilih organisasi..."
                     />
                   </div>
-                  <div className="col-span-2">
+                  <div className="sm:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-1">Alamat</label>
                     <textarea
                       value={formData.address}
@@ -1433,7 +1756,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={loading || !isStepValid()}
+                disabled={loading || isAnyFileProcessing || !isStepValid()}
                 className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading && <Loader2 className="w-4 h-4 animate-spin" />}
