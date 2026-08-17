@@ -2,6 +2,7 @@ import { Building2 } from 'lucide-react';
 import { SearchableSelect } from '../SearchableSelect';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
+import { RegionCascadeFields } from '../form-modal/RegionCascadeFields';
 
 export function CoachAffiliationSection({ form, lookups, validation }) {
   const { data: formData, updateField } = form;
@@ -52,6 +53,8 @@ export function CoachAffiliationSection({ form, lookups, validation }) {
           placeholder="Alamat lengkap tempat tinggal saat ini"
         />
       </div>
+
+      <RegionCascadeFields form={form} validation={validation} />
     </FormSectionCard>
   );
 }

@@ -2,6 +2,7 @@ import { Calendar } from 'lucide-react';
 import { DateInput } from '../DateInput';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
+import { RegionCascadeFields } from '../form-modal/RegionCascadeFields';
 import { RELIGIONS } from './athleteFormModel';
 
 export function AthleteBirthAddressSection({ form, validation }) {
@@ -83,6 +84,8 @@ export function AthleteBirthAddressSection({ form, validation }) {
           placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten"
         />
       </div>
+
+      <RegionCascadeFields form={form} validation={validation} />
     </FormSectionCard>
   );
 }

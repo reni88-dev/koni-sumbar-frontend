@@ -118,7 +118,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           value={formData.hobby}
           onChange={e => updateField('hobby', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
-          placeholder="Contoh: Membaca, Bersepeda, Musik"
+          placeholder="Contoh: Membaca, Bersepeda"
         />
       </div>
     </FormSectionCard>

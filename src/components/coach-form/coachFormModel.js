@@ -21,6 +21,10 @@ export function createInitialCoachFormData() {
     gender: '',
     religion: '',
     address: '',
+    province: '',
+    city: '',
+    district: '',
+    village: '',
     phone: '',
     email: '',
     license_number: '',
@@ -74,6 +78,10 @@ export function mapCoachToForm(coach) {
       gender: coach.gender || '',
       religion: coach.religion || '',
       address: coach.address || '',
+      province: coach.province || '',
+      city: coach.city || '',
+      district: coach.district || '',
+      village: coach.village || '',
       phone: savedPhone,
       email: coach.email || '',
       license_number: coach.license_number || '',
@@ -108,7 +116,7 @@ export function buildCoachFormData(formData, achievementsList, files, normalized
 }
 
 export function getCoachErrorStep(errorFields) {
-  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'photo'];
+  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'province', 'city', 'district', 'village', 'photo'];
   const step2Fields = ['phone', 'email'];
   if (errorFields.some((field) => step1Fields.includes(field))) return 1;
   if (errorFields.some((field) => step2Fields.includes(field))) return 2;

@@ -46,6 +46,10 @@ export function useCoachSubmission({
     const step1Errors = {};
     if (!formData.name.trim()) step1Errors.name = ['Nama lengkap wajib diisi'];
     if (!formData.cabor_id) step1Errors.cabor_id = ['Cabang olahraga wajib dipilih'];
+    if (!formData.province.trim()) step1Errors.province = ['Provinsi wajib dipilih'];
+    if (!formData.city.trim()) step1Errors.city = ['Kota/Kabupaten wajib dipilih'];
+    if (!formData.district.trim()) step1Errors.district = ['Kecamatan/Distrik wajib dipilih'];
+    if (!formData.village.trim()) step1Errors.village = ['Kelurahan/Desa wajib dipilih'];
     if (formData.nik && !IDENTITY_PATTERN.test(formData.nik)) {
       step1Errors.nik = ['NIK harus tepat 16 digit angka'];
     }

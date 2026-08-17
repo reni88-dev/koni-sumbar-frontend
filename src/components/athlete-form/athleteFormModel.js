@@ -32,6 +32,10 @@ export function createInitialAthleteFormData() {
     identity_document_type: '',
     religion: '',
     address: '',
+    province: '',
+    city: '',
+    district: '',
+    village: '',
     blood_type: '',
     occupation: '',
     marital_status: '',
@@ -118,6 +122,10 @@ export function mapAthleteToForm(athlete) {
       identity_document_type: identityType,
       religion: athlete.religion || '',
       address: athlete.address || '',
+      province: athlete.province || '',
+      city: athlete.city || '',
+      district: athlete.district || '',
+      village: athlete.village || '',
       blood_type: athlete.blood_type || '',
       occupation: athlete.occupation || '',
       marital_status: athlete.marital_status || '',
@@ -203,7 +211,7 @@ export function buildAthleteFormData(submissionData, files) {
 }
 
 export function getAthleteErrorStep(errorFields) {
-  const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address', 'identity_document_type', 'identity_document', 'bpjs_document'];
+  const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address', 'province', 'city', 'district', 'village', 'identity_document_type', 'identity_document', 'bpjs_document'];
   const step2Fields = ['height', 'weight', 'blood_type', 'education_level_id', 'occupation', 'marital_status', 'phone', 'email'];
   const step4Fields = ['father_name', 'mother_name', 'parent_address', 'father_phone', 'mother_phone'];
   if (errorFields.some((field) => step1Fields.includes(field))) return 1;

@@ -23,6 +23,7 @@ import {
   FileText
 } from 'lucide-react';
 import api from '../api/axios';
+import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
 import { ProtectedImage } from './ProtectedImage';
 import { AthleteClusterHistoryTab, AthleteDevelopmentFundsTab } from './athlete-clusters';
 
@@ -126,9 +127,13 @@ function TabButton(props) {
 export function AthleteDetailModal({ isOpen, onClose, athlete }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
+  const { data: educationLevels = [] } = useEducationLevelsAll();
   if (!isOpen || !athlete) return null;
 
-  const educationLevel = athlete.education_level?.name || athlete.education_level_name || athlete.education_level_id;
+  const educationLevel = athlete.education_level?.name
+    || athlete.education_level_name
+    || educationLevels.find((level) => String(level.id) === String(athlete.education_level_id))?.name
+    || '-';
   const organizationName = athlete.organization?.name || athlete.organization_name;
   const competitionClassName = athlete.competition_class?.name || athlete.competition_class_name;
   const caborName = athlete.cabor?.display_name || athlete.cabor?.name;

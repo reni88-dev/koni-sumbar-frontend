@@ -129,6 +129,10 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
       const nikValid = !formData.nik || IDENTITY_PATTERN.test(formData.nik);
       return formData.name.trim() !== '' &&
         formData.cabor_id !== '' &&
+        formData.province.trim() !== '' &&
+        formData.city.trim() !== '' &&
+        formData.district.trim() !== '' &&
+        formData.village.trim() !== '' &&
         nikValid &&
         !media.photoProcessing;
     }

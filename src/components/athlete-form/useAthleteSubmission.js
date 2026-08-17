@@ -41,6 +41,10 @@ export function useAthleteSubmission({
     if (!IDENTITY_PATTERN.test(formData.no_kk)) {
       identityErrors.no_kk = ['No. KK harus tepat 16 digit angka'];
     }
+    if (!formData.province.trim()) identityErrors.province = ['Provinsi wajib dipilih'];
+    if (!formData.city.trim()) identityErrors.city = ['Kota/Kabupaten wajib dipilih'];
+    if (!formData.district.trim()) identityErrors.district = ['Kecamatan/Distrik wajib dipilih'];
+    if (!formData.village.trim()) identityErrors.village = ['Kelurahan/Desa wajib dipilih'];
     if (Object.keys(identityErrors).length > 0) {
       setErrors(identityErrors);
       setErrorMessage(firstFieldError(Object.values(identityErrors)[0]));

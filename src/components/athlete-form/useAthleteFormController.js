@@ -214,6 +214,10 @@ export function useAthleteFormController({ isOpen, athlete, onSuccess }) {
         formData.religion !== '' &&
         formData.cabor_id !== '' &&
         formData.address.trim() !== '' &&
+        formData.province.trim() !== '' &&
+        formData.city.trim() !== '' &&
+        formData.district.trim() !== '' &&
+        formData.village.trim() !== '' &&
         Object.keys(documentValidationErrors).length === 0 &&
         !media.isAnyFileProcessing;
     }
