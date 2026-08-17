@@ -1,16 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
   Loader2, 
-  Upload,
-  User,
-  ChevronRight,
-  ChevronLeft,
-  Check,
-  AlertCircle,
-  CheckCircle2,
-  XCircle
+  Upload, 
+  User, 
+  ChevronRight, 
+  ChevronLeft, 
+  Check, 
+  AlertCircle, 
+  CheckCircle2, 
+  XCircle,
+  ShieldCheck,
+  FileText,
+  Heart,
+  Activity,
+  Phone,
+  Calendar,
+  Award,
+  Trophy,
+  Camera,
+  Briefcase
 } from 'lucide-react';
 import api from '../api/axios';
 import { DateInput } from './DateInput';
@@ -18,10 +28,10 @@ import ProtectedImage from './ProtectedImage';
 import { SearchableSelect } from './SearchableSelect';
 
 const STEPS = [
-  { id: 1, title: 'Data Pribadi' },
-  { id: 2, title: 'Info Fisik & Kontak' },
-  { id: 3, title: 'Karir & Prestasi' },
-  { id: 4, title: 'Data Orang Tua' }
+  { id: 1, title: 'Data Pribadi', subtitle: 'Biodata & Dokumen', icon: User },
+  { id: 2, title: 'Fisik & Kontak', subtitle: 'Ukuran, Medis & Akun', icon: Activity },
+  { id: 3, title: 'Karir & Prestasi', subtitle: 'Cabor & Riwayat Juara', icon: Trophy },
+  { id: 4, title: 'Data Orang Tua', subtitle: 'Wali & Kontak Darurat', icon: Heart }
 ];
 
 const RELIGIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
@@ -37,7 +47,6 @@ const PHONE_INPUT_PATTERN = /^\+?[0-9\s().-]+$/;
 const PHONE_PATTERN = /^628[0-9]{8,11}$/;
 const PHONE_CHECK_TIMEOUT_MS = 5000;
 const PHONE_CHECK_SKIPPED_MESSAGE = 'Format nomor valid; pengecekan WhatsApp dilewati';
-const MotionDiv = motion.div;
 const MAX_SOURCE_FILE_SIZE = 10 * 1024 * 1024;
 const DOCUMENT_ACCEPT = 'application/pdf,image/jpeg,image/png,image/webp';
 const DOCUMENT_MIME_BY_EXTENSION = {
@@ -144,6 +153,7 @@ const compressImageToWebP = (file, { maxWidth, maxLongest }) => new Promise((res
   };
   image.src = sourceUrl;
 });
+
 const firstFieldError = (fieldError) => (
   Array.isArray(fieldError) ? fieldError[0] : fieldError
 );
@@ -199,18 +209,39 @@ const checkWhatsAppPhone = async (phone, signal) => {
 // Helper to format date for input type="date" (YYYY-MM-DD)
 const formatDateForInput = (dateString) => {
   if (!dateString) return '';
-  // If already in YYYY-MM-DD format, return as-is
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
     return dateString;
   }
-  // Handle ISO format (2000-01-15T00:00:00.000000Z) - extract date part directly
-  // This avoids timezone conversion issues
   const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/);
   if (match) {
     return match[1];
   }
   return '';
 };
+
+// Sub-component for structured form cards
+function FormSectionCard({ icon: Icon, iconColor = 'text-blue-600', iconBg = 'bg-blue-50', title, subtitle, children, className = '' }) {
+  return (
+    <div className={`rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs transition-shadow hover:shadow-sm ${className}`}>
+      {(title || Icon) && (
+        <div className="mb-4 flex items-center gap-3 pb-3 border-b border-slate-100">
+          {Icon && (
+            <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${iconBg} ${iconColor}`}>
+              <Icon className="w-4 h-4" />
+            </span>
+          )}
+          <div>
+            <h3 className="text-sm font-bold text-slate-800 leading-tight">{title}</h3>
+            {subtitle && <p className="text-[11px] text-slate-500 mt-0.5">{subtitle}</p>}
+          </div>
+        </div>
+      )}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const formContainerRef = useRef(null);
@@ -325,7 +356,6 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           mother_phone: savedMotherPhone,
         };
 
-        // Fetch competition classes for the athlete's cabor
         if (athlete.cabor_id) {
           fetchCompetitionClasses(athlete.cabor_id);
         }
@@ -417,7 +447,6 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const fetchCabors = async () => {
     try {
       const res = await api.get('/api/cabors/all', { params: { level: 'discipline' } });
-      // Ensure data is array and has valid IDs
       const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id).map(item => ({ ...item, name: item.display_name || item.name })) : [];
       setCabors(data);
     } catch (e) { 
@@ -431,7 +460,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       const res = await api.get('/api/organizations/all');
       const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
       setOrganizations(data);
-    } catch (e) {
+    } catch (e) { 
       console.error('Failed to fetch organizations:', e);
       setOrganizations([]);
     }
@@ -440,7 +469,6 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   const fetchEducationLevels = async () => {
     try {
       const res = await api.get('/api/education-levels/all');
-      // Ensure data is array and has valid IDs
       const data = Array.isArray(res.data) ? res.data.filter(item => item && item.id) : [];
       setEducationLevels(data);
     } catch (e) { 
@@ -455,9 +483,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       return;
     }
     try {
-      // Use query string directly to ensure parameter is sent
       const res = await api.get(`/api/competition-classes/all?cabor_id=${caborId}`);
-      // Ensure data is an array and filter out any items without valid id
       const data = Array.isArray(res.data) ? res.data.filter(c => c && c.id) : [];
       setCompetitionClasses(data);
     } catch (e) { 
@@ -466,7 +492,6 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     }
   };
 
-  // Handle cabor change and only load competition classes when editing
   const handleCaborChange = (caborId) => {
     setFormData(prev => ({
       ...prev,
@@ -582,6 +607,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       }
     }
   };
+
   // Debounced phone validation via n8n webhook with local fail-open fallback.
   useEffect(() => {
     if (!isOpen) {
@@ -637,6 +663,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       controller.abort();
     };
   }, [formData.phone, athlete?.id, isOpen]);
+
   // Debounced email availability validation against the backend.
   useEffect(() => {
     emailCheckRef.current?.abort();
@@ -701,6 +728,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       controller.abort();
     };
   }, [formData.email, isOpen, athlete?.id]);
+
   // Father phone validation.
   useEffect(() => {
     if (!isOpen) {
@@ -756,6 +784,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       controller.abort();
     };
   }, [formData.father_phone, athlete?.id, isOpen]);
+
   // Mother phone validation.
   useEffect(() => {
     if (!isOpen) {
@@ -811,6 +840,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       controller.abort();
     };
   }, [formData.mother_phone, athlete?.id, isOpen]);
+
   const updateField = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => {
@@ -864,7 +894,6 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
   // Validate current step
   const isStepValid = () => {
     if (step === 1) {
-      // Step 1: Data Pribadi
       return (
         formData.name.trim() !== '' &&
         IDENTITY_PATTERN.test(formData.nik) &&
@@ -880,7 +909,6 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       );
     }
     if (step === 2) {
-      // Step 2: Info Fisik & Kontak
       return (
         formData.height !== '' &&
         formData.weight !== '' &&
@@ -894,11 +922,10 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
         emailStatus === 'valid'
       );
     }
-    // Step 3: Karir & Prestasi (prestasi optional)
     if (step === 3) {
       return formData.career_start_year !== '';
     }
-    // Step 4: Data Orang Tua
+    
     const fatherPhone = formData.father_phone.trim();
     const motherPhone = formData.mother_phone.trim();
 
@@ -912,18 +939,15 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     );
   };
 
-  // Go to next step with scroll to top
   const goToNextStep = () => {
     if (isStepValid() && step < 4) {
       setStep(step + 1);
-      // Scroll form container to top
       setTimeout(() => {
         formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
       }, 50);
     }
   };
 
-  // Go to previous step with scroll to top
   const goToPrevStep = () => {
     if (step > 1) {
       setStep(step - 1);
@@ -1010,9 +1034,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       
       Object.entries(submissionData).forEach(([key, value]) => {
         if (key === 'top_achievements') {
-          // Filter out empty strings and send as JSON
           const filtered = value.filter(v => v && v.trim() !== '');
-          // Always send top_achievements - backend requires at least 1
           data.append(key, JSON.stringify(filtered.length > 0 ? filtered : []));
         } else if (key === 'is_active') {
           data.append(key, value ? '1' : '0');
@@ -1060,11 +1082,9 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           setMotherPhoneMessage(firstFieldError(errData.mother_phone) || 'Format nomor WhatsApp tidak valid');
         }
         
-        // Build error message from all errors
         const messages = Object.values(errData).flat();
         setErrorMessage(messages.length > 0 ? messages[0] : 'Terjadi kesalahan validasi');
         
-        // Determine which step has the first error and go there
         const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address', 'identity_document_type', 'identity_document', 'bpjs_document'];
         const step2Fields = ['height', 'weight', 'blood_type', 'education_level_id', 'occupation', 'marital_status', 'phone', 'email'];
         const step4Fields = ['father_name', 'mother_name', 'parent_address', 'father_phone', 'mother_phone'];
@@ -1080,12 +1100,10 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           setStep(3);
         }
         
-        // Scroll to top to show error
         setTimeout(() => {
           formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
         }, 50);
       } else {
-        // Backend sends {error: "message"}, not {message: "..."}
         setErrorMessage(error.response?.data?.error || error.response?.data?.message || 'Terjadi kesalahan server');
       }
     } finally {
@@ -1100,236 +1118,485 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
 
   return (
     <AnimatePresence>
-      <MotionDiv
+      {/* Backdrop */}
+      <Motion.div
         key="backdrop"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
+        className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-50"
         onClick={onClose}
       />
-      <MotionDiv
-        key="modal-content"
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
-      >
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-4 max-h-[calc(100vh-2rem)] flex flex-col" onClick={e => e.stopPropagation()}>
-          {/* Header */}
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-800">
-              {athlete ? 'Edit Atlet' : 'Tambah Atlet Baru'}
-            </h2>
-            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg">
-              <X className="w-5 h-5 text-slate-500" />
-            </button>
-          </div>
 
-          {/* Steps */}
-          <div className="px-6 py-4 border-b border-slate-100">
-            <div className="flex items-center justify-between">
-              {STEPS.map((s, i) => (
-                <div key={s.id} className="flex items-center">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                    step >= s.id ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-500'
-                  }`}>
-                    {step > s.id ? <Check className="w-4 h-4" /> : s.id}
-                  </div>
-                  <span className={`hidden sm:inline ml-2 text-sm ${step >= s.id ? 'text-slate-800 font-medium' : 'text-slate-500'}`}>
-                    {s.title}
-                  </span>
-                  {i < STEPS.length - 1 && (
-                    <div className={`w-4 sm:w-12 h-0.5 mx-1 sm:mx-4 ${step > s.id ? 'bg-red-600' : 'bg-slate-200'}`} />
-                  )}
+      {/* Modal Dialog */}
+      <Motion.div
+        key="modal-content"
+        initial={{ opacity: 0, scale: 0.96, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 16 }}
+        className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-3 pt-6 sm:p-6 sm:pt-10"
+      >
+        <div
+          className="my-auto flex max-h-[calc(100vh-3.5rem)] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-2xl ring-1 ring-slate-900/10"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Executive Hero Header */}
+          <div className="relative bg-gradient-to-br from-slate-950 via-red-950 to-red-700 text-white p-5 sm:p-6 overflow-hidden shrink-0">
+            {/* Ambient Lighting */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -left-12 -top-12 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
+              <div className="absolute right-0 bottom-0 h-48 w-48 rounded-full bg-amber-400/15 blur-3xl" />
+            </div>
+
+            <div className="relative flex items-center justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-red-200 mb-2">
+                  <ShieldCheck className="w-3.5 h-3.5 text-red-300" />
+                  <span>KONI SUMATERA BARAT &bull; FORM DATA ATLET</span>
                 </div>
-              ))}
+                <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-tight">
+                  {athlete ? `Edit Data: ${athlete.name}` : 'Registrasi Atlet Baru'}
+                </h2>
+                <p className="text-xs text-red-100/80 mt-0.5">
+                  Lengkapi data profil atlet secara teliti pada 4 tahapan formulir berikut.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/15 hover:bg-white/25 text-white border border-white/20 transition-all cursor-pointer"
+                title="Tutup (Esc)"
+                aria-label="Tutup modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          {/* Form Content */}
-          <div ref={formContainerRef} className="p-4 sm:p-6 min-h-0 flex-1 overflow-y-auto">
-            {/* Error Alert */}
+          {/* Stepper Progress Navigation */}
+          <div className="bg-slate-50 border-b border-slate-200/80 p-3 sm:p-4 shrink-0">
+            {/* Desktop / Tablet Stepper (Horizontal Cards) */}
+            <div className="hidden sm:grid sm:grid-cols-4 gap-2">
+              {STEPS.map((s) => {
+                const StepIcon = s.icon;
+                const isCurrent = step === s.id;
+                const isPassed = step > s.id;
+
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => {
+                      if (s.id < step) setStep(s.id);
+                    }}
+                    disabled={s.id > step}
+                    className={`group flex items-center gap-2.5 rounded-2xl p-2.5 text-left transition-all ${
+                      isCurrent
+                        ? 'bg-white shadow-sm ring-1 ring-red-500/30 border-l-4 border-l-red-600'
+                        : isPassed
+                          ? 'bg-white/60 hover:bg-white text-slate-700 cursor-pointer border border-slate-200/60'
+                          : 'bg-slate-100/60 opacity-60 cursor-not-allowed border border-transparent'
+                    }`}
+                  >
+                    <div
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl font-bold text-xs transition-colors ${
+                        isCurrent
+                          ? 'bg-red-600 text-white shadow-xs'
+                          : isPassed
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-slate-200 text-slate-500'
+                      }`}
+                    >
+                      {isPassed ? <Check className="w-4 h-4" /> : <StepIcon className="w-4 h-4" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-xs font-bold leading-none truncate ${isCurrent ? 'text-red-700' : 'text-slate-800'}`}>
+                        {s.title}
+                      </p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{s.subtitle}</p>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Mobile Stepper (Compact Indicator with Progress Bar) */}
+            <div className="sm:hidden space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-red-600 text-[11px] font-bold text-white">
+                    {step}
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800 leading-tight">{STEPS[step - 1].title}</p>
+                    <p className="text-[10px] text-slate-400">{STEPS[step - 1].subtitle}</p>
+                  </div>
+                </div>
+                <span className="text-[11px] font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                  Langkah {step} dari 4
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full bg-gradient-to-r from-red-600 to-rose-500 transition-all duration-300"
+                  style={{ width: `${(step / 4) * 100}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Form Scrollable Body */}
+          <div ref={formContainerRef} className="flex-1 overflow-y-auto bg-slate-50/70 p-4 sm:p-6 space-y-4">
+            {/* Global Error Banner */}
             {errorMessage && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium text-red-700">{errorMessage}</p>
+              <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 shadow-xs">
+                <div className="p-2 rounded-xl bg-red-100 text-red-600 shrink-0">
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-red-800">Harap periksa isian formulir:</p>
+                  <p className="text-xs text-red-700 mt-0.5">{errorMessage}</p>
                   {Object.keys(errors).length > 1 && (
-                    <p className="text-xs text-red-600 mt-1">
-                      Ada {Object.keys(errors).length} field yang perlu diperbaiki
+                    <p className="text-[11px] text-red-600/90 mt-1">
+                      Terdapat <strong>{Object.keys(errors).length}</strong> kolom yang memerlukan perbaikan.
                     </p>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Step 1: Data Pribadi */}
+            {/* STEP 1: DATA PRIBADI & DOKUMEN */}
             {step === 1 && (
               <div className="space-y-4">
-                {/* Photo */}
-                <div className="flex items-center gap-4 mb-6">
-                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center overflow-hidden">
-                    {photoPreview ? (
-                      photoPreview.startsWith('blob:') ? (
-                        <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+                {/* 1. Foto Profil Atlet */}
+                <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+                  <div className="relative shrink-0">
+                    <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl border-2 border-slate-200 bg-slate-100 p-1 shadow-inner overflow-hidden flex items-center justify-center">
+                      {photoPreview ? (
+                        photoPreview.startsWith('blob:') ? (
+                          <img src={photoPreview} alt="Preview" className="h-full w-full rounded-xl object-cover" />
+                        ) : (
+                          <ProtectedImage src={photoPreview} alt="Preview" className="h-full w-full rounded-xl object-cover" />
+                        )
                       ) : (
-                        <ProtectedImage src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                      )
-                    ) : (
-                      <User className="w-8 h-8 text-slate-400" />
-                    )}
+                        <User className="h-12 w-12 text-slate-300" />
+                      )}
+                    </div>
                   </div>
-                  <label className={`flex items-center gap-2 px-4 py-2 bg-slate-100 rounded-xl transition-colors ${photoProcessing ? 'cursor-wait opacity-70' : 'hover:bg-slate-200 cursor-pointer'}`}>
-                    {photoProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    <span className="text-sm font-medium">{photoProcessing ? 'Memproses foto...' : 'Upload Foto'}</span>
-                    <input type="file" accept="image/jpeg,image/png,image/webp" onChange={handlePhotoChange} disabled={photoProcessing} className="hidden" />
-                  </label>
+
+                  <div className="flex-1 text-center sm:text-left space-y-2">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">Pas Foto Atlet</h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Unggah pas foto formal berlatar polos. Format JPG, PNG, atau WebP (maks. 10 MB).
+                      </p>
+                    </div>
+                    <div>
+                      <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                        photoProcessing
+                          ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-wait'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs hover:border-slate-300 cursor-pointer'
+                      }`}>
+                        {photoProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5 text-slate-600" />}
+                        <span>{photoProcessing ? 'Memproses Foto...' : photoPreview ? 'Ganti Foto' : 'Pilih Foto Atlet'}</span>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handlePhotoChange}
+                          disabled={photoProcessing}
+                          className="hidden"
+                        />
+                      </label>
+                      {photoFile && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 ml-2">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Foto siap diunggah
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* 2. Identitas Utama Kependudukan */}
+                <FormSectionCard
+                  icon={User}
+                  iconColor="text-blue-600"
+                  iconBg="bg-blue-50"
+                  title="Identitas Utama & Kependudukan"
+                  subtitle="Nama lengkap dan data nomor identitas kependudukan resmi"
+                >
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Lengkap *</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nama Lengkap <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={e => updateField('name', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Nama lengkap atlet"
+                      className={`w-full px-3.5 py-2.5 border rounded-xl focus:ring-2 outline-none text-sm transition-colors ${
+                        errors.name ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500' : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
+                      }`}
+                      placeholder="Masukkan nama lengkap sesuai KTP/KK"
                     />
-                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name[0]}</p>}
+                    {errors.name && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.name)}</p>}
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">NIK *</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      NIK (Nomor Induk Kependudukan) <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={formData.nik}
                       onChange={e => updateField('nik', e.target.value.replace(/\D/g, '').slice(0, 16))}
-                      className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 outline-none font-mono transition-colors ${
+                      className={`w-full px-3.5 py-2.5 border rounded-xl focus:ring-2 outline-none font-mono text-sm transition-colors ${
                         nikInvalid
                           ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500'
                           : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
                       }`}
-                      placeholder="16 digit NIK"
+                      placeholder="16 digit angka NIK"
                       maxLength={16}
                     />
                     <div className="mt-1 flex items-start justify-between gap-2 text-xs">
-                      <p className={nikInvalid ? 'text-red-500' : 'text-slate-500'}>
-                        {firstFieldError(errors.nik) || (nikInvalid ? 'NIK harus tepat 16 digit angka' : 'NIK wajib tepat 16 digit angka')}
+                      <p className={nikInvalid ? 'text-red-500' : 'text-slate-400'}>
+                        {firstFieldError(errors.nik) || (nikInvalid ? 'NIK harus tepat 16 digit angka' : 'Wajib 16 digit angka')}
                       </p>
-                      <span className={nikInvalid ? 'text-red-500' : 'text-slate-400'}>{formData.nik.length}/16 digit</span>
+                      <span className={`font-mono ${formData.nik.length === 16 ? 'text-emerald-600 font-bold' : nikInvalid ? 'text-red-500' : 'text-slate-400'}`}>
+                        {formData.nik.length}/16
+                      </span>
                     </div>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">No. Atlit Nasional</label>
-                    <input
-                      type="text"
-                      value={formData.national_athlete_number}
-                      onChange={e => updateField('national_athlete_number', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Nomor Atlit"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">No. KK *</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nomor Kartu Keluarga (No. KK) <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       inputMode="numeric"
                       value={formData.no_kk}
                       onChange={e => updateField('no_kk', e.target.value.replace(/\D/g, '').slice(0, 16))}
-                      className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 outline-none font-mono transition-colors ${
+                      className={`w-full px-3.5 py-2.5 border rounded-xl focus:ring-2 outline-none font-mono text-sm transition-colors ${
                         noKKInvalid
                           ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500'
                           : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
                       }`}
-                      placeholder="16 digit No. KK"
+                      placeholder="16 digit angka No. KK"
                       maxLength={16}
                     />
                     <div className="mt-1 flex items-start justify-between gap-2 text-xs">
-                      <p className={noKKInvalid ? 'text-red-500' : 'text-slate-500'}>
-                        {firstFieldError(errors.no_kk) || (noKKInvalid ? 'No. KK harus tepat 16 digit angka' : 'No. KK wajib tepat 16 digit angka')}
+                      <p className={noKKInvalid ? 'text-red-500' : 'text-slate-400'}>
+                        {firstFieldError(errors.no_kk) || (noKKInvalid ? 'No. KK harus tepat 16 digit angka' : 'Wajib 16 digit angka')}
                       </p>
-                      <span className={noKKInvalid ? 'text-red-500' : 'text-slate-400'}>{formData.no_kk.length}/16 digit</span>
+                      <span className={`font-mono ${formData.no_kk.length === 16 ? 'text-emerald-600 font-bold' : noKKInvalid ? 'text-red-500' : 'text-slate-400'}`}>
+                        {formData.no_kk.length}/16
+                      </span>
                     </div>
                   </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nomor Atlet Nasional (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.national_athlete_number}
+                      onChange={e => updateField('national_athlete_number', e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Contoh: NAT-SUMBAR-2024-001"
+                    />
+                  </div>
+                </FormSectionCard>
+
+                {/* 3. Kelahiran, Agama & Alamat */}
+                <FormSectionCard
+                  icon={Calendar}
+                  iconColor="text-amber-600"
+                  iconBg="bg-amber-50"
+                  title="Kelahiran & Domisili"
+                  subtitle="Tempat & tanggal lahir, jenis kelamin, agama dan domisili"
+                >
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Tempat Lahir</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Tempat Lahir <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.birth_place}
                       onChange={e => updateField('birth_place', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Kota kelahiran"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Kota/Kabupaten kelahiran"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Lahir</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Tanggal Lahir <span className="text-red-500">*</span>
+                    </label>
                     <DateInput
                       value={formData.birth_date}
                       onChange={e => handleBirthDateChange(e.target.value)}
-                      className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none ${errors.birth_date ? 'border-red-400 bg-red-50' : 'border-slate-200'}`}
+                      className={`w-full px-3.5 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm ${
+                        errors.birth_date ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                      }`}
                     />
                     {errors.birth_date && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.birth_date)}</p>}
                   </div>
 
-                  <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Jenis Dokumen Identitas *</label>
-                      {ageGroup === 'adult' ? (
-                        <input
-                          type="text"
-                          value="KTP"
-                          disabled
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl bg-slate-100 text-slate-600"
-                        />
-                      ) : ageGroup === 'minor' ? (
-                        <select
-                          value={formData.identity_document_type}
-                          onChange={e => updateField('identity_document_type', e.target.value)}
-                          className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none ${errors.identity_document_type ? 'border-red-400 bg-red-50' : 'border-slate-200 bg-white'}`}
-                        >
-                          <option value="">Pilih jenis dokumen</option>
-                          <option value="family_card">Kartu Keluarga (KK)</option>
-                          <option value="birth_certificate">Akte Kelahiran</option>
-                        </select>
-                      ) : (
-                        <p className="text-sm text-amber-700 rounded-lg bg-amber-50 px-3 py-2">Isi tanggal lahir yang valid untuk menentukan dokumen identitas.</p>
-                      )}
-                      {errors.identity_document_type && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.identity_document_type)}</p>}
-                    </div>
-
-                    <div>
-                      <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed rounded-xl transition-colors ${!ageGroup || documentProcessing.identity ? 'cursor-not-allowed bg-slate-100 text-slate-400' : 'cursor-pointer bg-white border-slate-300 hover:border-red-400 hover:bg-red-50'}`}>
-                        {documentProcessing.identity ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                        <span className="text-sm font-medium">{documentProcessing.identity ? 'Memproses dokumen...' : 'Pilih Dokumen Identitas'}</span>
-                        <input
-                          type="file"
-                          accept={DOCUMENT_ACCEPT}
-                          onChange={handleDocumentChange('identity')}
-                          disabled={!ageGroup || documentProcessing.identity}
-                          className="hidden"
-                        />
-                      </label>
-                      <p className="text-xs text-slate-500 mt-2">PDF dikirim tanpa kompresi. Gambar diubah ke WebP, maksimal sisi terpanjang 1600 px. File sumber maksimal 10 MB.</p>
-                      {identityDocumentFile ? (
-                        <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> File siap: {identityDocumentFile.name}</p>
-                      ) : canReuseStoredIdentity ? (
-                        <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> {IDENTITY_DOCUMENT_LABELS[storedIdentityType]} sudah tersimpan</p>
-                      ) : athlete?.identity_document ? (
-                        <p className="text-xs text-amber-700 mt-2">Dokumen tersimpan tidak sesuai dengan kelompok umur atau jenis yang dipilih; unggah pengganti.</p>
-                      ) : null}
-                      {(documentErrors.identity || errors.identity_document) && (
-                        <p className="text-red-500 text-xs mt-2">{documentErrors.identity || firstFieldError(errors.identity_document)}</p>
-                      )}
-                    </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Jenis Kelamin <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.gender}
+                      onChange={e => updateField('gender', e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
+                    >
+                      <option value="">-- Pilih Jenis Kelamin --</option>
+                      <option value="male">Laki-laki</option>
+                      <option value="female">Perempuan</option>
+                    </select>
                   </div>
 
-                  <div className="sm:col-span-2 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <label className="block text-sm font-medium text-slate-700 mb-2">Dokumen BPJS *</label>
-                    <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed rounded-xl transition-colors ${documentProcessing.bpjs ? 'cursor-wait bg-slate-100 text-slate-400' : 'cursor-pointer bg-white border-slate-300 hover:border-red-400 hover:bg-red-50'}`}>
-                      {documentProcessing.bpjs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                      <span className="text-sm font-medium">{documentProcessing.bpjs ? 'Memproses dokumen...' : 'Pilih Dokumen BPJS'}</span>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Agama <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={formData.religion}
+                      onChange={e => updateField('religion', e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
+                    >
+                      <option value="">-- Pilih Agama --</option>
+                      {RELIGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Alamat Lengkap Domisili <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={formData.address}
+                      onChange={e => updateField('address', e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm resize-none"
+                      rows={2}
+                      placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten"
+                    />
+                  </div>
+                </FormSectionCard>
+
+                {/* 4. Dokumen Wajib Identitas & BPJS */}
+                <FormSectionCard
+                  icon={FileText}
+                  iconColor="text-indigo-600"
+                  iconBg="bg-indigo-50"
+                  title="Dokumen Wajib Verifikasi"
+                  subtitle="Unggah scan/foto identitas resmi dan kartu BPJS Kesehatan/Ketenagakerjaan"
+                >
+                  {/* Dokumen Identitas Box */}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Dokumen Identitas <span className="text-red-500">*</span>
+                      </label>
+                      {ageGroup && (
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          ageGroup === 'adult' ? 'bg-indigo-100 text-indigo-700' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {ageGroup === 'adult' ? 'Usia 17+ (Wajib KTP)' : 'Usia Di Bawah 17 Thn (KK/Akte)'}
+                        </span>
+                      )}
+                    </div>
+
+                    {ageGroup === 'adult' ? (
+                      <div className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-indigo-600" />
+                        <span>KTP Elektronik</span>
+                      </div>
+                    ) : ageGroup === 'minor' ? (
+                      <select
+                        value={formData.identity_document_type}
+                        onChange={e => updateField('identity_document_type', e.target.value)}
+                        className={`w-full px-3.5 py-2 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-xs bg-white ${
+                          errors.identity_document_type ? 'border-red-400 bg-red-50' : 'border-slate-200'
+                        }`}
+                      >
+                        <option value="">-- Pilih Jenis Dokumen (Di Bawah 17 Thn) --</option>
+                        <option value="family_card">Kartu Keluarga (KK)</option>
+                        <option value="birth_certificate">Akte Kelahiran</option>
+                      </select>
+                    ) : (
+                      <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                        Isi tanggal lahir atlet terlebih dahulu untuk menentukan jenis dokumen identitas.
+                      </p>
+                    )}
+                    {errors.identity_document_type && (
+                      <p className="text-red-500 text-xs">{firstFieldError(errors.identity_document_type)}</p>
+                    )}
+
+                    <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed rounded-xl transition-all ${
+                      !ageGroup || documentProcessing.identity
+                        ? 'cursor-not-allowed bg-slate-100 text-slate-400 border-slate-200'
+                        : 'cursor-pointer bg-white border-slate-300 hover:border-red-400 hover:bg-red-50/50 shadow-2xs'
+                    }`}>
+                      {documentProcessing.identity ? <Loader2 className="w-4 h-4 animate-spin text-red-600" /> : <Upload className="w-4 h-4 text-slate-500" />}
+                      <span className="text-xs font-bold text-slate-700">
+                        {documentProcessing.identity ? 'Memproses dokumen...' : 'Pilih Dokumen Identitas'}
+                      </span>
+                      <input
+                        type="file"
+                        accept={DOCUMENT_ACCEPT}
+                        onChange={handleDocumentChange('identity')}
+                        disabled={!ageGroup || documentProcessing.identity}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {identityDocumentFile ? (
+                      <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">File siap: {identityDocumentFile.name}</span>
+                      </p>
+                    ) : canReuseStoredIdentity ? (
+                      <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{IDENTITY_DOCUMENT_LABELS[storedIdentityType]} sudah tersimpan di server</span>
+                      </p>
+                    ) : athlete?.identity_document ? (
+                      <p className="text-xs text-amber-700 bg-amber-50 p-2 rounded-lg border border-amber-200">
+                        Dokumen tersimpan tidak sesuai dengan kelompok umur saat ini. Harap unggah dokumen pengganti.
+                      </p>
+                    ) : null}
+
+                    {(documentErrors.identity || errors.identity_document) && (
+                      <p className="text-red-500 text-xs">{documentErrors.identity || firstFieldError(errors.identity_document)}</p>
+                    )}
+                  </div>
+
+                  {/* Dokumen BPJS Box */}
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                        Dokumen BPJS <span className="text-red-500">*</span>
+                      </label>
+                      <span className="text-[10px] font-semibold text-slate-500">Kesehatan/Naker</span>
+                    </div>
+
+                    <p className="text-xs text-slate-500">
+                      Unggah scan kartu atau surat kepesertaan BPJS aktif (PDF, JPG, PNG, WebP maks. 10 MB).
+                    </p>
+
+                    <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed rounded-xl transition-all ${
+                      documentProcessing.bpjs
+                        ? 'cursor-wait bg-slate-100 text-slate-400 border-slate-200'
+                        : 'cursor-pointer bg-white border-slate-300 hover:border-red-400 hover:bg-red-50/50 shadow-2xs'
+                    }`}>
+                      {documentProcessing.bpjs ? <Loader2 className="w-4 h-4 animate-spin text-red-600" /> : <Upload className="w-4 h-4 text-slate-500" />}
+                      <span className="text-xs font-bold text-slate-700">
+                        {documentProcessing.bpjs ? 'Memproses dokumen...' : 'Pilih Dokumen BPJS'}
+                      </span>
                       <input
                         type="file"
                         accept={DOCUMENT_ACCEPT}
@@ -1338,214 +1605,258 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                         className="hidden"
                       />
                     </label>
-                    <p className="text-xs text-slate-500 mt-2">PDF, JPG, PNG, atau WebP. File sumber maksimal 10 MB.</p>
+
                     {bpjsDocumentFile ? (
-                      <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> File siap: {bpjsDocumentFile.name}</p>
+                      <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">File siap: {bpjsDocumentFile.name}</span>
+                      </p>
                     ) : canReuseStoredBPJS ? (
-                      <p className="text-xs text-green-700 mt-2 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Dokumen BPJS sudah tersimpan</p>
+                      <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>Dokumen BPJS sudah tersimpan di server</span>
+                      </p>
                     ) : null}
+
                     {(documentErrors.bpjs || errors.bpjs_document) && (
-                      <p className="text-red-500 text-xs mt-2">{documentErrors.bpjs || firstFieldError(errors.bpjs_document)}</p>
+                      <p className="text-red-500 text-xs">{documentErrors.bpjs || firstFieldError(errors.bpjs_document)}</p>
                     )}
                   </div>
+                </FormSectionCard>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Jenis Kelamin</label>
-                    <select
-                      value={formData.gender}
-                      onChange={e => updateField('gender', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                    >
-                      <option value="">Pilih</option>
-                      <option value="male">Laki-laki</option>
-                      <option value="female">Perempuan</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Agama</label>
-                    <select
-                      value={formData.religion}
-                      onChange={e => updateField('religion', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                    >
-                      <option value="">Pilih</option>
-                      {RELIGIONS.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Cabang Olahraga</label>
+                {/* 5. Cabang Olahraga & Organisasi */}
+                <FormSectionCard
+                  icon={Trophy}
+                  iconColor="text-rose-600"
+                  iconBg="bg-rose-50"
+                  title="Cabang Olahraga & Pengcab"
+                  subtitle="Afiliasi disiplin olahraga dan organisasi pengurus cabang"
+                >
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Cabang Olahraga (Disiplin) <span className="text-red-500">*</span>
+                    </label>
                     <SearchableSelect
                       options={cabors}
                       value={formData.cabor_id}
                       onChange={(val) => handleCaborChange(val)}
-                      placeholder="Cari & pilih cabor..."
+                      placeholder="Cari & pilih cabang olahraga..."
                     />
                   </div>
+
                   {athlete && (
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Kelas Pertandingan</label>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Kelas Pertandingan
+                      </label>
                       <SearchableSelect
                         options={competitionClasses}
                         value={formData.competition_class_id}
                         onChange={(val) => updateField('competition_class_id', val)}
-                        placeholder={formData.cabor_id ? 'Pilih Kelas' : 'Pilih Cabor terlebih dahulu'}
+                        placeholder={formData.cabor_id ? 'Pilih Kelas Pertandingan' : 'Pilih Cabor terlebih dahulu'}
                         disabled={!formData.cabor_id}
                       />
                     </div>
                   )}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Organisasi</label>
+
+                  <div className={athlete ? '' : 'sm:col-span-2'}>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Organisasi / Pengcab <span className="text-red-500">*</span>
+                    </label>
                     <SearchableSelect
                       options={organizations}
                       value={formData.organization_id}
                       onChange={(val) => updateField('organization_id', val)}
-                      placeholder="Cari & pilih organisasi..."
+                      placeholder="Cari & pilih organisasi pengcab..."
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Alamat</label>
-                    <textarea
-                      value={formData.address}
-                      onChange={e => updateField('address', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none"
-                      rows={2}
-                      placeholder="Alamat lengkap"
-                    />
-                  </div>
-                </div>
+                </FormSectionCard>
               </div>
             )}
 
-            {/* Step 2: Info Fisik & Kontak */}
+            {/* STEP 2: FISIK & KONTAK */}
             {step === 2 && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* 1. Karakteristik Fisik & Pendidikan */}
+                <FormSectionCard
+                  icon={Activity}
+                  iconColor="text-emerald-600"
+                  iconBg="bg-emerald-50"
+                  title="Data Fisik & Pendidikan"
+                  subtitle="Antropometri atlet, tingkat pendidikan, dan pekerjaan"
+                >
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Tinggi Badan (cm)</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Tinggi Badan (cm) <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="number"
                       value={formData.height}
                       onChange={e => updateField('height', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="170"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Contoh: 175"
                       min={50}
                       max={300}
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Berat Badan (kg)</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Berat Badan (kg) <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="number"
                       step="0.1"
                       value={formData.weight}
                       onChange={e => updateField('weight', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="65.5"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Contoh: 68.5"
                       min={20}
                       max={300}
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Golongan Darah</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Golongan Darah <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={formData.blood_type}
                       onChange={e => updateField('blood_type', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
                     >
-                      <option value="">Pilih</option>
+                      <option value="">-- Pilih Golongan Darah --</option>
                       <option value="A">A</option>
                       <option value="B">B</option>
                       <option value="AB">AB</option>
                       <option value="O">O</option>
                     </select>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Pendidikan</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Pendidikan Terakhir <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={formData.education_level_id}
                       onChange={e => updateField('education_level_id', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
                     >
-                      <option value="">Pilih</option>
+                      <option value="">-- Pilih Jenjang Pendidikan --</option>
                       {educationLevels.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                     </select>
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Pekerjaan</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Pekerjaan <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.occupation}
                       onChange={e => updateField('occupation', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Pekerjaan saat ini"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Contoh: Pelajar / Mahasiswa / Swasta"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status Perkawinan</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Status Perkawinan <span className="text-red-500">*</span>
+                    </label>
                     <select
                       value={formData.marital_status}
                       onChange={e => updateField('marital_status', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
                     >
-                      <option value="">Pilih</option>
+                      <option value="">-- Pilih Status --</option>
                       {MARITAL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
                     </select>
                   </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Hobi / Kegemaran
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.hobby}
+                      onChange={e => updateField('hobby', e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Contoh: Membaca, Bersepeda, Musik"
+                    />
+                  </div>
+                </FormSectionCard>
+
+                {/* 2. Kontak & Komunikasi */}
+                <FormSectionCard
+                  icon={Phone}
+                  iconColor="text-purple-600"
+                  iconBg="bg-purple-50"
+                  title="Kontak & Komunikasi"
+                  subtitle="Nomor WhatsApp aktif dan alamat email untuk verifikasi & notifikasi"
+                >
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">No. Whatsapp</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nomor WhatsApp Atlet <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <input
                         type="text"
                         value={formData.phone}
                         onChange={e => updateField('phone', e.target.value)}
-                        className={`w-full px-4 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none transition-colors ${
-                          phoneStatus === 'valid' ? 'border-green-400 focus:ring-green-100 focus:border-green-500' :
-                          phoneStatus === 'invalid' ? 'border-red-400 focus:ring-red-100 focus:border-red-500' :
+                        className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none font-mono text-sm transition-colors ${
+                          phoneStatus === 'valid' ? 'border-emerald-400 bg-emerald-50/40 focus:ring-emerald-100 focus:border-emerald-500' :
+                          phoneStatus === 'invalid' ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500' :
                           'border-slate-200 focus:ring-red-100 focus:border-red-500'
                         }`}
-                        placeholder="08xxxxxxxxxx"
+                        placeholder="Contoh: 081234567890"
                       />
-                      {/* Status indicator */}
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {phoneStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-                        {phoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {phoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                         {phoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
                       </div>
                     </div>
                     {phoneMessage && (
-                      <p className={`text-xs mt-1 ${
-                        phoneStatus === 'valid' ? 'text-green-600' :
+                      <p className={`text-xs mt-1 font-medium ${
+                        phoneStatus === 'valid' ? 'text-emerald-700' :
                         phoneStatus === 'invalid' ? 'text-red-500' :
                         'text-slate-400'
-                      }`}>{phoneMessage}</p>
+                      }`}>
+                        {phoneMessage}
+                      </p>
                     )}
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email *</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Alamat Email <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <input
                         type="email"
                         value={formData.email}
                         onChange={e => updateField('email', e.target.value)}
-                        className={`w-full px-4 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none transition-colors ${
+                        className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none text-sm transition-colors ${
                           emailStatus === 'valid'
-                            ? 'border-green-400 bg-green-50 focus:ring-green-100 focus:border-green-500'
+                            ? 'border-emerald-400 bg-emerald-50/40 focus:ring-emerald-100 focus:border-emerald-500'
                             : emailStatus === 'invalid' || emailStatus === 'error' || errors.email
                               ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500'
                               : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
                         }`}
-                        placeholder="email@example.com"
+                        placeholder="atlet@contoh.com"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {emailStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-                        {emailStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {emailStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                         {(emailStatus === 'invalid' || emailStatus === 'error') && <XCircle className="w-4 h-4 text-red-500" />}
                       </div>
                     </div>
                     {(emailMessage || errors.email) && (
-                      <p className={`text-xs mt-1 ${
+                      <p className={`text-xs mt-1 font-medium ${
                         emailStatus === 'valid'
-                          ? 'text-green-600'
+                          ? 'text-emerald-700'
                           : emailStatus === 'invalid' || emailStatus === 'error' || errors.email
                             ? 'text-red-500'
                             : 'text-slate-500'
@@ -1554,192 +1865,249 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                       </p>
                     )}
                   </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Hobi</label>
-                    <input
-                      type="text"
-                      value={formData.hobby}
-                      onChange={e => updateField('hobby', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Hobi atau kegemaran"
-                    />
-                  </div>
-                </div>
+                </FormSectionCard>
               </div>
             )}
 
-            {/* Step 3: Karir & Prestasi */}
+            {/* STEP 3: KARIR & PRESTASI */}
             {step === 3 && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* 1. Tahun Karir & Status */}
+                <FormSectionCard
+                  icon={Briefcase}
+                  iconColor="text-indigo-600"
+                  iconBg="bg-indigo-50"
+                  title="Informasi Karir & Keaktifan"
+                  subtitle="Tahun awal berkarir dalam olahraga prestasi"
+                >
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Tahun Mulai Karir</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Tahun Mulai Karir <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="number"
                       value={formData.career_start_year}
                       onChange={e => updateField('career_start_year', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="2015"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Contoh: 2018"
                       min={1950}
                       max={new Date().getFullYear()}
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Status</label>
-                    <div className="flex items-center gap-3 mt-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Status Keaktifan Atlet
+                    </label>
+                    <div className="flex items-center gap-3 mt-1.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50">
                       <input
                         type="checkbox"
                         id="is_active"
                         checked={formData.is_active}
                         onChange={e => updateField('is_active', e.target.checked)}
-                        className="w-4 h-4 accent-red-600"
+                        className="h-4 w-4 rounded-md accent-red-600 cursor-pointer"
                       />
-                      <label htmlFor="is_active" className="text-sm text-slate-700">Atlet Aktif</label>
+                      <label htmlFor="is_active" className="text-xs font-bold text-slate-800 cursor-pointer select-none">
+                        Atlet Aktif Membela KONI Sumatera Barat
+                      </label>
                     </div>
+                  </div>
+                </FormSectionCard>
+
+                {/* 2. Prestasi Tertinggi */}
+                <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 to-amber-100/30 p-4 sm:p-5 shadow-xs">
+                  <div className="mb-3 flex items-center gap-2.5 pb-2 border-b border-amber-200/60">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-200/80 text-amber-900">
+                      <Award className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-bold text-amber-950">3 Prestasi Tertinggi</h3>
+                      <p className="text-[11px] text-amber-800/80">Tuliskan medali / kejuaraan tertinggi yang pernah diraih atlet</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5 pt-1">
+                    {formData.top_achievements.map((achievement, index) => {
+                      const medalEmojis = ['🥇', '🥈', '🥉'];
+                      const rankLabels = ['Prestasi Utama (Tertinggi)', 'Prestasi Kedua', 'Prestasi Ketiga'];
+                      return (
+                        <div key={`achievement-${index}`} className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm select-none">
+                            {medalEmojis[index]}
+                          </span>
+                          <input
+                            type="text"
+                            value={achievement}
+                            onChange={e => updateAchievement(index, e.target.value)}
+                            className="w-full pl-9 pr-3.5 py-2.5 border border-amber-300/80 bg-white rounded-xl focus:ring-2 focus:ring-amber-200 focus:border-amber-500 outline-none text-xs font-semibold text-slate-800 placeholder:text-slate-400 shadow-2xs"
+                            placeholder={`${rankLabels[index]} (Contoh: Medali Emas PON XXI Aceh-Sumut 2024)`}
+                          />
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Riwayat Cedera & Penyakit</label>
-                  <textarea
-                    value={formData.injury_illness_history}
-                    onChange={e => updateField('injury_illness_history', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none"
-                    rows={3}
-                    placeholder="Riwayat cedera atau penyakit yang pernah dialami..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">3 Prestasi Tertinggi</label>
-                  {formData.top_achievements.map((achievement, index) => (
-                    <input
-                      key={`achievement-${index}`}
-                      type="text"
-                      value={achievement}
-                      onChange={e => updateAchievement(index, e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none mb-2"
-                      placeholder={`Prestasi ${index + 1}`}
+                {/* 3. Riwayat Cedera & Medis */}
+                <FormSectionCard
+                  icon={Activity}
+                  iconColor="text-rose-600"
+                  iconBg="bg-rose-50"
+                  title="Riwayat Cedera & Medis"
+                  subtitle="Catatan riwayat cedera fisik, operasi, atau penyakit yang perlu diperhatikan"
+                >
+                  <div className="sm:col-span-2">
+                    <textarea
+                      value={formData.injury_illness_history}
+                      onChange={e => updateField('injury_illness_history', e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm resize-none"
+                      rows={3}
+                      placeholder="Contoh: Cedera ACL lutut kanan (2022, sudah operasi dan pemulihan tuntas), atau isi '-' jika tidak ada."
                     />
-                  ))}
-                </div>
+                  </div>
+                </FormSectionCard>
               </div>
             )}
 
-            {/* Step 4: Data Orang Tua / Wali */}
+            {/* STEP 4: DATA ORANG TUA / WALI */}
             {step === 4 && (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                {/* 1. Identitas Orang Tua / Wali */}
+                <FormSectionCard
+                  icon={Heart}
+                  iconColor="text-rose-600"
+                  iconBg="bg-rose-50"
+                  title="Identitas Orang Tua / Wali"
+                  subtitle="Nama lengkap orang tua kandung atau wali sah atlet"
+                >
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Ayah <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nama Lengkap Ayah <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.father_name}
                       onChange={e => updateField('father_name', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Nama lengkap ayah"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Nama lengkap ayah/wali"
                     />
                   </div>
+
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Ibu <span className="text-red-500">*</span></label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nama Lengkap Ibu <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={formData.mother_name}
                       onChange={e => updateField('mother_name', e.target.value)}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                      placeholder="Nama lengkap ibu"
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+                      placeholder="Nama lengkap ibu/wali"
                     />
                   </div>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Alamat Orang Tua <span className="text-red-500">*</span></label>
-                  <textarea
-                    value={formData.parent_address}
-                    onChange={e => updateField('parent_address', e.target.value)}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none resize-none"
-                    rows={3}
-                    placeholder="Alamat lengkap orang tua/wali"
-                  />
-                </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Alamat Orang Tua / Wali <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={formData.parent_address}
+                      onChange={e => updateField('parent_address', e.target.value)}
+                      className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm resize-none"
+                      rows={2}
+                      placeholder="Alamat lengkap tempat tinggal orang tua/wali"
+                    />
+                  </div>
+                </FormSectionCard>
 
-                <div>
-                  <p className="text-sm text-slate-600">
-                    Minimal salah satu nomor WhatsApp orang tua/wali wajib diisi dan terverifikasi.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Father Phone */}
+                {/* 2. Kontak Darurat WhatsApp Orang Tua */}
+                <FormSectionCard
+                  icon={Phone}
+                  iconColor="text-emerald-600"
+                  iconBg="bg-emerald-50"
+                  title="Kontak Darurat Orang Tua / Wali"
+                  subtitle="Minimal salah satu nomor WhatsApp orang tua/wali wajib terdaftar dan terverifikasi"
+                >
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ayah/Wali</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      WhatsApp Ayah / Wali
+                    </label>
                     <div className="relative">
                       <input
                         type="text"
                         value={formData.father_phone}
                         onChange={e => updateField('father_phone', e.target.value)}
-                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none pr-10 ${
-                          fatherPhoneStatus === 'valid' ? 'border-green-300 bg-green-50' :
-                          fatherPhoneStatus === 'invalid' ? 'border-red-300 bg-red-50' :
-                          'border-slate-200'
+                        className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none font-mono text-sm transition-colors ${
+                          fatherPhoneStatus === 'valid' ? 'border-emerald-400 bg-emerald-50/40 focus:ring-emerald-100 focus:border-emerald-500' :
+                          fatherPhoneStatus === 'invalid' ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500' :
+                          'border-slate-200 focus:ring-red-100 focus:border-red-500'
                         }`}
-                        placeholder="08xxxxxxxxxx"
+                        placeholder="Contoh: 081234567890"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {fatherPhoneStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-                        {fatherPhoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {fatherPhoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                         {fatherPhoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
                       </div>
                     </div>
                     {fatherPhoneMessage && (
-                      <p className={`text-xs mt-1 ${fatherPhoneStatus === 'valid' ? 'text-green-600' : fatherPhoneStatus === 'invalid' ? 'text-red-600' : 'text-slate-500'}`}>
+                      <p className={`text-xs mt-1 font-medium ${
+                        fatherPhoneStatus === 'valid' ? 'text-emerald-700' :
+                        fatherPhoneStatus === 'invalid' ? 'text-red-500' :
+                        'text-slate-400'
+                      }`}>
                         {fatherPhoneMessage}
                       </p>
                     )}
                   </div>
 
-                  {/* Mother Phone */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">WhatsApp Ibu/Wali</label>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      WhatsApp Ibu / Wali
+                    </label>
                     <div className="relative">
                       <input
                         type="text"
                         value={formData.mother_phone}
                         onChange={e => updateField('mother_phone', e.target.value)}
-                        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none pr-10 ${
-                          motherPhoneStatus === 'valid' ? 'border-green-300 bg-green-50' :
-                          motherPhoneStatus === 'invalid' ? 'border-red-300 bg-red-50' :
-                          'border-slate-200'
+                        className={`w-full px-3.5 py-2.5 pr-10 border rounded-xl focus:ring-2 outline-none font-mono text-sm transition-colors ${
+                          motherPhoneStatus === 'valid' ? 'border-emerald-400 bg-emerald-50/40 focus:ring-emerald-100 focus:border-emerald-500' :
+                          motherPhoneStatus === 'invalid' ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500' :
+                          'border-slate-200 focus:ring-red-100 focus:border-red-500'
                         }`}
-                        placeholder="08xxxxxxxxxx"
+                        placeholder="Contoh: 081234567890"
                       />
                       <div className="absolute right-3 top-1/2 -translate-y-1/2">
                         {motherPhoneStatus === 'checking' && <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />}
-                        {motherPhoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                        {motherPhoneStatus === 'valid' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                         {motherPhoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
                       </div>
                     </div>
                     {motherPhoneMessage && (
-                      <p className={`text-xs mt-1 ${motherPhoneStatus === 'valid' ? 'text-green-600' : motherPhoneStatus === 'invalid' ? 'text-red-600' : 'text-slate-500'}`}>
+                      <p className={`text-xs mt-1 font-medium ${
+                        motherPhoneStatus === 'valid' ? 'text-emerald-700' :
+                        motherPhoneStatus === 'invalid' ? 'text-red-500' :
+                        'text-slate-400'
+                      }`}>
                         {motherPhoneMessage}
                       </p>
                     )}
                   </div>
-                </div>
+                </FormSectionCard>
               </div>
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-6 border-t border-slate-100 flex items-center justify-between">
+          {/* Modal Footer / Navigation Controls */}
+          <div className="p-4 sm:p-5 border-t border-slate-200/80 bg-white flex items-center justify-between gap-3 shrink-0">
             <button
               type="button"
               onClick={goToPrevStep}
               disabled={step === 1}
-              className="flex items-center gap-2 px-4 py-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs sm:text-sm font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
               <ChevronLeft className="w-4 h-4" />
-              Sebelumnya
+              <span>Sebelumnya</span>
             </button>
 
             {step < 4 ? (
@@ -1747,9 +2115,9 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                 type="button"
                 onClick={goToNextStep}
                 disabled={!isStepValid()}
-                className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-1.5 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-bold shadow-xs hover:shadow-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                Selanjutnya
+                <span>Langkah Selanjutnya</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             ) : (
@@ -1757,15 +2125,24 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
                 type="button"
                 onClick={handleSubmit}
                 disabled={loading || isAnyFileProcessing || !isStepValid()}
-                className="flex items-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-7 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {athlete ? 'Update Atlet' : 'Simpan Atlet'}
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Menyimpan Data...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>{athlete ? 'Simpan Perubahan' : 'Simpan Data Atlet'}</span>
+                  </>
+                )}
               </button>
             )}
           </div>
         </div>
-      </MotionDiv>
+      </Motion.div>
     </AnimatePresence>
   );
 }

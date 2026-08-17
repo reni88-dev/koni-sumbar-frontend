@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Plus, X, CheckCircle2, Download, Upload, Loader2 } from "lucide-react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import { Plus, X, CheckCircle2, Users, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { DashboardLayout } from "../components/DashboardLayout";
@@ -81,8 +81,6 @@ export function AthletesPage() {
   const total = data?.pages[0]?.total ?? 0;
 
   // ── Infinite Scroll: Scroll Event Listener ─────────────────────────────────
-  // Uses a scroll listener instead of IntersectionObserver to avoid cascade-
-  // loading bugs. Only triggers when the user actually scrolls near the bottom.
   const fetchNextPageRef = useRef(fetchNextPage);
   const hasNextPageRef = useRef(hasNextPage);
   const isFetchingRef = useRef(isFetchingNextPage);
@@ -124,7 +122,6 @@ export function AthletesPage() {
       if (!hasNextPageRef.current || isFetchingRef.current) return;
 
       const { scrollTop, scrollHeight, clientHeight } = getScrollMetrics();
-      // Trigger when user is within 300px of the bottom
       if (scrollTop + clientHeight >= scrollHeight - 300) {
         fetchNextPageRef.current();
       }
@@ -198,8 +195,6 @@ export function AthletesPage() {
     setSuccessMessage(message);
     setTimeout(() => setSuccessMessage(""), 3000);
 
-    // Invalidate all loaded pages — TanStack Query refetches them in-place
-    // without resetting scroll position.
     queryClient.invalidateQueries({ queryKey: athleteKeys.lists() });
   };
 
@@ -211,7 +206,6 @@ export function AthletesPage() {
   const handleDeleteConfirm = async () => {
     try {
       await deleteAthleteMutation.mutateAsync(athleteToDelete.id);
-      // useDeleteAthlete.onSuccess already calls invalidateQueries for us
       setIsDeleteModalOpen(false);
       setAthleteToDelete(null);
     } catch (error) {
@@ -311,17 +305,27 @@ export function AthletesPage() {
     }
   };
 
+  const hasActiveFilters = Boolean(
+    debouncedSearch ||
+    filterCabor ||
+    filterGender ||
+    filterOrganization ||
+    filterCluster ||
+    filterSubCluster ||
+    filterNationalNumber
+  );
+
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <DashboardLayout
       title="Data Atlet"
       subtitle="Kelola data atlet dan informasi lengkapnya"
     >
-      <div className="min-w-0 max-w-full">
+      <div className="space-y-4 min-w-0 max-w-full">
         {/* Success Toast */}
         <AnimatePresence>
           {successMessage && (
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -335,12 +339,98 @@ export function AthletesPage() {
               >
                 <X className="w-4 h-4" />
               </button>
-            </motion.div>
+            </Motion.div>
           )}
         </AnimatePresence>
 
-        {/* Action Bar */}
-        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6 min-w-0 max-w-full">
+        {/* Master Control Card (Header, Actions & Filter) */}
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-xs space-y-4">
+          {/* Top Row: Title Context & Action Buttons */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-red-50 text-red-600 rounded-xl">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-800">
+                  Daftar Atlet KONI
+                </h2>
+                <p className="text-xs text-slate-500">
+                  Total <span className="font-semibold text-slate-700">{total}</span> atlet terdata
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons Group */}
+            <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+              <input
+                ref={importFileInputRef}
+                type="file"
+                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                onChange={handleImportFile}
+                className="hidden"
+              />
+
+              <PrintAthleteList
+                total={total}
+                filterParams={{
+                  search: debouncedSearch,
+                  caborId: filterCabor,
+                  gender: filterGender,
+                  organizationId: filterOrganization,
+                  clusterId: filterCluster,
+                  subClusterId: filterSubCluster,
+                  hasNationalAthleteNumber: filterNationalNumber,
+                }}
+                filters={{
+                  cabor: filterCabor
+                    ? (() => {
+                      const cabor = cabors.find(
+                        (c) => String(c.id) === String(filterCabor)
+                      );
+                      return cabor?.display_name || cabor?.name;
+                    })()
+                    : "",
+                  gender: filterGender,
+                  organization: filterOrganization
+                    ? organizations.find(
+                      (o) => String(o.id) === String(filterOrganization)
+                    )?.name
+                    : "",
+                  cluster: filterCluster
+                    ? clusters.find((c) => String(c.id) === String(filterCluster))
+                      ?.name
+                    : "",
+                  subCluster: filterSubCluster
+                    ? subClusters.find(
+                      (c) => String(c.id) === String(filterSubCluster)
+                    )?.name
+                    : "",
+                  search: debouncedSearch,
+                }}
+              />
+
+              <AthleteExportButton
+                isExporting={isExporting}
+                isImporting={isImporting}
+                onExport={handleExport}
+                onDownloadTemplate={handleDownloadImportTemplate}
+                onImport={handleImportClick}
+              />
+
+              <button
+                type="button"
+                onClick={openCreateModal}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30 shrink-0 cursor-pointer"
+                title="Tambah atlet baru"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Tambah Atlet</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Search & Filter Component */}
           <AthleteFilters
             search={search}
             setSearch={setSearch}
@@ -361,109 +451,36 @@ export function AthletesPage() {
             clusters={clusters}
             subClusters={subClusters}
           />
-
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <input
-              ref={importFileInputRef}
-              type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              onChange={handleImportFile}
-              className="hidden"
-            />
-
-            <AthleteExportButton
-              isExporting={isExporting}
-              onExport={handleExport}
-            />
-
-            <button
-              type="button"
-              onClick={handleDownloadImportTemplate}
-              disabled={isExporting || isImporting}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-blue-200 text-blue-700 rounded-xl font-medium hover:bg-blue-50 transition-colors disabled:opacity-50"
-              title="Download template Excel untuk import data atlet"
-            >
-              {isExporting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Download className="w-5 h-5" />
-              )}
-              <span>Template Excel</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleImportClick}
-              disabled={isImporting || isExporting}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50"
-              title="Import data atlet dari file Excel .xlsx"
-            >
-              {isImporting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Upload className="w-5 h-5" />
-              )}
-              <span>Import Excel</span>
-            </button>
-
-            <PrintAthleteList
-              total={total}
-              filterParams={{
-                search: debouncedSearch,
-                caborId: filterCabor,
-                gender: filterGender,
-                organizationId: filterOrganization,
-                clusterId: filterCluster,
-                subClusterId: filterSubCluster,
-                hasNationalAthleteNumber: filterNationalNumber,
-              }}
-              filters={{
-                cabor: filterCabor
-                  ? (() => {
-                    const cabor = cabors.find(
-                      (c) => String(c.id) === String(filterCabor)
-                    );
-                    return cabor?.display_name || cabor?.name;
-                  })()
-                  : "",
-                gender: filterGender,
-                organization: filterOrganization
-                  ? organizations.find(
-                    (o) => String(o.id) === String(filterOrganization)
-                  )?.name
-                  : "",
-                cluster: filterCluster
-                  ? clusters.find((c) => String(c.id) === String(filterCluster))
-                    ?.name
-                  : "",
-                subCluster: filterSubCluster
-                  ? subClusters.find(
-                    (c) => String(c.id) === String(filterSubCluster)
-                  )?.name
-                  : "",
-                search: debouncedSearch,
-              }}
-            />
-
-            <button
-              onClick={openCreateModal}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Tambah</span>
-            </button>
-          </div>
         </div>
 
-        {/* Stats */}
-        <div className="mb-6 p-4 bg-white rounded-xl border border-slate-100 flex flex-wrap items-center justify-between gap-2 min-w-0">
-          <span className="text-sm text-slate-600">
-            Total:{" "}
-            <strong className="text-slate-800">{total}</strong> atlet
-          </span>
-          <span className="text-sm text-slate-400">
-            Menampilkan {athletes.length} dari {total}
-          </span>
+        {/* Stats & Table Counter Strip */}
+        <div className="px-4 py-3 bg-white rounded-xl border border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-slate-700">
+              Menampilkan <strong className="text-slate-900 font-bold">{athletes.length}</strong> dari{" "}
+              <strong className="text-slate-900 font-bold">{total}</strong> atlet
+            </span>
+            {hasActiveFilters && (
+              <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-md font-semibold text-[11px]">
+                Hasil Filter
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isFetchingNextPage && (
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                Memuat data...
+              </span>
+            )}
+            {!isFetchingNextPage && (
+              <span className="inline-flex items-center gap-1 text-slate-400">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Data terkini
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Table with infinite scroll sentinel */}
@@ -483,7 +500,7 @@ export function AthletesPage() {
       <AnimatePresence>
         {importResult && (
           <>
-            <motion.div
+            <Motion.div
               key="import-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -491,7 +508,7 @@ export function AthletesPage() {
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
               onClick={() => setImportResult(null)}
             />
-            <motion.div
+            <Motion.div
               key="import-content"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -582,7 +599,7 @@ export function AthletesPage() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>

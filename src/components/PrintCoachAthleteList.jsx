@@ -142,12 +142,17 @@ export function PrintCoachAthleteList({ filterParams, filters }) {
 
   return (
     <button
+      type="button"
       onClick={handlePrint}
       disabled={loading}
-      className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
-      title="Cetak data pelatih & atlet"
+      className="flex items-center justify-center gap-2 px-3.5 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
+      title="Cetak daftar assignment pelatih & atlet yang sesuai filter"
     >
-      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Printer className="w-5 h-5" />}
+      {loading ? (
+        <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
+      ) : (
+        <Printer className="w-4 h-4 text-slate-600" />
+      )}
       <span>Cetak</span>
     </button>
   );
