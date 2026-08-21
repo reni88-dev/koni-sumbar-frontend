@@ -38,6 +38,8 @@ import MonevEventForm from './pages/MonevEventForm';
 import MonevEventDetail from './pages/MonevEventDetail';
 import MonevEvents from './pages/MonevEvents';
 import { SettingsPage } from './pages/Settings';
+import { ComplaintsPage } from './pages/Complaints';
+import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './hooks/useAuth';
 
@@ -72,6 +74,8 @@ function App() {
       <Route path="/reset-password/:token" element={<PublicResetPassword />} />
       <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />      {/* Protected Routes */}
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/pengaduan" element={<ProtectedRoute><ComplaintsPage /></ProtectedRoute>} />
+      <Route path="/pengaduan/:id" element={<ProtectedRoute><ComplaintDetailPage /></ProtectedRoute>} />
       <Route
         path="/dashboard"
         element={

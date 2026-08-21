@@ -1,80 +1,66 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../api/axios';
 
-/**
- * Component to display protected images that require authentication.
- * Fetches image with credentials and displays as blob URL.
- */
-export function ProtectedImage({ src, alt, className, style, fallback }) {
-  const [imageUrl, setImageUrl] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+function ImageFallback({ className, style, fallback }) {
+  return fallback || (
+    <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', color: '#64748b', ...style }}>
+      Gambar tidak tersedia
+    </div>
+  );
+}
+
+function AuthenticatedImage({ src, alt, className, style, fallback, imageProps }) {
+  const [state, setState] = useState({ imageUrl: null, loading: true, error: false });
 
   useEffect(() => {
-    if (!src) {
-      setLoading(false);
-      setError(true);
-      return;
-    }
+    const controller = new AbortController();
+    let blobUrl = null;
+    let active = true;
 
-    let isMounted = true;
-    
-    const fetchImage = async () => {
-      try {
-        setLoading(true);
-        setError(false);
-        
-        const response = await api.get(src, {
-          responseType: 'blob',
-        });
-        
-        if (isMounted) {
-          const blobUrl = URL.createObjectURL(response.data);
-          setImageUrl(blobUrl);
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Failed to load protected image:', err);
-        if (isMounted) {
-          setError(true);
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchImage();
+    api.get(src, { responseType: 'blob', signal: controller.signal })
+      .then((response) => {
+        if (!active) return;
+        blobUrl = URL.createObjectURL(response.data);
+        setState({ imageUrl: blobUrl, loading: false, error: false });
+      })
+      .catch((error) => {
+        if (!active || error?.code === 'ERR_CANCELED') return;
+        setState({ imageUrl: null, loading: false, error: true });
+      });
 
     return () => {
-      isMounted = false;
-      // Cleanup blob URL
-      if (imageUrl) {
-        URL.revokeObjectURL(imageUrl);
-      }
+      active = false;
+      controller.abort();
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     };
   }, [src]);
 
-  if (loading) {
+  if (state.loading) {
     return (
-      <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9' }}>
-        <div className="animate-pulse bg-slate-200 w-full h-full rounded-full" />
+      <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', ...style }}>
+        <div className="h-full w-full animate-pulse bg-slate-200" />
       </div>
     );
   }
 
-  if (error || !imageUrl) {
-    return fallback || (
-      <div className={className} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f1f5f9', color: '#64748b' }}>
-        ?
-      </div>
-    );
+  if (state.error || !state.imageUrl) {
+    return <ImageFallback className={className} style={style} fallback={fallback} />;
   }
 
+  return <img src={state.imageUrl} alt={alt} className={className} style={style} {...imageProps} />;
+}
+
+export function ProtectedImage({ src, alt, className, style, fallback, ...imageProps }) {
+  if (!src) return <ImageFallback className={className} style={style} fallback={fallback} />;
   return (
-    <img 
-      src={imageUrl} 
-      alt={alt} 
+    <AuthenticatedImage
+      key={src}
+      src={src}
+      alt={alt}
       className={className}
       style={style}
+      fallback={fallback}
+      imageProps={imageProps}
     />
   );
 }

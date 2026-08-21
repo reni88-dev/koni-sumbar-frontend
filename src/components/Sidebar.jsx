@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
+import { useComplaintSummary } from '../hooks/queries/useComplaints';
 import { 
   LayoutDashboard, 
   Users, 
@@ -23,7 +24,8 @@ import {
   ClipboardCheck,
   ClipboardList,
   Bot,
-  Layers
+  Layers,
+  MessageSquareWarning
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -39,14 +41,14 @@ export function Sidebar({ isOpen, onClose }) {
       <AnimatePresence>
         {isOpen && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={onClose}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
             />
-            <motion.aside
+            <Motion.aside
               initial={{ x: -280 }}
               animate={{ x: 0 }}
               exit={{ x: -280 }}
@@ -72,7 +74,7 @@ export function Sidebar({ isOpen, onClose }) {
               <div className="flex-1 overflow-y-auto">
                 <SidebarContent onNavigate={onClose} />
               </div>
-            </motion.aside>
+            </Motion.aside>
           </>
         )}
       </AnimatePresence>
@@ -84,9 +86,12 @@ function SidebarContent({ onNavigate }) {
   const { user } = useAuth();
   const location = useLocation();
   const [openSubmenu, setOpenSubmenu] = useState('');
-  const [manualClose, setManualClose] = useState(false);
+  const [manuallyClosedSubmenu, setManuallyClosedSubmenu] = useState('');
+  const isSuperAdminUser = user?.role?.name === 'super_admin' || user?.role_id === 1 || user?.role?.id === 1;
+  const hasSuperAdminAccess = isSuperAdminUser || user?.permissions?.includes('*');
+  const { data: complaintSummary } = useComplaintSummary(isSuperAdminUser);
 
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => location.pathname === path || (path === '/pengaduan' && location.pathname.startsWith('/pengaduan/'));
   const isChildActive = (children) => children?.some(child => location.pathname === child.path);
   
   // Check if user has permission (Super Admin has all)
@@ -98,7 +103,7 @@ function SidebarContent({ onNavigate }) {
 
   // Check if user is Super Admin
   const isSuperAdmin = () => {
-    return user?.permissions?.includes('*') || user?.role?.name === 'super_admin';
+    return hasSuperAdminAccess;
   };
 
   // Check if user is Athlete
@@ -141,6 +146,12 @@ function SidebarContent({ onNavigate }) {
     ...(isCoach()
       ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/portal/pelatih' }]
       : []),
+    {
+      icon: MessageSquareWarning,
+      label: 'Pengaduan',
+      path: '/pengaduan',
+      badge: isSuperAdminUser ? (complaintSummary?.new_count ?? 0) : 0,
+    },
   ]);
 
   const trainingChildren = filterVisibleItems([
@@ -183,7 +194,7 @@ function SidebarContent({ onNavigate }) {
     { icon: Trophy, label: 'Kelas Pertandingan', path: '/master/competition-classes', permission: 'competition_classes.view' },
     { icon: MapPin, label: 'Venue', path: '/master/venues', permission: 'venues.view' },
     { icon: ClipboardList, label: 'Event Monev', path: '/monev/events', permission: 'monev.manage' },
-  ]).map(({ permission, ...item }) => item);
+  ]).map((item) => ({ icon: item.icon, label: item.label, path: item.path }));
 
   const masterDataItems = filterVisibleItems([
     ...(masterDataChildren.length
@@ -214,25 +225,20 @@ function SidebarContent({ onNavigate }) {
     ...createSection('Sistem', systemItems),
   ];
 
+  const activeParent = navItems.find((item) => item.children && isChildActive(item.children));
+  const effectiveOpenSubmenu = openSubmenu || (
+    activeParent?.label !== manuallyClosedSubmenu ? activeParent?.label || '' : ''
+  );
+
   const toggleSubmenu = (label) => {
-    if (openSubmenu === label) {
+    if (effectiveOpenSubmenu === label) {
       setOpenSubmenu('');
-      setManualClose(true);
+      setManuallyClosedSubmenu(label);
     } else {
       setOpenSubmenu(label);
-      setManualClose(false);
+      setManuallyClosedSubmenu('');
     }
   };
-
-  // Auto-open submenu if child is active (only on route change, not manual close)
-  useEffect(() => {
-    if (!manualClose) {
-      const activeParent = navItems.find(item => item.children && isChildActive(item.children));
-      if (activeParent) {
-        setOpenSubmenu(activeParent.label);
-      }
-    }
-  }, [location.pathname]);
 
   return (
     <>
@@ -268,7 +274,7 @@ function SidebarContent({ onNavigate }) {
                 <button
                   onClick={() => toggleSubmenu(item.label)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
-                    openSubmenu === item.label || hasActiveChild
+                    effectiveOpenSubmenu === item.label || hasActiveChild
                       ? 'bg-slate-50 text-slate-900' 
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
@@ -277,7 +283,7 @@ function SidebarContent({ onNavigate }) {
                     <item.icon className={`w-5 h-5 ${hasActiveChild ? 'text-red-600' : 'text-slate-400'}`} />
                     {item.label}
                   </div>
-                  {openSubmenu === item.label ? (
+                  {effectiveOpenSubmenu === item.label ? (
                     <ChevronDown className="w-4 h-4 text-slate-400" />
                   ) : (
                     <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -285,8 +291,8 @@ function SidebarContent({ onNavigate }) {
                 </button>
 
                 <AnimatePresence>
-                  {openSubmenu === item.label && (
-                    <motion.div
+                  {effectiveOpenSubmenu === item.label && (
+                    <Motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
@@ -309,7 +315,7 @@ function SidebarContent({ onNavigate }) {
                           </Link>
                         ))}
                       </div>
-                    </motion.div>
+                    </Motion.div>
                   )}
                 </AnimatePresence>
               </div>
@@ -321,7 +327,8 @@ function SidebarContent({ onNavigate }) {
             <Link
               key={item.path}
               to={item.path}
-              onClick={onNavigate}
+              state={item.path === '/pengaduan' ? { fromPath: location.pathname } : undefined}
+              onClick={() => onNavigate?.()}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                 active 
                   ? 'bg-red-50 text-red-600 shadow-sm' 
@@ -329,7 +336,12 @@ function SidebarContent({ onNavigate }) {
               }`}
             >
               <item.icon className={`w-5 h-5 ${active ? 'text-red-600' : 'text-slate-400'}`} />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {item.badge > 0 && (
+                <span className="min-w-6 rounded-full bg-red-600 px-2 py-0.5 text-center text-[11px] font-bold text-white">
+                  {item.badge > 99 ? '99+' : item.badge}
+                </span>
+              )}
             </Link>
           );
         })}
