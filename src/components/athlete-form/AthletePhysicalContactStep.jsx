@@ -33,6 +33,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           min={50}
           max={300}
         />
+        {errors.height && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.height)}</p>}
       </div>
 
       <div>
@@ -49,6 +50,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           min={20}
           max={300}
         />
+        {errors.weight && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.weight)}</p>}
       </div>
 
       <div>
@@ -66,6 +68,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           <option value="AB">AB</option>
           <option value="O">O</option>
         </select>
+        {errors.blood_type && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.blood_type)}</p>}
       </div>
 
       <div>
@@ -80,6 +83,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           <option value="">-- Pilih Jenjang Pendidikan --</option>
           {educationLevels.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
+        {errors.education_level_id && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.education_level_id)}</p>}
       </div>
 
       <div>
@@ -93,6 +97,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
           placeholder="Contoh: Pelajar / Mahasiswa / Swasta"
         />
+        {errors.occupation && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.occupation)}</p>}
       </div>
 
       <div>
@@ -107,6 +112,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           <option value="">-- Pilih Status --</option>
           {MARITAL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
+        {errors.marital_status && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.marital_status)}</p>}
       </div>
 
       <div className="sm:col-span-2">
@@ -153,13 +159,13 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
             {phoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
           </div>
         </div>
-        {phoneMessage && (
+        {(phoneMessage || errors.phone) && (
           <p className={`text-xs mt-1 font-medium ${
             phoneStatus === 'valid' ? 'text-emerald-700' :
             phoneStatus === 'invalid' ? 'text-red-500' :
             'text-slate-400'
           }`}>
-            {phoneMessage}
+            {firstFieldError(errors.phone) || phoneMessage}
           </p>
         )}
       </div>

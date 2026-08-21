@@ -1,10 +1,12 @@
 import { Trophy } from 'lucide-react';
 import { SearchableSelect } from '../SearchableSelect';
+import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
-export function AthleteAffiliationSection({ athlete, form, lookups }) {
+export function AthleteAffiliationSection({ athlete, form, lookups, validation }) {
   const { data: formData, updateField, handleCaborChange } = form;
   const { cabors, organizations, competitionClasses } = lookups;
+  const errors = validation?.errors || {};
   return (
     <FormSectionCard
       icon={Trophy}
@@ -23,6 +25,7 @@ export function AthleteAffiliationSection({ athlete, form, lookups }) {
           onChange={(val) => handleCaborChange(val)}
           placeholder="Cari & pilih cabang olahraga..."
         />
+        {errors.cabor_id && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.cabor_id)}</p>}
       </div>
 
       {athlete && (
@@ -37,6 +40,7 @@ export function AthleteAffiliationSection({ athlete, form, lookups }) {
             placeholder={formData.cabor_id ? 'Pilih Kelas Pertandingan' : 'Pilih Cabor terlebih dahulu'}
             disabled={!formData.cabor_id}
           />
+          {errors.competition_class_id && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.competition_class_id)}</p>}
         </div>
       )}
 
@@ -50,6 +54,7 @@ export function AthleteAffiliationSection({ athlete, form, lookups }) {
           onChange={(val) => updateField('organization_id', val)}
           placeholder="Cari & pilih organisasi pengcab..."
         />
+        {errors.organization_id && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.organization_id)}</p>}
       </div>
     </FormSectionCard>
   );

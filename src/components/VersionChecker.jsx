@@ -1,50 +1,76 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { RefreshCw, X } from 'lucide-react';
+
+const normalizeAssetPath = (assetUrl) => {
+  try {
+    return new URL(assetUrl, window.location.href).pathname;
+  } catch {
+    return assetUrl;
+  }
+};
+
+const getAssetSignature = (root) => {
+  const moduleScripts = Array.from(root.querySelectorAll('script[type="module"][src]'))
+    .map((script) => `script:${normalizeAssetPath(script.getAttribute('src'))}`);
+  const stylesheets = Array.from(root.querySelectorAll('link[rel~="stylesheet"][href]'))
+    .map((link) => `style:${normalizeAssetPath(link.getAttribute('href'))}`);
+
+  return [...new Set([...moduleScripts, ...stylesheets])].sort().join('|');
+};
 
 /**
  * VersionChecker - Polls for new app versions in production.
- * Fetches /index.html every 30s and compares script/link references.
+ * Compares the assets running in the current document with the latest index.html.
  * If changed (new deploy), shows a non-intrusive update banner.
  */
 export function VersionChecker() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [dismissed, setDismissed] = useState(false);
-  const initialHash = useRef(null);
 
   useEffect(() => {
     // Only run in production (skip during dev with HMR)
     if (import.meta.env.DEV) return;
 
-    const getPageHash = async () => {
+    const activeSignature = getAssetSignature(document);
+    const controller = new AbortController();
+    let checkInProgress = false;
+
+    const checkForUpdate = async () => {
+      if (!activeSignature || checkInProgress) return;
+
+      checkInProgress = true;
+
       try {
-        // Fetch index.html with cache-busting to always get the latest
-        const res = await fetch(`/?_v=${Date.now()}`, { cache: 'no-store' });
-        const html = await res.text();
-        // Extract all script src and link href — these contain Vite's content hashes
-        const assets = html.match(/(?:src|href)="[^"]*\.[a-f0-9]+\.\w+"/g);
-        return assets ? assets.sort().join('|') : html.length.toString();
+        const response = await fetch(`/index.html?_v=${Date.now()}`, {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) return;
+
+        const html = await response.text();
+        const latestDocument = new DOMParser().parseFromString(html, 'text/html');
+        const latestSignature = getAssetSignature(latestDocument);
+
+        if (latestSignature && latestSignature !== activeSignature) {
+          setUpdateAvailable(true);
+        }
       } catch {
-        return null;
+        // A temporary network failure should not interrupt the application.
+      } finally {
+        checkInProgress = false;
       }
     };
 
-    // Capture initial hash on first load
-    const init = async () => {
-      initialHash.current = await getPageHash();
+    // Check immediately so an already-stale tab does not establish a server baseline.
+    checkForUpdate();
+    const interval = setInterval(checkForUpdate, 30_000);
+
+    return () => {
+      controller.abort();
+      clearInterval(interval);
     };
-    init();
-
-    // Poll every 30 seconds
-    const interval = setInterval(async () => {
-      if (dismissed) return;
-      const currentHash = await getPageHash();
-      if (currentHash && initialHash.current && currentHash !== initialHash.current) {
-        setUpdateAvailable(true);
-      }
-    }, 30_000);
-
-    return () => clearInterval(interval);
-  }, [dismissed]);
+  }, []);
 
   if (!updateAvailable || dismissed) return null;
 

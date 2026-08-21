@@ -7,6 +7,11 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { ProtectedImage } from '../components/ProtectedImage';
+import { AthleteCareerStep } from '../components/athlete-form/AthleteCareerStep';
+import { AthleteParentsStep } from '../components/athlete-form/AthleteParentsStep';
+import { AthletePersonalStep } from '../components/athlete-form/AthletePersonalStep';
+import { AthletePhysicalContactStep } from '../components/athlete-form/AthletePhysicalContactStep';
+import { useAthleteFormController } from '../components/athlete-form/useAthleteFormController';
 import {
   usePortalProfile,
   usePortalEvents,
@@ -16,21 +21,11 @@ import {
   usePortalClusterHistories,
   usePortalDevelopmentFunds,
 } from '../hooks/queries/usePortal';
-import { useCaborsAll } from '../hooks/queries/useCabors';
-import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
-import { useCompetitionClassesByCabor, useEducationLevelsAll } from '../hooks/queries/useMasterData';
+import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
 
+const MotionDiv = motion.div;
 const currentYear = new Date().getFullYear();
-const RELIGIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
 const GENDER_LABELS = { male: 'Laki-laki', female: 'Perempuan' };
-const emptyForm = {
-  name: '', nik: '', no_kk: '', national_athlete_number: '', birth_place: '', birth_date: '',
-  gender: '', religion: '', address: '', blood_type: '', height: '', weight: '', phone: '', email: '',
-  occupation: '', marital_status: '', hobby: '', career_start_year: '', injury_illness_history: '',
-  father_name: '', father_phone: '', mother_name: '', mother_phone: '', parent_address: '',
-  cabor_id: '', competition_class_id: '', organization_id: '', education_level_id: '', top_achievements: [''],
-};
-
 const textOrDash = (value) => value || '-';
 const caborLabel = (cabor) => cabor?.display_name || cabor?.name || '-';
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('id-ID') : '-';
@@ -49,33 +44,6 @@ function getAthlete(profile) {
   };
 }
 
-function toFormData(athlete) {
-  const form = { ...emptyForm };
-  Object.keys(form).forEach((key) => {
-    if (key === 'top_achievements') return;
-    const value = athlete?.[key];
-    form[key] = value === null || value === undefined ? '' : String(value);
-  });
-  form.top_achievements = Array.isArray(athlete?.top_achievements) && athlete.top_achievements.length
-    ? athlete.top_achievements
-    : [''];
-  return form;
-}
-
-function compactPayload(data) {
-  return {
-    ...data,
-    cabor_id: Number(data.cabor_id) || 0,
-    competition_class_id: Number(data.competition_class_id) || 0,
-    organization_id: Number(data.organization_id) || 0,
-    education_level_id: Number(data.education_level_id) || 0,
-    height: Number(data.height) || 0,
-    weight: Number(data.weight) || 0,
-    career_start_year: Number(data.career_start_year) || 0,
-    top_achievements: data.top_achievements.map((item) => item.trim()).filter(Boolean),
-  };
-}
-
 function InfoItem({ label, value }) {
   return (
     <div>
@@ -85,25 +53,12 @@ function InfoItem({ label, value }) {
   );
 }
 
-function Field({ label, children }) {
-  return (
-    <label className="block">
-      <span className="text-xs text-slate-500 uppercase tracking-wider">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function inputClass() {
-  return 'w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-100 focus:border-red-400';
-}
-
 function buildPrintHtml({ athlete, clusters, funds }) {
   const rows = [
     ['Nama', athlete?.name], ['NIK', athlete?.nik], ['No KK', athlete?.no_kk], ['Nomor Atlet Nasional', athlete?.national_athlete_number],
     ['Cabang Olahraga', caborLabel(athlete?.cabor)], ['Kelas Pertandingan', athlete?.competition_class?.name], ['Organisasi', athlete?.organization?.name],
     ['Tempat/Tanggal Lahir', `${textOrDash(athlete?.birth_place)} / ${formatDate(athlete?.birth_date)}`], ['Jenis Kelamin', GENDER_LABELS[athlete?.gender] || athlete?.gender],
-    ['Agama', athlete?.religion], ['Alamat', athlete?.address], ['Telepon', athlete?.phone], ['Email', athlete?.email],
+    ['Agama', athlete?.religion], ['Alamat', athlete?.address], ['Domisili', [athlete?.village, athlete?.district, athlete?.city, athlete?.province].filter(Boolean).join(', ')], ['Telepon', athlete?.phone], ['Email', athlete?.email],
     ['Tinggi/Berat', `${athlete?.height || '-'} cm / ${athlete?.weight || '-'} kg`], ['Golongan Darah', athlete?.blood_type],
     ['Pekerjaan', athlete?.occupation], ['Status Pernikahan', athlete?.marital_status], ['Hobi', athlete?.hobby],
     ['Mulai Karir', athlete?.career_start_year], ['Riwayat Cedera/Penyakit', athlete?.injury_illness_history],
@@ -124,7 +79,6 @@ function buildPrintHtml({ athlete, clusters, funds }) {
 export function AthletePortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState(emptyForm);
   const [fundYear, setFundYear] = useState(currentYear);
 
   const { data: profile, isLoading: profileLoading } = usePortalProfile();
@@ -133,11 +87,7 @@ export function AthletePortal() {
   const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard();
   const { data: clustersData, isLoading: clustersLoading } = usePortalClusterHistories();
   const { data: fundsData, isLoading: fundsLoading } = usePortalDevelopmentFunds({ year: fundYear, perPage: 100 });
-  const { data: cabors = [] } = useCaborsAll();
-  const { data: organizations = [] } = useOrganizationsAll();
   const { data: educationLevels = [] } = useEducationLevelsAll();
-  const { data: competitionClasses = [] } = useCompetitionClassesByCabor(editData.cabor_id);
-  const updateProfile = useUpdatePortalProfile();
 
   const athlete = useMemo(() => getAthlete(profile), [profile]);
   const clusters = clustersData?.data || [];
@@ -151,31 +101,7 @@ export function AthletePortal() {
     { id: 'submissions', label: 'Form Submission', icon: FileText },
   ];
 
-  const handleEditStart = () => {
-    setEditData(toFormData(athlete));
-    setIsEditing(true);
-  };
-
-  const handleChange = (key, value) => {
-    setEditData((prev) => ({ ...prev, [key]: value, ...(key === 'cabor_id' ? { competition_class_id: '' } : {}) }));
-  };
-
-  const handleAchievementChange = (index, value) => {
-    setEditData((prev) => ({ ...prev, top_achievements: prev.top_achievements.map((item, i) => i === index ? value : item) }));
-  };
-
-  const addAchievement = () => setEditData((prev) => ({ ...prev, top_achievements: [...prev.top_achievements, ''] }));
-  const removeAchievement = (index) => setEditData((prev) => ({ ...prev, top_achievements: prev.top_achievements.filter((_, i) => i !== index).length ? prev.top_achievements.filter((_, i) => i !== index) : [''] }));
-
-  const handleSave = async () => {
-    try {
-      await updateProfile.mutateAsync(compactPayload(editData));
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Failed to update profile:', error);
-      alert(error?.response?.data?.error || error?.response?.data?.message || 'Gagal menyimpan profil');
-    }
-  };
+  const handleEditStart = () => setIsEditing(true);
 
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
@@ -228,17 +154,10 @@ export function AthletePortal() {
                   <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
                     <Printer className="w-4 h-4" /> Cetak Profil
                   </button>
-                  {!isEditing ? (
+                  {!isEditing && (
                     <button onClick={handleEditStart} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                       <Edit2 className="w-4 h-4" /> Edit Profil
                     </button>
-                  ) : (
-                    <>
-                      <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-4 h-4" /> Batal</button>
-                      <button onClick={handleSave} disabled={updateProfile.isPending} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50">
-                        {updateProfile.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Simpan
-                      </button>
-                    </>
                   )}
                 </div>
               </div>
@@ -246,7 +165,11 @@ export function AthletePortal() {
               {!isEditing ? (
                 <ProfileView athlete={athlete} educationLevels={educationLevels} />
               ) : (
-                <ProfileEdit editData={editData} handleChange={handleChange} cabors={cabors} organizations={organizations} competitionClasses={competitionClasses} educationLevels={educationLevels} handleAchievementChange={handleAchievementChange} addAchievement={addAchievement} removeAchievement={removeAchievement} />
+                <AthleteProfileEditor
+                  athlete={athlete}
+                  onCancel={() => setIsEditing(false)}
+                  onSuccess={() => setIsEditing(false)}
+                />
               )}
             </div>
           )}
@@ -261,14 +184,15 @@ export function AthletePortal() {
   );
 }
 
-function StatCard({ color, label, value, icon: Icon, delay = 0, small = false }) {
+function StatCard({ color, label, value, icon, delay = 0, small = false }) {
+  const Icon = icon;
   return (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className={`bg-gradient-to-br ${color} text-white rounded-2xl p-5 shadow-lg`}>
+    <MotionDiv initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className={`bg-gradient-to-br ${color} text-white rounded-2xl p-5 shadow-lg`}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0"><p className="text-white/80 text-sm">{label}</p><p className={`${small ? 'text-xl truncate' : 'text-3xl'} font-bold`}>{value}</p></div>
         <Icon className="w-10 h-10 opacity-80 flex-shrink-0" />
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 }
 
@@ -291,7 +215,7 @@ function ProfileView({ athlete, educationLevels }) {
         </div>
       </div>
       <Section title="Identitas" icon={User}><InfoGrid items={[
-        ['NIK', athlete?.nik], ['No KK', athlete?.no_kk], ['Tempat Lahir', athlete?.birth_place], ['Tanggal Lahir', formatDate(athlete?.birth_date)], ['Jenis Kelamin', GENDER_LABELS[athlete?.gender] || athlete?.gender], ['Agama', athlete?.religion], ['Golongan Darah', athlete?.blood_type], ['Alamat', athlete?.address]
+        ['NIK', athlete?.nik], ['No KK', athlete?.no_kk], ['Tempat Lahir', athlete?.birth_place], ['Tanggal Lahir', formatDate(athlete?.birth_date)], ['Jenis Kelamin', GENDER_LABELS[athlete?.gender] || athlete?.gender], ['Agama', athlete?.religion], ['Golongan Darah', athlete?.blood_type], ['Alamat', athlete?.address], ['Provinsi', athlete?.province], ['Kota/Kabupaten', athlete?.city], ['Kecamatan/Distrik', athlete?.district], ['Kelurahan/Desa', athlete?.village]
       ]} /></Section>
       <Section title="Kontak dan Fisik" icon={HeartPulse}><InfoGrid items={[
         ['Telepon', athlete?.phone], ['Email', athlete?.email], ['Tinggi', athlete?.height ? `${athlete.height} cm` : ''], ['Berat', athlete?.weight ? `${athlete.weight} kg` : ''], ['Pekerjaan', athlete?.occupation], ['Status Pernikahan', athlete?.marital_status], ['Hobi', athlete?.hobby], ['Mulai Karir', athlete?.career_start_year]
@@ -307,7 +231,8 @@ function ProfileView({ athlete, educationLevels }) {
   );
 }
 
-function Section({ title, icon: Icon, children }) {
+function Section({ title, icon, children }) {
+  const Icon = icon;
   return <div className="border border-slate-100 rounded-2xl p-4"><h4 className="flex items-center gap-2 font-bold text-slate-800 mb-4"><Icon className="w-5 h-5 text-red-600" />{title}</h4>{children}</div>;
 }
 
@@ -315,64 +240,70 @@ function InfoGrid({ items }) {
   return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{items.map(([label, value]) => <InfoItem key={label} label={label} value={value} />)}</div>;
 }
 
-function ProfileEdit({ editData, handleChange, cabors, organizations, competitionClasses, educationLevels, handleAchievementChange, addAchievement, removeAchievement }) {
+function AthleteProfileEditor({ athlete, onCancel, onSuccess }) {
+  const updateProfile = useUpdatePortalProfile();
+  const controller = useAthleteFormController({
+    isOpen: true,
+    athlete,
+    onSuccess,
+    mode: 'portal',
+    submitRequest: updateProfile.mutateAsync,
+  });
+  const { formContainerRef, form, lookups, files, validation, submission } = controller;
+  const isBusy = submission.loading || updateProfile.isPending || files.isAnyFileProcessing;
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+    submission.handleSubmit();
+  };
+
   return (
-    <div className="space-y-6">
-      <EditSection title="Identitas">
-        <TextInput label="Nama Lengkap" value={editData.name} onChange={(v) => handleChange('name', v)} />
-        <TextInput label="NIK" value={editData.nik} onChange={(v) => handleChange('nik', v)} />
-        <TextInput label="No KK" value={editData.no_kk} onChange={(v) => handleChange('no_kk', v)} />
-        <TextInput label="Nomor Atlet Nasional" value={editData.national_athlete_number} onChange={(v) => handleChange('national_athlete_number', v)} />
-        <TextInput label="Tempat Lahir" value={editData.birth_place} onChange={(v) => handleChange('birth_place', v)} />
-        <TextInput label="Tanggal Lahir" type="date" value={editData.birth_date} onChange={(v) => handleChange('birth_date', v)} />
-        <SelectInput label="Jenis Kelamin" value={editData.gender} onChange={(v) => handleChange('gender', v)} options={[['male', 'Laki-laki'], ['female', 'Perempuan']]} />
-        <SelectInput label="Agama" value={editData.religion} onChange={(v) => handleChange('religion', v)} options={RELIGIONS.map((v) => [v, v])} />
-        <SelectInput label="Golongan Darah" value={editData.blood_type} onChange={(v) => handleChange('blood_type', v)} options={['A', 'B', 'AB', 'O'].map((v) => [v, v])} />
-      </EditSection>
-      <EditSection title="Cabor, Organisasi, Pendidikan">
-        <SelectInput label="Cabang Olahraga" value={editData.cabor_id} onChange={(v) => handleChange('cabor_id', v)} options={cabors.map((c) => [c.id, c.display_name || c.name])} />
-        <SelectInput label="Kelas Pertandingan" value={editData.competition_class_id} onChange={(v) => handleChange('competition_class_id', v)} options={competitionClasses.map((c) => [c.id, c.name])} />
-        <SelectInput label="Organisasi" value={editData.organization_id} onChange={(v) => handleChange('organization_id', v)} options={organizations.map((o) => [o.id, o.name])} />
-        <SelectInput label="Pendidikan" value={editData.education_level_id} onChange={(v) => handleChange('education_level_id', v)} options={educationLevels.map((e) => [e.id, e.name])} />
-      </EditSection>
-      <EditSection title="Kontak dan Data Pribadi">
-        <TextInput label="Telepon" value={editData.phone} onChange={(v) => handleChange('phone', v)} />
-        <TextInput label="Email" type="email" value={editData.email} onChange={(v) => handleChange('email', v)} />
-        <TextInput label="Tinggi (cm)" type="number" value={editData.height} onChange={(v) => handleChange('height', v)} />
-        <TextInput label="Berat (kg)" type="number" value={editData.weight} onChange={(v) => handleChange('weight', v)} />
-        <TextInput label="Pekerjaan" value={editData.occupation} onChange={(v) => handleChange('occupation', v)} />
-        <TextInput label="Status Pernikahan" value={editData.marital_status} onChange={(v) => handleChange('marital_status', v)} />
-        <TextInput label="Hobi" value={editData.hobby} onChange={(v) => handleChange('hobby', v)} />
-        <TextInput label="Mulai Karir" type="number" value={editData.career_start_year} onChange={(v) => handleChange('career_start_year', v)} />
-        <TextareaInput label="Alamat" value={editData.address} onChange={(v) => handleChange('address', v)} />
-        <TextareaInput label="Riwayat Cedera/Penyakit" value={editData.injury_illness_history} onChange={(v) => handleChange('injury_illness_history', v)} />
-      </EditSection>
-      <EditSection title="Orang Tua/Wali">
-        <TextInput label="Nama Ayah" value={editData.father_name} onChange={(v) => handleChange('father_name', v)} />
-        <TextInput label="No. HP Ayah" value={editData.father_phone} onChange={(v) => handleChange('father_phone', v)} />
-        <TextInput label="Nama Ibu" value={editData.mother_name} onChange={(v) => handleChange('mother_name', v)} />
-        <TextInput label="No. HP Ibu" value={editData.mother_phone} onChange={(v) => handleChange('mother_phone', v)} />
-        <TextareaInput label="Alamat Orang Tua/Wali" value={editData.parent_address} onChange={(v) => handleChange('parent_address', v)} />
-      </EditSection>
-      <div className="border border-slate-100 rounded-2xl p-4"><h4 className="font-bold text-slate-800 mb-4">Prestasi Terbaik</h4><div className="space-y-2">{editData.top_achievements.map((item, index) => <div key={index} className="flex gap-2"><input value={item} onChange={(e) => handleAchievementChange(index, e.target.value)} className={inputClass()} placeholder="Contoh: Juara 1 Porprov" /><button type="button" onClick={() => removeAchievement(index)} className="mt-1 px-3 py-2 text-slate-500 hover:bg-slate-100 rounded-lg"><X className="w-4 h-4" /></button></div>)}<button type="button" onClick={addAchievement} className="text-sm font-medium text-red-600 hover:bg-red-50 px-3 py-2 rounded-lg">Tambah Prestasi</button></div></div>
-    </div>
+    <form ref={formContainerRef} onSubmit={handleSubmit} className="space-y-5" aria-busy={isBusy}>
+      {validation.errorMessage && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-semibold">Profil belum dapat disimpan</p>
+            <p>{validation.errorMessage}</p>
+          </div>
+        </div>
+      )}
+
+      <AthletePersonalStep
+        athlete={athlete}
+        form={form}
+        lookups={lookups}
+        files={files}
+        validation={validation}
+      />
+      <AthletePhysicalContactStep form={form} lookups={lookups} validation={validation} />
+      <AthleteCareerStep
+        form={form}
+        validation={validation}
+        showActiveStatus={false}
+      />
+      <AthleteParentsStep form={form} validation={validation} />
+
+      <div className="sticky bottom-3 z-10 flex flex-col-reverse gap-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={onCancel}
+          disabled={isBusy}
+          className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <X className="h-4 w-4" /> Batal
+        </button>
+        <button
+          type="submit"
+          disabled={isBusy}
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {files.isAnyFileProcessing ? 'Memproses File...' : 'Simpan Perubahan'}
+        </button>
+      </div>
+    </form>
   );
-}
-
-function EditSection({ title, children }) {
-  return <div className="border border-slate-100 rounded-2xl p-4"><h4 className="font-bold text-slate-800 mb-4">{title}</h4><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{children}</div></div>;
-}
-
-function TextInput({ label, value, onChange, type = 'text' }) {
-  return <Field label={label}><input type={type} value={value} onChange={(e) => onChange(e.target.value)} className={inputClass()} /></Field>;
-}
-
-function TextareaInput({ label, value, onChange }) {
-  return <Field label={label}><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className={inputClass()} /></Field>;
-}
-
-function SelectInput({ label, value, onChange, options }) {
-  return <Field label={label}><select value={value} onChange={(e) => onChange(e.target.value)} className={inputClass()}><option value="">Pilih</option>{options.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></Field>;
 }
 
 function ClustersTab({ athlete, clusters, loading }) {
@@ -384,17 +315,18 @@ function FundsTab({ funds, fundsData, loading, year, setYear }) {
 }
 
 function EventsTab({ events, loading }) {
-  return <div className="space-y-4"><h3 className="text-lg font-bold text-slate-800">Event Saya</h3>{loading ? <Loading /> : events?.length > 0 ? <div className="space-y-3">{events.map((event) => <motion.div key={event.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"><div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0"><Calendar className="w-6 h-6 text-red-600" /></div><div className="flex-1 min-w-0"><h4 className="font-medium text-slate-800 truncate">{event.name}</h4><div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">{event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.location}</span>}{event.start_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.start_date)}</span>}</div></div><span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{event.athlete_status || event.status}</span></motion.div>)}</div> : <Empty icon={Calendar} text="Belum ada event yang terdaftar" />}</div>;
+  return <div className="space-y-4"><h3 className="text-lg font-bold text-slate-800">Event Saya</h3>{loading ? <Loading /> : events?.length > 0 ? <div className="space-y-3">{events.map((event) => <MotionDiv key={event.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"><div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0"><Calendar className="w-6 h-6 text-red-600" /></div><div className="flex-1 min-w-0"><h4 className="font-medium text-slate-800 truncate">{event.name}</h4><div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">{event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.location}</span>}{event.start_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.start_date)}</span>}</div></div><span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{event.athlete_status || event.status}</span></MotionDiv>)}</div> : <Empty icon={Calendar} text="Belum ada event yang terdaftar" />}</div>;
 }
 
 function SubmissionsTab({ submissions, loading }) {
-  return <div className="space-y-4"><h3 className="text-lg font-bold text-slate-800">Riwayat Form Submission</h3>{loading ? <Loading /> : submissions?.length > 0 ? <div className="space-y-3">{submissions.map((sub) => <motion.div key={sub.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"><div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0"><FileText className="w-6 h-6 text-purple-600" /></div><div className="flex-1 min-w-0"><h4 className="font-medium text-slate-800 truncate">{sub.template_name}</h4><div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">{sub.event_name && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{sub.event_name}</span>}<span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(sub.submitted_at)}</span></div></div><span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Terkirim</span></motion.div>)}</div> : <Empty icon={FileText} text="Belum ada form yang diisi" />}</div>;
+  return <div className="space-y-4"><h3 className="text-lg font-bold text-slate-800">Riwayat Form Submission</h3>{loading ? <Loading /> : submissions?.length > 0 ? <div className="space-y-3">{submissions.map((sub) => <MotionDiv key={sub.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"><div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center flex-shrink-0"><FileText className="w-6 h-6 text-purple-600" /></div><div className="flex-1 min-w-0"><h4 className="font-medium text-slate-800 truncate">{sub.template_name}</h4><div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">{sub.event_name && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{sub.event_name}</span>}<span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(sub.submitted_at)}</span></div></div><span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">Terkirim</span></MotionDiv>)}</div> : <Empty icon={FileText} text="Belum ada form yang diisi" />}</div>;
 }
 
 function Loading() {
   return <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-red-600" /></div>;
 }
 
-function Empty({ icon: Icon, text }) {
+function Empty({ icon, text }) {
+  const Icon = icon;
   return <div className="text-center py-12 text-slate-400"><Icon className="w-12 h-12 mx-auto mb-3 opacity-50" /><p>{text}</p></div>;
 }

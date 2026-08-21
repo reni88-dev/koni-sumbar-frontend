@@ -60,7 +60,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
       {navigation.step === 2 && (
         <AthletePhysicalContactStep form={form} lookups={lookups} validation={validation} />
       )}
-      {navigation.step === 3 && <AthleteCareerStep form={form} />}
+      {navigation.step === 3 && <AthleteCareerStep form={form} validation={validation} />}
       {navigation.step === 4 && <AthleteParentsStep form={form} validation={validation} />}
     </WizardModalShell>
   );

@@ -14,7 +14,13 @@ import { useAthleteLookups } from './useAthleteLookups';
 import { useAthleteMedia } from './useAthleteMedia';
 import { useAthleteSubmission } from './useAthleteSubmission';
 
-export function useAthleteFormController({ isOpen, athlete, onSuccess }) {
+export function useAthleteFormController({
+  isOpen,
+  athlete,
+  onSuccess,
+  mode = 'admin',
+  submitRequest
+}) {
   const formContainerRef = useRef(null);
   const lastValidAgeGroupRef = useRef(null);
   const [step, setStep] = useState(1);
@@ -73,12 +79,19 @@ export function useAthleteFormController({ isOpen, athlete, onSuccess }) {
   const emailValidation = useAthleteEmailValidation({
     email: formData.email,
     isOpen,
-    athleteId: athlete?.id
+    athleteId: athlete?.id,
+    checkAvailability: mode !== 'portal'
   });
 
   const scrollToTop = useCallback(() => {
     setTimeout(() => {
-      formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      const container = formContainerRef.current;
+      if (!container) return;
+      if (container.scrollHeight > container.clientHeight) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }, 50);
   }, []);
 
@@ -94,7 +107,9 @@ export function useAthleteFormController({ isOpen, athlete, onSuccess }) {
     setErrorMessage,
     setStep,
     scrollToTop,
-    onSuccess
+    onSuccess,
+    mode,
+    submitRequest
   });
 
   const {

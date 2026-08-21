@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
 import { EMAIL_PATTERN } from './athleteFormModel';
 
-export function useAthleteEmailValidation({ email, isOpen, athleteId }) {
+export function useAthleteEmailValidation({ email, isOpen, athleteId, checkAvailability = true }) {
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
   const checkRef = useRef(null);
@@ -23,6 +23,11 @@ export function useAthleteEmailValidation({ email, isOpen, athleteId }) {
     if (!EMAIL_PATTERN.test(trimmedEmail)) {
       setStatus('invalid');
       setMessage('Format email tidak valid');
+      return;
+    }
+    if (!checkAvailability) {
+      setStatus('valid');
+      setMessage('Format email valid');
       return;
     }
 
@@ -65,7 +70,7 @@ export function useAthleteEmailValidation({ email, isOpen, athleteId }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [email, isOpen, athleteId]);
+  }, [athleteId, checkAvailability, email, isOpen]);
 
   return {
     status,

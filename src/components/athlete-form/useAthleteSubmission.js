@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import api from '../../api/axios';
 import { firstFieldError, normalizeValidationErrors } from '../form-modal/formUtils';
 import { normalizeIndonesianMobile } from '../form-modal/phoneUtils';
@@ -21,12 +21,15 @@ export function useAthleteSubmission({
   setErrorMessage,
   setStep,
   scrollToTop,
-  onSuccess
+  onSuccess,
+  mode = 'admin',
+  submitRequest
 }) {
   const [loading, setLoading] = useState(false);
+  const submissionInFlightRef = useRef(false);
 
   const handleSubmit = async () => {
-    if (loading || files.isAnyFileProcessing) return;
+    if (submissionInFlightRef.current || loading || files.isAnyFileProcessing) return;
 
     const identityErrors = getDocumentValidationErrors({
       formData,
@@ -35,12 +38,19 @@ export function useAthleteSubmission({
       bpjsDocumentFile: files.bpjsDocumentFile,
       documentErrors: files.documentErrors
     });
+    if (!formData.name.trim()) identityErrors.name = ['Nama lengkap wajib diisi'];
     if (!IDENTITY_PATTERN.test(formData.nik)) {
       identityErrors.nik = ['NIK harus tepat 16 digit angka'];
     }
     if (!IDENTITY_PATTERN.test(formData.no_kk)) {
       identityErrors.no_kk = ['No. KK harus tepat 16 digit angka'];
     }
+    if (!formData.birth_place.trim()) identityErrors.birth_place = ['Tempat lahir wajib diisi'];
+    if (!formData.gender) identityErrors.gender = ['Jenis kelamin wajib dipilih'];
+    if (!formData.religion) identityErrors.religion = ['Agama wajib dipilih'];
+    if (!formData.address.trim()) identityErrors.address = ['Alamat domisili wajib diisi'];
+    if (!formData.cabor_id) identityErrors.cabor_id = ['Cabang olahraga wajib dipilih'];
+    if (!formData.organization_id) identityErrors.organization_id = ['Organisasi/Pengcab wajib dipilih'];
     if (!formData.province.trim()) identityErrors.province = ['Provinsi wajib dipilih'];
     if (!formData.city.trim()) identityErrors.city = ['Kota/Kabupaten wajib dipilih'];
     if (!formData.district.trim()) identityErrors.district = ['Kecamatan/Distrik wajib dipilih'];
@@ -57,6 +67,12 @@ export function useAthleteSubmission({
     const normalizedFatherPhone = normalizeIndonesianMobile(formData.father_phone);
     const normalizedMotherPhone = normalizeIndonesianMobile(formData.mother_phone);
     const contactErrors = {};
+    if (!formData.height) contactErrors.height = ['Tinggi badan wajib diisi'];
+    if (!formData.weight) contactErrors.weight = ['Berat badan wajib diisi'];
+    if (!formData.blood_type) contactErrors.blood_type = ['Golongan darah wajib dipilih'];
+    if (!formData.education_level_id) contactErrors.education_level_id = ['Pendidikan terakhir wajib dipilih'];
+    if (!formData.occupation.trim()) contactErrors.occupation = ['Pekerjaan wajib diisi'];
+    if (!formData.marital_status) contactErrors.marital_status = ['Status perkawinan wajib dipilih'];
     if (!normalizedPhone) {
       contactErrors.phone = ['Format nomor WhatsApp tidak valid'];
     } else if (phoneValidation.status !== 'valid') {
@@ -73,7 +89,28 @@ export function useAthleteSubmission({
       return;
     }
 
+    const careerErrors = {};
+    if (!formData.career_start_year) {
+      careerErrors.career_start_year = ['Tahun mulai karir wajib diisi'];
+    }
+    if (Object.keys(careerErrors).length > 0) {
+      setErrors(careerErrors);
+      setErrorMessage(firstFieldError(Object.values(careerErrors)[0]));
+      setStep(3);
+      scrollToTop();
+      return;
+    }
+
     const parentPhoneErrors = {};
+    if (!formData.father_name.trim()) {
+      parentPhoneErrors.father_name = ['Nama ayah/wali wajib diisi'];
+    }
+    if (!formData.mother_name.trim()) {
+      parentPhoneErrors.mother_name = ['Nama ibu/wali wajib diisi'];
+    }
+    if (!formData.parent_address.trim()) {
+      parentPhoneErrors.parent_address = ['Alamat orang tua/wali wajib diisi'];
+    }
     if (formData.father_phone.trim() && !normalizedFatherPhone) {
       parentPhoneErrors.father_phone = ['Format nomor WhatsApp tidak valid'];
     } else if (normalizedFatherPhone && fatherPhoneValidation.status !== 'valid') {
@@ -101,19 +138,25 @@ export function useAthleteSubmission({
       father_phone: normalizedFatherPhone || '',
       mother_phone: normalizedMotherPhone || ''
     };
+    submissionInFlightRef.current = true;
     setLoading(true);
     setErrors({});
     setErrorMessage('');
 
     try {
-      const data = buildAthleteFormData(submissionData, files);
-      if (athlete) {
+      const data = buildAthleteFormData(submissionData, files, {
+        excludedFields: mode === 'portal' ? ['is_active'] : [],
+        includeEmptyFields: mode === 'portal'
+      });
+      if (submitRequest) {
+        await submitRequest(data);
+      } else if (athlete) {
         data.append('_method', 'PUT');
         await api.post(`/api/athletes/${athlete.id}`, data);
       } else {
         await api.post('/api/athletes', data);
       }
-      onSuccess();
+      onSuccess?.();
     } catch (error) {
       if (error.response?.status === 422) {
         const validationErrors = normalizeValidationErrors(error.response.data.errors || {});
@@ -140,8 +183,10 @@ export function useAthleteSubmission({
         scrollToTop();
       } else {
         setErrorMessage(error.response?.data?.error || error.response?.data?.message || 'Terjadi kesalahan server');
+        scrollToTop();
       }
     } finally {
+      submissionInFlightRef.current = false;
       setLoading(false);
     }
   };

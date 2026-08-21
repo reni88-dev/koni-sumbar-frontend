@@ -192,16 +192,18 @@ export function getDocumentValidationErrors({
   return validationErrors;
 }
 
-export function buildAthleteFormData(submissionData, files) {
+export function buildAthleteFormData(submissionData, files, { excludedFields = [], includeEmptyFields = false } = {}) {
   const data = new FormData();
+  const excluded = new Set(excludedFields);
   Object.entries(submissionData).forEach(([key, value]) => {
+    if (excluded.has(key)) return;
     if (key === 'top_achievements') {
       const filtered = value.filter((item) => item && item.trim() !== '');
       data.append(key, JSON.stringify(filtered.length > 0 ? filtered : []));
     } else if (key === 'is_active') {
       data.append(key, value ? '1' : '0');
-    } else if (value !== '' && value !== null && value !== undefined) {
-      data.append(key, value);
+    } else if (includeEmptyFields || (value !== '' && value !== null && value !== undefined)) {
+      data.append(key, value ?? '');
     }
   });
   if (files.photoFile) data.append('photo', files.photoFile);

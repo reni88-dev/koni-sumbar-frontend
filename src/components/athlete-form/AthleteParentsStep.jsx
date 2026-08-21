@@ -1,9 +1,10 @@
 import { CheckCircle2, Heart, Loader2, Phone, XCircle } from 'lucide-react';
+import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
 export function AthleteParentsStep({ form, validation }) {
   const { data: formData, updateField } = form;
-  const { fatherPhone, motherPhone } = validation;
+  const { errors, fatherPhone, motherPhone } = validation;
   const fatherPhoneStatus = fatherPhone.status;
   const fatherPhoneMessage = fatherPhone.message;
   const motherPhoneStatus = motherPhone.status;
@@ -28,6 +29,7 @@ export function AthleteParentsStep({ form, validation }) {
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
           placeholder="Nama lengkap ayah/wali"
         />
+        {errors.father_name && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.father_name)}</p>}
       </div>
 
       <div>
@@ -41,6 +43,7 @@ export function AthleteParentsStep({ form, validation }) {
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
           placeholder="Nama lengkap ibu/wali"
         />
+        {errors.mother_name && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.mother_name)}</p>}
       </div>
 
       <div className="sm:col-span-2">
@@ -54,6 +57,7 @@ export function AthleteParentsStep({ form, validation }) {
           rows={2}
           placeholder="Alamat lengkap tempat tinggal orang tua/wali"
         />
+        {errors.parent_address && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.parent_address)}</p>}
       </div>
     </FormSectionCard>
 
@@ -87,13 +91,13 @@ export function AthleteParentsStep({ form, validation }) {
             {fatherPhoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
           </div>
         </div>
-        {fatherPhoneMessage && (
+        {(fatherPhoneMessage || errors.father_phone) && (
           <p className={`text-xs mt-1 font-medium ${
             fatherPhoneStatus === 'valid' ? 'text-emerald-700' :
             fatherPhoneStatus === 'invalid' ? 'text-red-500' :
             'text-slate-400'
           }`}>
-            {fatherPhoneMessage}
+            {firstFieldError(errors.father_phone) || fatherPhoneMessage}
           </p>
         )}
       </div>
@@ -120,13 +124,13 @@ export function AthleteParentsStep({ form, validation }) {
             {motherPhoneStatus === 'invalid' && <XCircle className="w-4 h-4 text-red-500" />}
           </div>
         </div>
-        {motherPhoneMessage && (
+        {(motherPhoneMessage || errors.mother_phone) && (
           <p className={`text-xs mt-1 font-medium ${
             motherPhoneStatus === 'valid' ? 'text-emerald-700' :
             motherPhoneStatus === 'invalid' ? 'text-red-500' :
             'text-slate-400'
           }`}>
-            {motherPhoneMessage}
+            {firstFieldError(errors.mother_phone) || motherPhoneMessage}
           </p>
         )}
       </div>

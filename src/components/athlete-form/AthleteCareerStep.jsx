@@ -1,15 +1,17 @@
 import { Activity, Award, Briefcase } from 'lucide-react';
+import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
-export function AthleteCareerStep({ form }) {
+export function AthleteCareerStep({ form, validation, showActiveStatus = true }) {
   const { data: formData, updateField, updateAchievement } = form;
+  const errors = validation?.errors || {};
   return (
     <div className="space-y-4">
     <FormSectionCard
       icon={Briefcase}
       iconColor="text-indigo-600"
       iconBg="bg-indigo-50"
-      title="Informasi Karir & Keaktifan"
+      title={showActiveStatus ? 'Informasi Karir & Keaktifan' : 'Informasi Karir'}
       subtitle="Tahun awal berkarir dalam olahraga prestasi"
     >
       <div>
@@ -25,8 +27,12 @@ export function AthleteCareerStep({ form }) {
           min={1950}
           max={new Date().getFullYear()}
         />
+        {errors.career_start_year && (
+          <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.career_start_year)}</p>
+        )}
       </div>
 
+      {showActiveStatus && (
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
           Status Keaktifan Atlet
@@ -44,6 +50,7 @@ export function AthleteCareerStep({ form }) {
           </label>
         </div>
       </div>
+      )}
     </FormSectionCard>
 
     {/* 2. Prestasi Tertinggi */}

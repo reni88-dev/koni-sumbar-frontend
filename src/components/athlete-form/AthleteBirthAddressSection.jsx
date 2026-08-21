@@ -27,6 +27,7 @@ export function AthleteBirthAddressSection({ form, validation }) {
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
           placeholder="Kota/Kabupaten kelahiran"
         />
+        {errors.birth_place && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.birth_place)}</p>}
       </div>
 
       <div>
@@ -56,6 +57,7 @@ export function AthleteBirthAddressSection({ form, validation }) {
           <option value="male">Laki-laki</option>
           <option value="female">Perempuan</option>
         </select>
+        {errors.gender && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.gender)}</p>}
       </div>
 
       <div>
@@ -70,6 +72,7 @@ export function AthleteBirthAddressSection({ form, validation }) {
           <option value="">-- Pilih Agama --</option>
           {RELIGIONS.map(r => <option key={r} value={r}>{r}</option>)}
         </select>
+        {errors.religion && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.religion)}</p>}
       </div>
 
       <div className="sm:col-span-2">
@@ -83,6 +86,7 @@ export function AthleteBirthAddressSection({ form, validation }) {
           rows={2}
           placeholder="Jalan, RT/RW, Kelurahan, Kecamatan, Kota/Kabupaten"
         />
+        {errors.address && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.address)}</p>}
       </div>
 
       <RegionCascadeFields form={form} validation={validation} />

@@ -22,7 +22,7 @@ export function AthletePersonalStep({ athlete, form, lookups, files, validation 
         files={files}
         validation={validation}
       />
-      <AthleteAffiliationSection athlete={athlete} form={form} lookups={lookups} />
+      <AthleteAffiliationSection athlete={athlete} form={form} lookups={lookups} validation={validation} />
     </div>
   );
 }
