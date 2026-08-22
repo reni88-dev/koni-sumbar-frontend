@@ -7,7 +7,7 @@ import {
 } from "../lib/roleAccess";
 
 const api = axios.create({
-  baseURL: "https://api.satudata.konisumbar.or.id",
+  baseURL: "https://apiclone.satudata.konisumbar.or.id",
   // baseURL: 'https://koni-sumbar-backend-golang.ka2h0x.easypanel.host',
   // baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: {
