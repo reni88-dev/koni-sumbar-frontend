@@ -40,6 +40,7 @@ import MonevEvents from './pages/MonevEvents';
 import { SettingsPage } from './pages/Settings';
 import { ComplaintsPage } from './pages/Complaints';
 import { ComplaintDetailPage } from './pages/ComplaintDetail';
+import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './hooks/useAuth';
 
@@ -391,6 +392,16 @@ function App() {
         element={
           <ProtectedRoute>
             <AiAnalytics />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Hidden coach photo diagnostic route (Super Admin only) */}
+      <Route
+        path="/cek-foto-pelatih"
+        element={
+          <ProtectedRoute>
+            <CoachPhotoCheckPage />
           </ProtectedRoute>
         }
       />
