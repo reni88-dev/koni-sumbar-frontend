@@ -28,9 +28,10 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { CoachFormModal } from '../components/CoachFormModal';
 import { CoachDetailModal } from '../components/CoachDetailModal';
 import { ProtectedImage } from '../components/ProtectedImage';
-import { useCoaches, useDeleteCoach, coachKeys } from '../hooks/queries/useCoaches';
+import { useInfiniteCoaches, useDeleteCoach, coachKeys } from '../hooks/queries/useCoaches';
 import { useCaborsAll } from '../hooks/queries/useCabors';
 import { useCoachClustersAll, useCoachSubClustersByCluster } from '../hooks/queries/useCoachClusterMaster';
+import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import api from '../api/axios';
 
 export function CoachesPage() {
@@ -40,7 +41,6 @@ export function CoachesPage() {
   const [filterActive, setFilterActive] = useState('');
   const [filterCluster, setFilterCluster] = useState('');
   const [filterSubCluster, setFilterSubCluster] = useState('');
-  const [page, setPage] = useState(1);
   const [isFilterExpanded, setIsFilterExpanded] = useState(true);
   const [isDataMenuOpen, setIsDataMenuOpen] = useState(false);
 
@@ -60,6 +60,7 @@ export function CoachesPage() {
   // Refs & Query Client
   const importFileInputRef = useRef(null);
   const dataMenuRef = useRef(null);
+  const successTimerRef = useRef(null);
   const queryClient = useQueryClient();
 
   // TanStack Query hooks
@@ -67,11 +68,12 @@ export function CoachesPage() {
   const { data: clusters = [] } = useCoachClustersAll();
   const { data: subClusters = [] } = useCoachSubClustersByCluster(filterCluster);
   const {
-    data: coachesData,
+    data,
     isLoading: loading,
-    refetch: refetchCoaches
-  } = useCoaches({
-    page,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteCoaches({
     search: debouncedSearch,
     caborId: filterCabor,
     isActive: filterActive,
@@ -81,12 +83,76 @@ export function CoachesPage() {
 
   const deleteCoachMutation = useDeleteCoach();
 
-  const coaches = coachesData?.data || [];
-  const pagination = {
-    current_page: coachesData?.page || 1,
-    last_page: Math.ceil((coachesData?.total || 0) / (coachesData?.per_page || 10)) || 1,
-    total: coachesData?.total || 0
-  };
+  const coaches = data?.pages.flatMap((responsePage) => responsePage.data || []) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
+
+  const fetchNextPageRef = useRef(fetchNextPage);
+  const hasNextPageRef = useRef(hasNextPage);
+  const isFetchingNextPageRef = useRef(isFetchingNextPage);
+
+  useEffect(() => {
+    fetchNextPageRef.current = fetchNextPage;
+  }, [fetchNextPage]);
+
+  useEffect(() => {
+    hasNextPageRef.current = hasNextPage;
+  }, [hasNextPage]);
+
+  useEffect(() => {
+    isFetchingNextPageRef.current = isFetchingNextPage;
+  }, [isFetchingNextPage]);
+
+  useEffect(() => {
+    const container = document.getElementById('main-scroll-container');
+
+    const getScrollMetrics = () => {
+      const documentElement = document.documentElement;
+      const windowScrollTop = window.scrollY || documentElement.scrollTop;
+      const windowClientHeight = window.innerHeight;
+      const windowScrollHeight = documentElement.scrollHeight;
+
+      if (container && container.scrollHeight > container.clientHeight) {
+        const isContainerScrolling = container.scrollTop > 0;
+        const isWindowScrolling = windowScrollTop > 0;
+
+        if (isContainerScrolling || !isWindowScrolling) {
+          return {
+            scrollTop: container.scrollTop,
+            clientHeight: container.clientHeight,
+            scrollHeight: container.scrollHeight,
+          };
+        }
+      }
+
+      return {
+        scrollTop: windowScrollTop,
+        clientHeight: windowClientHeight,
+        scrollHeight: windowScrollHeight,
+      };
+    };
+
+    const handleScroll = () => {
+      if (!hasNextPageRef.current || isFetchingNextPageRef.current) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = getScrollMetrics();
+      if (scrollTop + clientHeight >= scrollHeight - 300) {
+        isFetchingNextPageRef.current = true;
+        void fetchNextPageRef.current();
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    container?.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      container?.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  useEffect(() => () => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+  }, []);
 
   // Close data menu on outside click
   useEffect(() => {
@@ -107,15 +173,9 @@ export function CoachesPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [filterCabor, filterActive, filterCluster, filterSubCluster]);
 
   useEffect(() => {
     if (filterSubCluster && !subClusters.some((item) => String(item.id) === String(filterSubCluster))) {
@@ -129,7 +189,15 @@ export function CoachesPage() {
     setFilterActive('');
     setFilterCluster('');
     setFilterSubCluster('');
-    setPage(1);
+  };
+
+  const showSuccessToast = (message) => {
+    if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    setSuccessMessage(message);
+    successTimerRef.current = setTimeout(() => {
+      setSuccessMessage('');
+      successTimerRef.current = null;
+    }, 3000);
   };
 
   const openCreateModal = () => {
@@ -162,8 +230,13 @@ export function CoachesPage() {
   };
 
   const handleFormSuccess = () => {
+    const message = selectedCoach
+      ? 'Data pelatih berhasil diperbarui!'
+      : 'Pelatih baru berhasil ditambahkan!';
+
     setIsFormModalOpen(false);
-    refetchCoaches();
+    showSuccessToast(message);
+    queryClient.invalidateQueries({ queryKey: coachKeys.lists() });
   };
 
   const handleDelete = async () => {
@@ -223,8 +296,7 @@ export function CoachesPage() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setImportResult(response.data);
-      setSuccessMessage('Import data pelatih selesai.');
-      setTimeout(() => setSuccessMessage(''), 3000);
+      showSuccessToast('Import data pelatih selesai.');
       queryClient.invalidateQueries({ queryKey: coachKeys.all });
     } catch (error) {
       console.error('Import coaches failed:', error);
@@ -284,7 +356,7 @@ export function CoachesPage() {
                   Daftar Pelatih KONI
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Total <span className="font-semibold text-slate-700">{pagination.total}</span> pelatih terdaftar
+                  Total <span className="font-semibold text-slate-700">{total}</span> pelatih terdaftar
                 </p>
               </div>
             </div>
@@ -649,7 +721,7 @@ export function CoachesPage() {
           <div className="flex items-center gap-2">
             <span className="font-medium text-slate-700">
               Menampilkan <strong className="text-slate-900 font-bold">{coaches.length}</strong> dari{' '}
-              <strong className="text-slate-900 font-bold">{pagination.total}</strong> pelatih
+              <strong className="text-slate-900 font-bold">{total}</strong> pelatih
             </span>
             {hasActiveFilters && (
               <span className="px-2 py-0.5 bg-red-50 text-red-600 rounded-md font-semibold text-[11px]">
@@ -659,10 +731,17 @@ export function CoachesPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 text-slate-400">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              Data terkini
-            </span>
+            {isFetchingNextPage ? (
+              <span className="inline-flex items-center gap-1.5 text-slate-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Memuat lebih banyak...
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-slate-400">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                Data terkini
+              </span>
+            )}
           </div>
         </div>
 
@@ -679,7 +758,7 @@ export function CoachesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[900px]">
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr>
                     <th className="text-left py-4 px-6 font-semibold text-slate-600">Pelatih</th>
@@ -697,15 +776,12 @@ export function CoachesPage() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                            {coach.photo ? (
-                              <ProtectedImage
-                                src={coach.photo}
-                                alt={coach.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <User className="w-5 h-5 text-slate-400" />
-                            )}
+                            <ProtectedImage
+                              src={getCoachPhotoUrl(coach)}
+                              alt={coach.name}
+                              className="w-full h-full object-cover"
+                              fallback={<User className="w-5 h-5 text-slate-400" />}
+                            />
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{coach.name}</p>
@@ -786,30 +862,19 @@ export function CoachesPage() {
             </div>
           )}
 
-          {/* Pagination */}
-          {pagination.last_page > 1 && (
-            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-              <p className="text-sm text-slate-500">
-                Halaman {pagination.current_page} dari {pagination.last_page}
-              </p>
-              <div className="flex items-center gap-2">
-                {Array.from({ length: pagination.last_page }, (_, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => setPage(i + 1)}
-                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                      pagination.current_page === i + 1
-                        ? 'bg-red-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
+          {/* Infinite scroll status */}
+          <div className="flex min-h-14 items-center justify-center border-t border-slate-100 px-6 py-4">
+            {isFetchingNextPage ? (
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Memuat lebih banyak...</span>
               </div>
-            </div>
-          )}
+            ) : !hasNextPage && coaches.length > 0 ? (
+              <span className="text-xs text-slate-400">
+                Semua data sudah ditampilkan
+              </span>
+            ) : null}
+          </div>
         </div>
       </div>
 

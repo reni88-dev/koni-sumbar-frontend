@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useValidatedPhoneField } from '../form-modal/useValidatedPhoneField';
+import { getCoachPhotoUrl } from '../../lib/coachPhoto';
 import {
   createInitialCoachFormData,
   EMAIL_PATTERN,
@@ -68,7 +69,7 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
   const { cancelPending: cancelSubmission, reset: resetSubmission } = submission;
 
   useEffect(() => {
-    resetMedia(isOpen && coach ? coach.photo || null : null);
+    resetMedia(isOpen && coach ? getCoachPhotoUrl(coach) : null);
     resetSubmission();
     setErrors({});
     setErrorMessage('');
