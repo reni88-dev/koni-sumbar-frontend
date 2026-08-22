@@ -112,11 +112,13 @@ export function buildCoachFormData(formData, achievementsList, files, normalized
     : '');
   if (files.photoFile) data.append('photo', files.photoFile);
   if (files.certificateFile) data.append('certificate_document', files.certificateFile);
+  if (files.identityDocumentFile) data.append('identity_document', files.identityDocumentFile);
+  if (files.bpjsDocumentFile) data.append('bpjs_document', files.bpjsDocumentFile);
   return data;
 }
 
 export function getCoachErrorStep(errorFields) {
-  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'province', 'city', 'district', 'village', 'photo'];
+  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'province', 'city', 'district', 'village', 'photo', 'identity_document', 'bpjs_document'];
   const step2Fields = ['phone', 'email'];
   if (errorFields.some((field) => step1Fields.includes(field))) return 1;
   if (errorFields.some((field) => step2Fields.includes(field))) return 2;

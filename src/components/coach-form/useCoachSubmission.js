@@ -53,7 +53,29 @@ export function useCoachSubmission({
     if (formData.nik && !IDENTITY_PATTERN.test(formData.nik)) {
       step1Errors.nik = ['NIK harus tepat 16 digit angka'];
     }
+    if (!files.identityDocumentFile && !files.canReuseStoredIdentity) {
+      step1Errors.identity_document = [coach
+        ? 'Data pelatih lama ini belum memiliki KTP. Unggah KTP sebelum menyimpan perubahan.'
+        : 'KTP pelatih wajib diunggah.'];
+    }
+    if (!files.bpjsDocumentFile && !files.canReuseStoredBPJS) {
+      step1Errors.bpjs_document = [coach
+        ? 'Data pelatih lama ini belum memiliki dokumen BPJS. Unggah BPJS sebelum menyimpan perubahan.'
+        : 'Dokumen BPJS pelatih wajib diunggah.'];
+    }
+    if (files.documentErrors.identity) {
+      step1Errors.identity_document = [files.documentErrors.identity];
+    }
+    if (files.documentErrors.bpjs) {
+      step1Errors.bpjs_document = [files.documentErrors.bpjs];
+    }
     if (Object.keys(step1Errors).length > 0) {
+      if (step1Errors.identity_document) {
+        files.setDocumentError('identity', firstFieldError(step1Errors.identity_document));
+      }
+      if (step1Errors.bpjs_document) {
+        files.setDocumentError('bpjs', firstFieldError(step1Errors.bpjs_document));
+      }
       setErrors(step1Errors);
       setErrorMessage(firstFieldError(Object.values(step1Errors)[0]));
       setStep(1);
@@ -129,6 +151,12 @@ export function useCoachSubmission({
         }
         if (validationErrors.certificate_document) {
           files.setCertificateError(firstFieldError(validationErrors.certificate_document));
+        }
+        if (validationErrors.identity_document) {
+          files.setDocumentError('identity', firstFieldError(validationErrors.identity_document));
+        }
+        if (validationErrors.bpjs_document) {
+          files.setDocumentError('bpjs', firstFieldError(validationErrors.bpjs_document));
         }
         const messages = Object.values(validationErrors).flat();
         setErrorMessage(messages.length > 0 ? messages[0] : 'Terjadi kesalahan validasi data');

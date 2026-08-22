@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -118,6 +118,38 @@ function ProfileSection(props) {
   );
 }
 
+function VerificationDocumentCard({ title, description, available, opening, onOpen, buttonLabel }) {
+  return (
+    <div className={`rounded-xl border p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs ${
+      available ? 'border-indigo-200/80 bg-indigo-50/50' : 'border-slate-200 bg-slate-50'
+    }`}>
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className={`p-2 rounded-lg shrink-0 ${
+          available ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'
+        }`}>
+          <FileText className="w-4 h-4" />
+        </div>
+        <div className="min-w-0">
+          <p className={`text-xs font-bold ${available ? 'text-indigo-950' : 'text-slate-700'}`}>{title}</p>
+          <p className={`text-[11px] ${available ? 'text-indigo-700' : 'text-slate-500'}`}>
+            {available ? description : 'Dokumen belum tersedia pada data pelatih ini'}
+          </p>
+        </div>
+      </div>
+      {available && (
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={opening}
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
+        >
+          {opening ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+          <span>{buttonLabel}</span>
+        </button>
+      )}
+    </div>
+  );
+}
 function TabButton(props) {
   const { id, activeTab, onSelect, icon: Icon, badge, children } = props;
   const isActive = activeTab === id;
@@ -150,7 +182,88 @@ function TabButton(props) {
 export function CoachDetailModal({ isOpen, onClose, coach }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
-  const [isOpeningCertificate, setIsOpeningCertificate] = useState(false);
+  const [openingDocument, setOpeningDocument] = useState('');
+  const documentRequestIdRef = useRef(0);
+  const documentControllerRef = useRef(null);
+  const documentPreviewWindowRef = useRef(null);
+  const documentObjectUrlsRef = useRef(new Set());
+
+  const cleanupDocumentPreview = useCallback(() => {
+    documentRequestIdRef.current += 1;
+    documentControllerRef.current?.abort();
+    documentControllerRef.current = null;
+    documentPreviewWindowRef.current?.close();
+    documentPreviewWindowRef.current = null;
+    documentObjectUrlsRef.current.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
+    documentObjectUrlsRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    setOpeningDocument('');
+    if (!isOpen) cleanupDocumentPreview();
+    return cleanupDocumentPreview;
+  }, [cleanupDocumentPreview, coach?.id, isOpen]);
+
+  const handleOpenDocument = useCallback(async (kind, documentPath, label) => {
+    if (!documentPath || openingDocument) return;
+
+    const requestId = ++documentRequestIdRef.current;
+    documentControllerRef.current?.abort();
+    const controller = new AbortController();
+    documentControllerRef.current = controller;
+    const previewWindow = window.open('', '_blank');
+    documentPreviewWindowRef.current = previewWindow;
+    if (previewWindow) {
+      previewWindow.opener = null;
+      previewWindow.document.title = `Memuat ${label}...`;
+      previewWindow.document.body.textContent = `Memuat ${label}...`;
+    }
+    setOpeningDocument(kind);
+
+    try {
+      const response = await api.get(documentPath, {
+        responseType: 'blob',
+        signal: controller.signal
+      });
+      if (requestId !== documentRequestIdRef.current || controller.signal.aborted) {
+        previewWindow?.close();
+        return;
+      }
+      const objectUrl = URL.createObjectURL(response.data);
+      documentObjectUrlsRef.current.add(objectUrl);
+      if (previewWindow) {
+        previewWindow.location.replace(objectUrl);
+        documentPreviewWindowRef.current = null;
+      } else {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (error) {
+      previewWindow?.close();
+      if (
+        requestId !== documentRequestIdRef.current ||
+        error.name === 'CanceledError' ||
+        error.code === 'ERR_CANCELED'
+      ) {
+        return;
+      }
+      const message = error.response?.status === 404
+        ? `Dokumen ${label} tidak ditemukan.`
+        : `Gagal membuka dokumen ${label}. Silakan coba lagi.`;
+      window.alert(message);
+    } finally {
+      if (requestId === documentRequestIdRef.current) {
+        documentControllerRef.current = null;
+        documentPreviewWindowRef.current = null;
+        setOpeningDocument('');
+      }
+    }
+  }, [openingDocument]);
 
   if (!isOpen || !coach) return null;
 
@@ -161,35 +274,6 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
   const activeStatus = coach.is_active ? 'Aktif' : 'Nonaktif';
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
   const achievementsList = parseAchievements(coach.achievements);
-
-  const handleOpenCertificate = async () => {
-    if (!coach?.certificate_document || isOpeningCertificate) return;
-    setIsOpeningCertificate(true);
-
-    try {
-      const response = await api.get(coach.certificate_document, {
-        responseType: 'blob',
-      });
-      const objectUrl = window.URL.createObjectURL(response.data);
-      const previewWindow = window.open(objectUrl, '_blank', 'noopener,noreferrer');
-      if (!previewWindow) {
-        const link = document.createElement('a');
-        link.href = objectUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }
-      window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 60_000);
-    } catch (error) {
-      console.error('Failed to open certificate document:', error);
-      window.alert('Gagal membuka dokumen sertifikat. Silakan coba lagi.');
-    } finally {
-      setIsOpeningCertificate(false);
-    }
-  };
-
   const buildPrintHtml = ({ histories, funds, clusterError, fundsError }) => {
     const printedAt = new Date();
     const printedDate = printedAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -677,7 +761,32 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                   <ProfileField label="Alamat Domisili" value={coach.address} className="sm:col-span-2" />
                 </ProfileSection>
 
-                {/* 2. Kepelatihan & Lisensi */}
+                {/* 2. Dokumen Wajib Verifikasi */}
+                <ProfileSection
+                  title="Dokumen Wajib Verifikasi"
+                  icon={ShieldCheck}
+                  iconColor="text-indigo-600"
+                  iconBg="bg-indigo-50"
+                >
+                  <VerificationDocumentCard
+                    title="KTP Pelatih"
+                    description="Dokumen identitas resmi tersedia untuk verifikasi"
+                    available={Boolean(coach.identity_document)}
+                    opening={openingDocument === 'identity'}
+                    onOpen={() => handleOpenDocument('identity', coach.identity_document, 'KTP')}
+                    buttonLabel="Buka KTP"
+                  />
+                  <VerificationDocumentCard
+                    title="BPJS Kesehatan/Ketenagakerjaan"
+                    description="Dokumen kepesertaan BPJS tersedia untuk verifikasi"
+                    available={Boolean(coach.bpjs_document)}
+                    opening={openingDocument === 'bpjs'}
+                    onOpen={() => handleOpenDocument('bpjs', coach.bpjs_document, 'BPJS')}
+                    buttonLabel="Buka BPJS"
+                  />
+                </ProfileSection>
+
+                {/* 3. Kepelatihan & Lisensi */}
                 <ProfileSection
                   title="Kepelatihan & Lisensi"
                   icon={Award}
@@ -705,11 +814,11 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                       </div>
                       <button
                         type="button"
-                        onClick={handleOpenCertificate}
-                        disabled={isOpeningCertificate}
+                        onClick={() => handleOpenDocument('certificate', coach.certificate_document, 'sertifikat')}
+                        disabled={openingDocument === 'certificate'}
                         className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-all shadow-xs disabled:opacity-50 cursor-pointer"
                       >
-                        {isOpeningCertificate ? (
+                        {openingDocument === 'certificate' ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
                           <ExternalLink className="w-3.5 h-3.5" />
@@ -720,7 +829,7 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                   )}
                 </ProfileSection>
 
-                {/* 3. Kontak & Komunikasi */}
+                {/* 4. Kontak & Komunikasi */}
                 <ProfileSection
                   title="Kontak & Komunikasi"
                   icon={Phone}
@@ -731,7 +840,7 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                   <ProfileField label="Alamat Email" value={coach.email} valueClassName="break-all" />
                 </ProfileSection>
 
-                {/* 4. Prestasi Kepelatihan */}
+                {/* 5. Prestasi Kepelatihan */}
                 <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/70 to-amber-100/30 p-4 sm:p-5 shadow-xs">
                   <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-amber-950 pb-2 border-b border-amber-200/60">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200/70 text-amber-800">

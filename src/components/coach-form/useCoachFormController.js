@@ -127,6 +127,8 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
   const isStepValid = () => {
     if (step === 1) {
       const nikValid = !formData.nik || IDENTITY_PATTERN.test(formData.nik);
+      const hasIdentityDocument = Boolean(media.identityDocumentFile || media.canReuseStoredIdentity);
+      const hasBPJSDocument = Boolean(media.bpjsDocumentFile || media.canReuseStoredBPJS);
       return formData.name.trim() !== '' &&
         formData.cabor_id !== '' &&
         formData.province.trim() !== '' &&
@@ -134,7 +136,13 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
         formData.district.trim() !== '' &&
         formData.village.trim() !== '' &&
         nikValid &&
-        !media.photoProcessing;
+        hasIdentityDocument &&
+        hasBPJSDocument &&
+        !media.photoProcessing &&
+        !media.documentProcessing.identity &&
+        !media.documentProcessing.bpjs &&
+        !media.documentErrors.identity &&
+        !media.documentErrors.bpjs;
     }
     if (step === 2) {
       const phoneValid = !formData.phone?.trim() || phoneValidation.status === 'valid';

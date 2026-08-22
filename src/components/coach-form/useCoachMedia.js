@@ -5,6 +5,8 @@ import { compressImageToWebP, validateSourceFile } from '../form-modal/mediaUtil
 export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
   const photoProcessingIdRef = useRef(0);
   const certificateProcessingIdRef = useRef(0);
+  const identityProcessingIdRef = useRef(0);
+  const bpjsProcessingIdRef = useRef(0);
   const certificateOpenRequestIdRef = useRef(0);
   const certificateOpenControllerRef = useRef(null);
   const certificatePreviewWindowRef = useRef(null);
@@ -16,6 +18,10 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
   const [certificateProcessing, setCertificateProcessing] = useState(false);
   const [certificateError, setCertificateError] = useState('');
   const [certificateOpening, setCertificateOpening] = useState(false);
+  const [identityDocumentFile, setIdentityDocumentFile] = useState(null);
+  const [bpjsDocumentFile, setBPJSDocumentFile] = useState(null);
+  const [documentProcessing, setDocumentProcessing] = useState({ identity: false, bpjs: false });
+  const [documentErrors, setDocumentErrors] = useState({ identity: '', bpjs: '' });
 
   useEffect(() => () => {
     if (photoPreview?.startsWith('blob:')) {
@@ -23,9 +29,18 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     }
   }, [photoPreview]);
 
+  const revokeCertificateViewUrl = useCallback(() => {
+    if (certificateViewUrlRef.current) {
+      URL.revokeObjectURL(certificateViewUrlRef.current);
+      certificateViewUrlRef.current = '';
+    }
+  }, []);
+
   const cancelPending = useCallback(() => {
     photoProcessingIdRef.current += 1;
     certificateProcessingIdRef.current += 1;
+    identityProcessingIdRef.current += 1;
+    bpjsProcessingIdRef.current += 1;
     certificateOpenRequestIdRef.current += 1;
     certificateOpenControllerRef.current?.abort();
     certificateOpenControllerRef.current = null;
@@ -35,14 +50,12 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
 
   useEffect(() => () => {
     cancelPending();
-    if (certificateViewUrlRef.current) {
-      URL.revokeObjectURL(certificateViewUrlRef.current);
-      certificateViewUrlRef.current = '';
-    }
-  }, [cancelPending]);
+    revokeCertificateViewUrl();
+  }, [cancelPending, revokeCertificateViewUrl]);
 
   const reset = useCallback((preview = null) => {
     cancelPending();
+    revokeCertificateViewUrl();
     setPhotoFile(null);
     setPhotoPreview(preview);
     setPhotoProcessing(false);
@@ -50,7 +63,11 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     setCertificateProcessing(false);
     setCertificateError('');
     setCertificateOpening(false);
-  }, [cancelPending]);
+    setIdentityDocumentFile(null);
+    setBPJSDocumentFile(null);
+    setDocumentProcessing({ identity: false, bpjs: false });
+    setDocumentErrors({ identity: '', bpjs: '' });
+  }, [cancelPending, revokeCertificateViewUrl]);
 
   const handlePhotoChange = useCallback(async (event) => {
     const input = event.target;
@@ -114,6 +131,56 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     }
   }, [setErrors]);
 
+  const handleDocumentChange = useCallback((kind) => async (event) => {
+    const input = event.target;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+
+    const processingRef = kind === 'identity' ? identityProcessingIdRef : bpjsProcessingIdRef;
+    const field = kind === 'identity' ? 'identity_document' : 'bpjs_document';
+    const processingId = ++processingRef.current;
+    if (kind === 'identity') {
+      setIdentityDocumentFile(null);
+    } else {
+      setBPJSDocumentFile(null);
+    }
+    setDocumentErrors((previous) => ({ ...previous, [kind]: '' }));
+    setErrors((previous) => {
+      const next = { ...previous };
+      delete next[field];
+      return next;
+    });
+    setDocumentProcessing((previous) => ({ ...previous, [kind]: true }));
+
+    try {
+      const { extension } = validateSourceFile(file, { allowPDF: true });
+      const processedFile = extension === 'pdf'
+        ? file
+        : await compressImageToWebP(file, { maxLongest: 1600 });
+      if (processingId !== processingRef.current) return;
+      if (kind === 'identity') {
+        setIdentityDocumentFile(processedFile);
+      } else {
+        setBPJSDocumentFile(processedFile);
+      }
+    } catch (error) {
+      if (processingId !== processingRef.current) return;
+      setDocumentErrors((previous) => ({
+        ...previous,
+        [kind]: error.message || 'Dokumen gagal diproses. Silakan pilih file lain.'
+      }));
+    } finally {
+      if (processingId === processingRef.current) {
+        setDocumentProcessing((previous) => ({ ...previous, [kind]: false }));
+      }
+    }
+  }, [setErrors]);
+
+  const setDocumentError = useCallback((kind, message) => {
+    setDocumentErrors((previous) => ({ ...previous, [kind]: message }));
+  }, []);
+
   const handleOpenStoredCertificate = useCallback(async () => {
     if (!coach?.certificate_document || certificateOpening) return;
 
@@ -141,9 +208,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
         previewWindow?.close();
         return;
       }
-      if (certificateViewUrlRef.current) {
-        URL.revokeObjectURL(certificateViewUrlRef.current);
-      }
+      revokeCertificateViewUrl();
       const objectUrl = URL.createObjectURL(response.data);
       certificateViewUrlRef.current = objectUrl;
       if (previewWindow) {
@@ -176,7 +241,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
         setCertificateOpening(false);
       }
     }
-  }, [certificateOpening, coach?.certificate_document]);
+  }, [certificateOpening, coach?.certificate_document, revokeCertificateViewUrl]);
 
   return {
     photoFile,
@@ -186,13 +251,21 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     certificateProcessing,
     certificateError,
     certificateOpening,
+    identityDocumentFile,
+    bpjsDocumentFile,
+    documentProcessing,
+    documentErrors,
     canReuseStoredCertificate: Boolean(coach?.certificate_document),
-    isAnyFileProcessing: photoProcessing || certificateProcessing,
+    canReuseStoredIdentity: Boolean(coach?.identity_document),
+    canReuseStoredBPJS: Boolean(coach?.bpjs_document),
+    isAnyFileProcessing: photoProcessing || certificateProcessing || documentProcessing.identity || documentProcessing.bpjs,
     setCertificateError,
+    setDocumentError,
     reset,
     cancelPending,
     handlePhotoChange,
     handleCertificateChange,
+    handleDocumentChange,
     handleOpenStoredCertificate
   };
 }
