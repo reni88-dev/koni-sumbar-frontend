@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Login } from './pages/Login';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { PublicResetPassword } from './pages/PublicResetPassword';
+import { AccountEmailRecovery } from './pages/AccountEmailRecovery';
+import { AccountEmailRecoveryVerification } from './pages/AccountEmailRecoveryVerification';
+import { AccountEmailRecoveryAdmin } from './pages/AccountEmailRecoveryAdmin';
 import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { UsersPage } from './pages/master/Users';
@@ -73,8 +76,11 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<PublicResetPassword />} />
+      <Route path="/pemulihan-email" element={<AccountEmailRecovery />} />
+      <Route path="/pemulihan-email/verifikasi" element={<AccountEmailRecoveryVerification />} />
       <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />      {/* Protected Routes */}
       <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+      <Route path="/admin/pemulihan-email" element={<ProtectedRoute><AccountEmailRecoveryAdmin /></ProtectedRoute>} />
       <Route path="/pengaduan" element={<ProtectedRoute><ComplaintsPage /></ProtectedRoute>} />
       <Route path="/pengaduan/:id" element={<ProtectedRoute><ComplaintDetailPage /></ProtectedRoute>} />
       <Route

@@ -22,12 +22,21 @@ api.interceptors.request.use((config) => {
   }
 
   const token = localStorage.getItem("token");
-  const publicEndpoints = [
+  const publicEndpoints = new Set([
     "/api/login",
     "/api/forgot-password",
     "/api/reset-password/confirm",
-  ];
-  if (token && !publicEndpoints.includes(config.url)) {
+    "/api/account-email-recovery/lookup",
+    "/api/account-email-recovery/submit",
+    "/api/account-email-recovery/verify",
+  ]);
+  let requestPath = config.url || "";
+  try {
+    requestPath = new URL(requestPath, "http://axios.local").pathname;
+  } catch {
+    requestPath = "";
+  }
+  if (token && !publicEndpoints.has(requestPath)) {
     config.headers["Authorization"] = `Bearer ${token}`;
   }
   return config;

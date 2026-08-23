@@ -224,6 +224,13 @@ export function Login() {
               </Link>
             </div>
 
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-center text-sm text-slate-600">
+              Atlet atau pelatih tidak ingat email akun?{' '}
+              <Link to="/pemulihan-email" className="font-bold text-red-600 hover:text-red-700 hover:underline">
+                Pulihkan email
+              </Link>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading}

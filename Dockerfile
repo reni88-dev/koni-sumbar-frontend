@@ -8,7 +8,9 @@ COPY . .
 
 # Set build arguments for environment variables
 ARG VITE_API_URL
+ARG VITE_TURNSTILE_SITE_KEY
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_TURNSTILE_SITE_KEY=${VITE_TURNSTILE_SITE_KEY}
 
 # Build application with increased memory limit
 RUN NODE_OPTIONS="--max-old-space-size=4096" npm run build
