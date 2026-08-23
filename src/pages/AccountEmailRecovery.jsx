@@ -121,7 +121,7 @@ export function AccountEmailRecovery() {
               <div className="rounded-2xl bg-white/15 p-3"><ShieldCheck className="h-7 w-7" /></div>
               <div>
                 <h1 className="text-2xl font-bold sm:text-3xl">Pemulihan Email</h1>
-                <p className="mt-2 max-w-xl text-sm leading-6 text-red-100">Khusus akun atlet atau pelatih yang masih diwajibkan mengganti password. Data identitas hanya digunakan untuk verifikasi.</p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-red-100">Khusus akun atlet atau pelatih yang sudah terdaftar dan belum pernah ubah password. Data identitas hanya digunakan untuk verifikasi.</p>
               </div>
             </div>
           </div>
