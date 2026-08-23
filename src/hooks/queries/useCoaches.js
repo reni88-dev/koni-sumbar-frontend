@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 
 // Query keys
@@ -6,6 +6,7 @@ export const coachKeys = {
   all: ['coaches'],
   lists: () => [...coachKeys.all, 'list'],
   list: (filters) => [...coachKeys.lists(), filters],
+  infiniteList: (filters) => [...coachKeys.lists(), 'infinite', filters],
   details: () => [...coachKeys.all, 'detail'],
   detail: (id) => [...coachKeys.details(), id],
 };
@@ -30,6 +31,59 @@ export function useCoaches({ page = 1, search = '', caborId = '', isActive = '',
       });
       return response.data;
     },
+  });
+}
+
+// Fetch coaches with infinite scroll while keeping the page-based hook available.
+export function useInfiniteCoaches({
+  search = '',
+  caborId = '',
+  isActive = '',
+  clusterId = '',
+  subClusterId = '',
+  clusterType = '',
+  subClusterType = '',
+  perPage = 20,
+  enabled = true,
+} = {}) {
+  return useInfiniteQuery({
+    queryKey: coachKeys.infiniteList({
+      search,
+      caborId,
+      isActive,
+      clusterId,
+      subClusterId,
+      clusterType,
+      subClusterType,
+      perPage,
+    }),
+    queryFn: async ({ pageParam }) => {
+      const response = await api.get('/api/coaches', {
+        params: {
+          page: pageParam,
+          search: search || undefined,
+          cabor_id: caborId || undefined,
+          cluster_id: clusterId || undefined,
+          sub_cluster_id: subClusterId || undefined,
+          cluster_type: clusterType || undefined,
+          sub_cluster_type: subClusterType || undefined,
+          is_active: isActive !== '' ? isActive : undefined,
+          per_page: perPage,
+        },
+      });
+      return response.data;
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const currentPage = Number(lastPage?.page) || 1;
+      const responsePerPage = Number(lastPage?.per_page) || perPage;
+      const total = Number(lastPage?.total) || 0;
+
+      return currentPage * responsePerPage < total
+        ? currentPage + 1
+        : undefined;
+    },
+    enabled,
   });
 }
 

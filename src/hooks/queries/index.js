@@ -24,3 +24,6 @@ export * from './useMasterData';
 export * from './usePortal';
 
 
+
+// Account email recovery queries
+export * from './useAccountEmailRecovery';

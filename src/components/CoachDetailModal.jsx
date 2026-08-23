@@ -21,6 +21,7 @@ import {
   Building2
 } from 'lucide-react';
 import api from '../api/axios';
+import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import { ProtectedImage } from './ProtectedImage';
 import { CoachClusterHistoryTab, CoachDevelopmentFundsTab } from './coach-clusters';
 
@@ -274,6 +275,7 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
   const activeStatus = coach.is_active ? 'Aktif' : 'Nonaktif';
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
   const achievementsList = parseAchievements(coach.achievements);
+  const photoUrl = getCoachPhotoUrl(coach);
   const buildPrintHtml = ({ histories, funds, clusterError, fundsError }) => {
     const printedAt = new Date();
     const printedDate = printedAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -566,11 +568,16 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
               {/* Avatar with Status Ping Indicator */}
               <div className="relative shrink-0">
                 <div className="h-22 w-22 sm:h-24 sm:w-24 md:h-28 md:w-28 rounded-2xl border-2 border-white/30 bg-slate-900/60 p-1 shadow-2xl backdrop-blur-xs ring-4 ring-white/10 overflow-hidden">
-                  {coach.photo ? (
+                  {photoUrl ? (
                     <ProtectedImage
-                      src={coach.photo}
+                      src={photoUrl}
                       alt={coach.name}
                       className="h-full w-full rounded-xl object-cover"
+                      fallback={
+                        <div className="flex h-full w-full items-center justify-center rounded-xl bg-slate-800 text-slate-400">
+                          <User className="h-10 w-10 sm:h-12 sm:w-12 text-slate-300" />
+                        </div>
+                      }
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center rounded-xl bg-slate-800 text-slate-400">

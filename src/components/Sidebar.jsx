@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { useComplaintSummary } from '../hooks/queries/useComplaints';
+import { useAccountEmailRecoverySummary } from '../hooks/queries/useAccountEmailRecovery';
 import { 
   LayoutDashboard, 
   Users, 
@@ -25,7 +26,8 @@ import {
   ClipboardList,
   Bot,
   Layers,
-  MessageSquareWarning
+  MessageSquareWarning,
+  MailQuestion
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -90,6 +92,8 @@ function SidebarContent({ onNavigate }) {
   const isSuperAdminUser = user?.role?.name === 'super_admin' || user?.role_id === 1 || user?.role?.id === 1;
   const hasSuperAdminAccess = isSuperAdminUser || user?.permissions?.includes('*');
   const { data: complaintSummary } = useComplaintSummary(isSuperAdminUser);
+  const hasRecoveryPermission = hasSuperAdminAccess || user?.permissions?.includes('account_email_recovery.view');
+  const { data: recoverySummary } = useAccountEmailRecoverySummary(Boolean(hasRecoveryPermission));
 
   const isActive = (path) => location.pathname === path || (path === '/pengaduan' && location.pathname.startsWith('/pengaduan/'));
   const isChildActive = (children) => children?.some(child => location.pathname === child.path);
@@ -208,6 +212,7 @@ function SidebarContent({ onNavigate }) {
   ]);
 
   const systemItems = filterVisibleItems([
+    { icon: MailQuestion, label: 'Pemulihan Email', path: '/admin/pemulihan-email', permission: 'account_email_recovery.view', badge: recoverySummary?.pending_admin ?? 0 },
     ...(isSuperAdmin()
       ? [
           { icon: History, label: 'Activity Log', path: '/activity-logs' },

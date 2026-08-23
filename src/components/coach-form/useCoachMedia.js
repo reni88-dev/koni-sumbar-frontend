@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
+import { getCoachPhotoUrl } from '../../lib/coachPhoto';
 import { compressImageToWebP, validateSourceFile } from '../form-modal/mediaUtils';
 
 export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
@@ -22,6 +23,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
   const [bpjsDocumentFile, setBPJSDocumentFile] = useState(null);
   const [documentProcessing, setDocumentProcessing] = useState({ identity: false, bpjs: false });
   const [documentErrors, setDocumentErrors] = useState({ identity: '', bpjs: '' });
+  const coachPhotoUrl = getCoachPhotoUrl(coach);
 
   useEffect(() => () => {
     if (photoPreview?.startsWith('blob:')) {
@@ -77,7 +79,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
 
     const processingId = ++photoProcessingIdRef.current;
     setPhotoFile(null);
-    setPhotoPreview(coach?.photo || null);
+    setPhotoPreview(coachPhotoUrl);
     setPhotoProcessing(true);
     setErrorMessage('');
 
@@ -96,7 +98,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
         setPhotoProcessing(false);
       }
     }
-  }, [coach?.photo, setErrorMessage]);
+  }, [coachPhotoUrl, setErrorMessage]);
 
   const handleCertificateChange = useCallback(async (event) => {
     const input = event.target;
