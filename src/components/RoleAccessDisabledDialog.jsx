@@ -1,46 +1,15 @@
-import { AnimatePresence, motion as Motion } from 'framer-motion';
-import { ShieldAlert } from 'lucide-react';
+import { AccountBlockedDialog } from './AccountBlockedDialog';
+import { ACCESS_CODES } from '../lib/authAccess';
 
 export function RoleAccessDisabledDialog({ message, onReturnToLogin }) {
   return (
-    <AnimatePresence>
-      {message && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <Motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
-          />
-          <Motion.div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="role-access-disabled-title"
-            aria-describedby="role-access-disabled-message"
-            initial={{ opacity: 0, scale: 0.95, y: 12 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 12 }}
-            className="relative w-full max-w-md rounded-2xl bg-white p-6 text-center shadow-2xl"
-          >
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-100">
-              <ShieldAlert className="h-8 w-8 text-amber-600" />
-            </div>
-            <h2 id="role-access-disabled-title" className="mb-2 text-xl font-bold text-slate-800">
-              Akses Dinonaktifkan Sementara
-            </h2>
-            <p id="role-access-disabled-message" className="mb-6 text-sm leading-6 text-slate-600">
-              {message}
-            </p>
-            <button
-              type="button"
-              onClick={onReturnToLogin}
-              className="w-full rounded-xl bg-red-600 px-4 py-3 font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
-            >
-              Kembali ke Login
-            </button>
-          </Motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+    <AccountBlockedDialog
+      block={message ? {
+        code: ACCESS_CODES.ROLE_ACCESS_DISABLED,
+        title: 'Akses Dinonaktifkan Sementara',
+        message,
+      } : null}
+      onReturnToLogin={onReturnToLogin}
+    />
   );
 }

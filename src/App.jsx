@@ -45,6 +45,7 @@ import { ComplaintsPage } from './pages/Complaints';
 import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { PermissionRoute } from './components/PermissionRoute';
 import { useAuth } from './hooks/useAuth';
 
 // Smart Dashboard that redirects based on user role
@@ -115,7 +116,9 @@ function App() {
         path="/atlet"
         element={
           <ProtectedRoute>
-            <AthletesPage />
+            <PermissionRoute permission="athletes.view">
+              <AthletesPage />
+            </PermissionRoute>
           </ProtectedRoute>
         }
       />

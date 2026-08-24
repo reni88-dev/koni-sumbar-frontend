@@ -121,20 +121,24 @@ export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
           >
             <Eye className="w-4 h-4" />
           </button>
-          <button
-            onClick={() => onEdit(athlete)}
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-            title="Edit"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onDelete(athlete)}
-            className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
-            title="Hapus"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {onEdit && (
+            <button
+              onClick={() => onEdit(athlete)}
+              className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+              title="Edit"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={() => onDelete(athlete)}
+              className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+              title="Hapus"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </td>
     </tr>

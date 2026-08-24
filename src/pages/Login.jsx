@@ -1,11 +1,16 @@
-import { useState } from "react";
-import { Link, useNavigate, useLocation, Navigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import {
-  ROLE_ACCESS_DISABLED_MESSAGE,
-  isRoleAccessDisabledError,
-} from "../lib/roleAccess";
-import { motion as Motion, AnimatePresence } from "framer-motion";
+  ACCESS_SERVICE_UNAVAILABLE_MESSAGE,
+  getAccountBlock,
+  getSafeApiMessage,
+  isAccessServiceUnavailableError,
+  isAccountBlockedError,
+  isNetworkError,
+  isServerError,
+} from '../lib/authAccess';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   User,
   Lock,
@@ -14,18 +19,18 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
-} from "lucide-react";
+} from 'lucide-react';
 
-import koniLogo from "../assets/koni-sumbar.jpg";
+import koniLogo from '../assets/koni-sumbar.jpg';
 
 export function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, sessionNotice } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,27 +38,39 @@ export function Login() {
     return <Navigate to="/dashboard" replace />;
   }
 
-  const from = location.state?.from?.pathname || "/dashboard";
+  const fromLocation = location.state?.from;
+  const from = fromLocation
+    ? `${fromLocation.pathname || ''}${fromLocation.search || ''}${fromLocation.hash || ''}`
+    : '/dashboard';
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
     setIsLoading(true);
 
     try {
       await login(email, password);
       navigate(from, { replace: true });
-    } catch (err) {
-      if (isRoleAccessDisabledError(err)) {
-        setError(err.response?.data?.message || ROLE_ACCESS_DISABLED_MESSAGE);
-      } else if (err.response?.status === 401) {
-        setError("Email atau password salah.");
-      } else if (err.response?.status === 422) {
-        setError(err.response.data.message || "Invalid credentials.");
-      } else if (err.response?.status === 429) {
-        setError("Too many login attempts. Please wait a moment.");
+    } catch (requestError) {
+      if (isAccountBlockedError(requestError)) {
+        setError(getAccountBlock(requestError).message);
+      } else if (
+        isAccessServiceUnavailableError(requestError) ||
+        isNetworkError(requestError) ||
+        isServerError(requestError)
+      ) {
+        setError(getSafeApiMessage(
+          requestError,
+          `Layanan login sedang bermasalah. ${ACCESS_SERVICE_UNAVAILABLE_MESSAGE}`,
+        ));
+      } else if (requestError.response?.status === 401) {
+        setError('Email atau password salah.');
+      } else if (requestError.response?.status === 422) {
+        setError(getSafeApiMessage(requestError, 'Data login tidak valid.'));
+      } else if (requestError.response?.status === 429) {
+        setError('Terlalu banyak percobaan login. Tunggu beberapa saat lalu coba lagi.');
       } else {
-        setError("Terjadi kesalahan. Silakan coba lagi.");
+        setError(getSafeApiMessage(requestError, 'Terjadi kesalahan. Silakan coba lagi.'));
       }
     } finally {
       setIsLoading(false);
@@ -143,6 +160,11 @@ export function Login() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {sessionNotice && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="status">
+                {sessionNotice}
+              </div>
+            )}
             <AnimatePresence>
               {error && (
                 <Motion.div
