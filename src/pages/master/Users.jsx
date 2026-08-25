@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -13,13 +13,27 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
+import { usePermission } from '../../hooks/usePermission';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../../hooks/queries/useMasterData';
 import { useRolesAll } from '../../hooks/queries/useMasterData';
 import { useOrganizationsAll } from '../../hooks/queries/useOrganizations';
 import { PrintUserList } from '../../components/PrintUserList';
 
+const ORGANIZATION_REQUIRED_ROLES = new Set([
+  'pengprov',
+  'admin_pengprov',
+  'pengkot',
+  'admin_pengkot',
+  'komcab',
+  'admin_komcab',
+  'porprov_kontingen',
+  'porprov_admin_kabkota',
+]);
+
 export function UsersPage() {
   const { user: currentUser } = useAuth();
+  const { can } = usePermission();
+  const canViewRoles = can('roles.view');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
@@ -39,11 +53,11 @@ export function UsersPage() {
 
   // TanStack Query hooks
   const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch, roleId: filterRole, sort: filterSort });
-  const { data: roles = [] } = useRolesAll();
+  const { data: roles = [] } = useRolesAll({ enabled: canViewRoles });
   const { data: organizations = [] } = useOrganizationsAll();
   const activeOrganizations = organizations.filter((organization) => organization?.is_active !== false);
   const selectedRole = roles.find((role) => String(role.id) === String(formData.role_id));
-  const organizationRequired = ['porprov_kontingen', 'porprov_admin_kabkota'].includes(selectedRole?.name);
+  const organizationRequired = ORGANIZATION_REQUIRED_ROLES.has(selectedRole?.name);
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const deleteUserMutation = useDeleteUser();
@@ -290,14 +304,14 @@ export function UsersPage() {
       <AnimatePresence>
         {isModalOpen && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
               onClick={() => setIsModalOpen(false)}
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -380,7 +394,7 @@ export function UsersPage() {
                         <option key={organization.id} value={organization.id}>{organization.name} ({organization.type})</option>
                       ))}
                     </select>
-                    {organizationRequired && <p className="text-slate-500 text-xs mt-1">Wajib untuk role Kontingen dan Admin Kontingen Kab/Kota.</p>}
+                    {organizationRequired && <p className="text-slate-500 text-xs mt-1">Wajib untuk role organisasi Pengprov, Pengkot, Komcab, dan Porprov.</p>}
                     {formErrors.organization_id && <p className="text-red-500 text-xs mt-1">{formErrors.organization_id[0]}</p>}
                   </div>
                   
@@ -403,7 +417,7 @@ export function UsersPage() {
                   </div>
                 </form>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>
@@ -412,14 +426,14 @@ export function UsersPage() {
       <AnimatePresence>
         {isDeleteModalOpen && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
               onClick={() => setIsDeleteModalOpen(false)}
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -449,7 +463,7 @@ export function UsersPage() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>

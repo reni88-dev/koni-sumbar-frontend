@@ -90,7 +90,7 @@ export function useRoles({ page = 1, search = '' } = {}) {
   });
 }
 
-export function useRolesAll() {
+export function useRolesAll({ enabled = true } = {}) {
   return useQuery({
     queryKey: roleKeys.allDropdown(),
     queryFn: async () => {
@@ -98,6 +98,7 @@ export function useRolesAll() {
       return response.data;
     },
     staleTime: 10 * 60 * 1000,
+    enabled,
   });
 }
 
@@ -173,7 +174,7 @@ export const permissionKeys = {
   grouped: () => [...permissionKeys.all, 'grouped'],
 };
 
-export function usePermissions() {
+export function usePermissions({ enabled = true } = {}) {
   return useQuery({
     queryKey: permissionKeys.all,
     queryFn: async () => {
@@ -181,10 +182,11 @@ export function usePermissions() {
       return response.data;
     },
     staleTime: 30 * 60 * 1000, // Permissions rarely change
+    enabled,
   });
 }
 
-export function usePermissionsGrouped() {
+export function usePermissionsGrouped({ enabled = true } = {}) {
   return useQuery({
     queryKey: permissionKeys.grouped(),
     queryFn: async () => {
@@ -192,6 +194,7 @@ export function usePermissionsGrouped() {
       return response.data;
     },
     staleTime: 30 * 60 * 1000,
+    enabled,
   });
 }
 

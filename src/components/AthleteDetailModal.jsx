@@ -124,7 +124,7 @@ function TabButton(props) {
   );
 }
 
-export function AthleteDetailModal({ isOpen, onClose, athlete }) {
+export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive = false }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
   const { data: educationLevels = [] } = useEducationLevelsAll();
@@ -347,6 +347,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
   };
 
   const handlePrintDetail = async () => {
+    if (!canViewSensitive) return;
     setIsPrinting(true);
 
     try {
@@ -422,20 +423,22 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handlePrintDetail}
-                  disabled={isPrinting}
-                  className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-semibold border border-white/20 backdrop-blur-md transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-                  title="Cetak profil lengkap atlet"
-                >
-                  {isPrinting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Printer className="w-4 h-4 text-red-200" />
-                  )}
-                  <span className="hidden sm:inline">Cetak Profil</span>
-                </button>
+                {canViewSensitive && (
+                  <button
+                    type="button"
+                    onClick={handlePrintDetail}
+                    disabled={isPrinting}
+                    className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-semibold border border-white/20 backdrop-blur-md transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    title="Cetak profil lengkap atlet"
+                  >
+                    {isPrinting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Printer className="w-4 h-4 text-red-200" />
+                    )}
+                    <span className="hidden sm:inline">Cetak Profil</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -493,7 +496,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
                     {athlete.name}
                   </h2>
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1.5 text-xs text-red-100/90 font-medium">
-                    {athlete.nik && (
+                    {canViewSensitive && athlete.nik && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/25 backdrop-blur-md border border-white/10 font-mono">
                         <span>NIK:</span>
                         <strong className="text-white">{athlete.nik}</strong>
@@ -574,20 +577,22 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
               </div>
 
               {/* 3. Kontak Utama */}
-              <div className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shrink-0">
-                  <Phone className="w-4 h-4" />
+              {canViewSensitive && (
+                <div className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shrink-0">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kontak</p>
+                    <p className="text-xs font-bold text-slate-800 truncate" title={athlete.phone || '-'}>
+                      {athlete.phone || '-'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate" title={athlete.email || '-'}>
+                      {athlete.email || '-'}
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kontak</p>
-                  <p className="text-xs font-bold text-slate-800 truncate" title={athlete.phone || '-'}>
-                    {athlete.phone || '-'}
-                  </p>
-                  <p className="text-[11px] text-slate-500 truncate" title={athlete.email || '-'}>
-                    {athlete.email || '-'}
-                  </p>
-                </div>
-              </div>
+              )}
 
               {/* 4. Gender & Status */}
               <div className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
@@ -631,8 +636,12 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
                 >
                   <ProfileField label="Nama Lengkap" value={athlete.name} />
                   <ProfileField label="Status Keaktifan" value={activeStatus} />
-                  <ProfileField label="NIK (Nomor Induk Kependudukan)" value={athlete.nik} mono />
-                  <ProfileField label="Nomor Kartu Keluarga" value={athlete.no_kk} mono />
+                  {canViewSensitive && (
+                    <>
+                      <ProfileField label="NIK (Nomor Induk Kependudukan)" value={athlete.nik} mono />
+                      <ProfileField label="Nomor Kartu Keluarga" value={athlete.no_kk} mono />
+                    </>
+                  )}
                   <ProfileField label="Nomor Atlit Nasional" value={athlete.national_athlete_number} mono />
                   <ProfileField label="Jenis Kelamin" value={genderLabels[athlete.gender]} />
                   <ProfileField label="Tempat Lahir" value={athlete.birth_place} />
@@ -659,7 +668,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
 
                 {/* 3. Fisik, Kontak & Pendidikan */}
                 <ProfileSection
-                  title="Fisik, Kontak & Pendidikan"
+                  title={canViewSensitive ? 'Fisik, Kontak & Pendidikan' : 'Fisik & Pendidikan'}
                   icon={Activity}
                   iconColor="text-emerald-600"
                   iconBg="bg-emerald-50"
@@ -668,8 +677,12 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
                   <ProfileField label="Berat Badan" value={athlete.weight ? `${athlete.weight} kg` : '-'} />
                   <ProfileField label="Golongan Darah" value={athlete.blood_type} />
                   <ProfileField label="Pendidikan Terakhir" value={educationLevel} />
-                  <ProfileField label="Nomor Telepon / WA" value={athlete.phone} />
-                  <ProfileField label="Alamat Email" value={athlete.email} valueClassName="break-all" />
+                  {canViewSensitive && (
+                    <>
+                      <ProfileField label="Nomor Telepon / WA" value={athlete.phone} />
+                      <ProfileField label="Alamat Email" value={athlete.email} valueClassName="break-all" />
+                    </>
+                  )}
                   <ProfileField label="Pekerjaan" value={athlete.occupation} />
                   <ProfileField label="Hobi" value={athlete.hobby} />
                 </ProfileSection>
@@ -682,9 +695,9 @@ export function AthleteDetailModal({ isOpen, onClose, athlete }) {
                   iconBg="bg-rose-50"
                 >
                   <ProfileField label="Nama Ayah" value={athlete.father_name} />
-                  <ProfileField label="Telepon Ayah" value={athlete.father_phone} />
+                  {canViewSensitive && <ProfileField label="Telepon Ayah" value={athlete.father_phone} />}
                   <ProfileField label="Nama Ibu" value={athlete.mother_name} />
-                  <ProfileField label="Telepon Ibu" value={athlete.mother_phone} />
+                  {canViewSensitive && <ProfileField label="Telepon Ibu" value={athlete.mother_phone} />}
                   <ProfileField label="Alamat Orang Tua / Wali" value={athlete.parent_address} className="sm:col-span-2" />
                 </ProfileSection>
 

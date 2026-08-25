@@ -180,7 +180,7 @@ function TabButton(props) {
   );
 }
 
-export function CoachDetailModal({ isOpen, onClose, coach }) {
+export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = false }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
   const [openingDocument, setOpeningDocument] = useState('');
@@ -206,7 +206,7 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
   }, [cleanupDocumentPreview, coach?.id, isOpen]);
 
   const handleOpenDocument = useCallback(async (kind, documentPath, label) => {
-    if (!documentPath || openingDocument) return;
+    if (!canViewSensitive || !documentPath || openingDocument) return;
 
     const requestId = ++documentRequestIdRef.current;
     documentControllerRef.current?.abort();
@@ -264,7 +264,7 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
         setOpeningDocument('');
       }
     }
-  }, [openingDocument]);
+  }, [canViewSensitive, openingDocument]);
 
   if (!isOpen || !coach) return null;
 
@@ -461,6 +461,7 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
   };
 
   const handlePrintDetail = async () => {
+    if (!canViewSensitive) return;
     setIsPrinting(true);
 
     try {
@@ -536,20 +537,22 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handlePrintDetail}
-                  disabled={isPrinting}
-                  className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-semibold border border-white/20 backdrop-blur-md transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-                  title="Cetak profil lengkap pelatih"
-                >
-                  {isPrinting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Printer className="w-4 h-4 text-red-200" />
-                  )}
-                  <span className="hidden sm:inline">Cetak Profil</span>
-                </button>
+                {canViewSensitive && (
+                  <button
+                    type="button"
+                    onClick={handlePrintDetail}
+                    disabled={isPrinting}
+                    className="inline-flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs sm:text-sm font-semibold border border-white/20 backdrop-blur-md transition-all shadow-xs disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    title="Cetak profil lengkap pelatih"
+                  >
+                    {isPrinting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Printer className="w-4 h-4 text-red-200" />
+                    )}
+                    <span className="hidden sm:inline">Cetak Profil</span>
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -612,13 +615,13 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                     {coach.name}
                   </h2>
                   <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-1.5 text-xs text-red-100/90 font-medium">
-                    {coach.nik && (
+                    {canViewSensitive && coach.nik && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/25 backdrop-blur-md border border-white/10 font-mono">
                         <span>NIK:</span>
                         <strong className="text-white">{coach.nik}</strong>
                       </span>
                     )}
-                    {coach.license_number && (
+                    {canViewSensitive && coach.license_number && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-black/25 backdrop-blur-md border border-white/10 font-mono">
                         <span>No. Lisensi:</span>
                         <strong className="text-white">{coach.license_number}</strong>
@@ -671,7 +674,7 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
           {/* Modal Body & Tabs */}
           <div className="flex-1 overflow-y-auto bg-slate-50/80 p-4 sm:p-6 space-y-4">
             {/* Quick Metrics Bar (Key Highlights Strip) */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <div className={`grid grid-cols-2 gap-2.5 sm:gap-3 ${canViewSensitive ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
               {/* 1. TTL & Lahir */}
               <div className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600 shrink-0">
@@ -703,20 +706,22 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
               </div>
 
               {/* 3. Kontak Utama */}
-              <div className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shrink-0">
-                  <Phone className="w-4 h-4" />
+              {canViewSensitive && (
+                <div className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600 shrink-0">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kontak</p>
+                    <p className="text-xs font-bold text-slate-800 truncate" title={coach.phone || '-'}>
+                      {coach.phone || '-'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate" title={coach.email || '-'}>
+                      {coach.email || '-'}
+                    </p>
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Kontak</p>
-                  <p className="text-xs font-bold text-slate-800 truncate" title={coach.phone || '-'}>
-                    {coach.phone || '-'}
-                  </p>
-                  <p className="text-[11px] text-slate-500 truncate" title={coach.email || '-'}>
-                    {coach.email || '-'}
-                  </p>
-                </div>
-              </div>
+              )}
 
               {/* 4. Gender & Agama */}
               <div className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3">
@@ -760,7 +765,9 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                 >
                   <ProfileField label="Nama Lengkap" value={coach.name} />
                   <ProfileField label="Status Keaktifan" value={activeStatus} />
-                  <ProfileField label="NIK (Nomor Induk Kependudukan)" value={coach.nik} mono />
+                  {canViewSensitive && (
+                    <ProfileField label="NIK (Nomor Induk Kependudukan)" value={coach.nik} mono />
+                  )}
                   <ProfileField label="Jenis Kelamin" value={genderLabels[coach.gender] || coach.gender} />
                   <ProfileField label="Tempat Lahir" value={coach.birth_place} />
                   <ProfileField label="Tanggal Lahir" value={formatDate(coach.birth_date)} />
@@ -769,29 +776,31 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                 </ProfileSection>
 
                 {/* 2. Dokumen Wajib Verifikasi */}
-                <ProfileSection
-                  title="Dokumen Wajib Verifikasi"
-                  icon={ShieldCheck}
-                  iconColor="text-indigo-600"
-                  iconBg="bg-indigo-50"
-                >
-                  <VerificationDocumentCard
-                    title="KTP Pelatih"
-                    description="Dokumen identitas resmi tersedia untuk verifikasi"
-                    available={Boolean(coach.identity_document)}
-                    opening={openingDocument === 'identity'}
-                    onOpen={() => handleOpenDocument('identity', coach.identity_document, 'KTP')}
-                    buttonLabel="Buka KTP"
-                  />
-                  <VerificationDocumentCard
-                    title="BPJS Kesehatan/Ketenagakerjaan"
-                    description="Dokumen kepesertaan BPJS tersedia untuk verifikasi"
-                    available={Boolean(coach.bpjs_document)}
-                    opening={openingDocument === 'bpjs'}
-                    onOpen={() => handleOpenDocument('bpjs', coach.bpjs_document, 'BPJS')}
-                    buttonLabel="Buka BPJS"
-                  />
-                </ProfileSection>
+                {canViewSensitive && (
+                  <ProfileSection
+                    title="Dokumen Wajib Verifikasi"
+                    icon={ShieldCheck}
+                    iconColor="text-indigo-600"
+                    iconBg="bg-indigo-50"
+                  >
+                    <VerificationDocumentCard
+                      title="KTP Pelatih"
+                      description="Dokumen identitas resmi tersedia untuk verifikasi"
+                      available={Boolean(coach.identity_document)}
+                      opening={openingDocument === 'identity'}
+                      onOpen={() => handleOpenDocument('identity', coach.identity_document, 'KTP')}
+                      buttonLabel="Buka KTP"
+                    />
+                    <VerificationDocumentCard
+                      title="BPJS Kesehatan/Ketenagakerjaan"
+                      description="Dokumen kepesertaan BPJS tersedia untuk verifikasi"
+                      available={Boolean(coach.bpjs_document)}
+                      opening={openingDocument === 'bpjs'}
+                      onOpen={() => handleOpenDocument('bpjs', coach.bpjs_document, 'BPJS')}
+                      buttonLabel="Buka BPJS"
+                    />
+                  </ProfileSection>
+                )}
 
                 {/* 3. Kepelatihan & Lisensi */}
                 <ProfileSection
@@ -801,14 +810,16 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                   iconBg="bg-amber-50"
                 >
                   <ProfileField label="Cabang Olahraga" value={caborName} />
-                  <ProfileField label="Nomor Lisensi" value={coach.license_number} mono />
+                  {canViewSensitive && (
+                    <ProfileField label="Nomor Lisensi" value={coach.license_number} mono />
+                  )}
                   <ProfileField label="Level Lisensi" value={coach.license_level} />
                   <ProfileField label="Spesialisasi" value={coach.specialization} />
                   <ProfileField label="Tahun Mulai Melatih" value={coach.coaching_start_year} />
                   <ProfileField label="Organisasi / Pengcab" value={organizationName} />
                   <ProfileField label="Kluster Aktif" value={currentCluster} />
                   <ProfileField label="Sub-Kluster Aktif" value={currentSubCluster} />
-                  {coach.certificate_document && (
+                  {canViewSensitive && coach.certificate_document && (
                     <div className="sm:col-span-2 rounded-xl border border-blue-200/80 bg-blue-50/50 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
                       <div className="flex items-center gap-2.5 text-blue-900">
                         <div className="p-2 rounded-lg bg-blue-100 text-blue-700 shrink-0">
@@ -837,15 +848,17 @@ export function CoachDetailModal({ isOpen, onClose, coach }) {
                 </ProfileSection>
 
                 {/* 4. Kontak & Komunikasi */}
-                <ProfileSection
-                  title="Kontak & Komunikasi"
-                  icon={Phone}
-                  iconColor="text-emerald-600"
-                  iconBg="bg-emerald-50"
-                >
-                  <ProfileField label="Nomor Telepon / WA" value={coach.phone} />
-                  <ProfileField label="Alamat Email" value={coach.email} valueClassName="break-all" />
-                </ProfileSection>
+                {canViewSensitive && (
+                  <ProfileSection
+                    title="Kontak & Komunikasi"
+                    icon={Phone}
+                    iconColor="text-emerald-600"
+                    iconBg="bg-emerald-50"
+                  >
+                    <ProfileField label="Nomor Telepon / WA" value={coach.phone} />
+                    <ProfileField label="Alamat Email" value={coach.email} valueClassName="break-all" />
+                  </ProfileSection>
+                )}
 
                 {/* 5. Prestasi Kepelatihan */}
                 <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/70 to-amber-100/30 p-4 sm:p-5 shadow-xs">
