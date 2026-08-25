@@ -81,12 +81,21 @@ export function AthletePortal() {
   const [isEditing, setIsEditing] = useState(false);
   const [fundYear, setFundYear] = useState(currentYear);
 
-  const { data: profile, isLoading: profileLoading } = usePortalProfile();
-  const { data: events, isLoading: eventsLoading } = usePortalEvents();
-  const { data: submissions, isLoading: submissionsLoading } = usePortalSubmissions();
-  const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard();
-  const { data: clustersData, isLoading: clustersLoading } = usePortalClusterHistories();
-  const { data: fundsData, isLoading: fundsLoading } = usePortalDevelopmentFunds({ year: fundYear, perPage: 100 });
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError,
+    refetch: refetchProfile,
+  } = usePortalProfile();
+  const profileReady = profile?.type === 'athlete';
+  const { data: events, isLoading: eventsLoading } = usePortalEvents({ enabled: profileReady });
+  const { data: submissions, isLoading: submissionsLoading } = usePortalSubmissions({ enabled: profileReady });
+  const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard({ enabled: profileReady });
+  const { data: clustersData, isLoading: clustersLoading } = usePortalClusterHistories({ enabled: profileReady });
+  const { data: fundsData, isLoading: fundsLoading } = usePortalDevelopmentFunds(
+    { year: fundYear, perPage: 100 },
+    { enabled: profileReady },
+  );
   const { data: educationLevels = [] } = useEducationLevelsAll();
 
   const athlete = useMemo(() => getAthlete(profile), [profile]);
@@ -113,7 +122,7 @@ export function AthletePortal() {
     printWindow.document.close();
   };
 
-  if (profileLoading || dashboardLoading) {
+  if (profileLoading || (profileReady && dashboardLoading)) {
     return (
       <DashboardLayout title="Portal Atlet" subtitle="Loading...">
         <div className="flex items-center justify-center h-64">
@@ -123,6 +132,29 @@ export function AthletePortal() {
     );
   }
 
+  if (profileError || !profileReady) {
+    const isProvisioning = profileError?.response?.status === 404 || (!profileError && !profileReady);
+    return (
+      <DashboardLayout title="Portal Atlet" subtitle="Status profil">
+        <div className="max-w-xl mx-auto mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+          <AlertCircle className="w-12 h-12 mx-auto mb-3 text-amber-600" />
+          <h2 className="text-lg font-bold text-amber-900">
+            {isProvisioning ? 'Profil atlet belum terhubung' : 'Profil atlet tidak dapat dimuat'}
+          </h2>
+          <p className="mt-2 text-sm text-amber-800">
+            {isProvisioning
+              ? 'Akun Anda sudah aktif, tetapi data atlet masih dalam proses provisioning. Hubungi administrator KONI.'
+              : 'Terjadi gangguan saat memuat profil. Silakan coba kembali.'}
+          </p>
+          {!isProvisioning && (
+            <button type="button" onClick={() => refetchProfile()} className="mt-4 px-4 py-2 rounded-lg bg-amber-700 text-white hover:bg-amber-800">
+              Coba Lagi
+            </button>
+          )}
+        </div>
+      </DashboardLayout>
+    );
+  }
   return (
     <DashboardLayout title="Portal Atlet" subtitle={`Selamat datang, ${profile?.name || 'Atlet'}!`}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -315,7 +347,7 @@ function FundsTab({ funds, fundsData, loading, year, setYear }) {
 }
 
 function EventsTab({ events, loading }) {
-  return <div className="space-y-4"><h3 className="text-lg font-bold text-slate-800">Event Saya</h3>{loading ? <Loading /> : events?.length > 0 ? <div className="space-y-3">{events.map((event) => <MotionDiv key={event.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"><div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0"><Calendar className="w-6 h-6 text-red-600" /></div><div className="flex-1 min-w-0"><h4 className="font-medium text-slate-800 truncate">{event.name}</h4><div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">{event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.location}</span>}{event.start_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.start_date)}</span>}</div></div><span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{event.athlete_status || event.status}</span></MotionDiv>)}</div> : <Empty icon={Calendar} text="Belum ada event yang terdaftar" />}</div>;
+  return <div className="space-y-4"><h3 className="text-lg font-bold text-slate-800">Event Saya</h3>{loading ? <Loading /> : events?.length > 0 ? <div className="space-y-3">{events.map((event) => <MotionDiv key={event.event_key || `${event.source || 'legacy'}:${event.id}`} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"><div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0"><Calendar className="w-6 h-6 text-red-600" /></div><div className="flex-1 min-w-0"><h4 className="font-medium text-slate-800 truncate">{event.name}</h4><div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">{event.location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{event.location}</span>}{event.start_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(event.start_date)}</span>}</div></div><span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">{event.athlete_status || event.status}</span></MotionDiv>)}</div> : <Empty icon={Calendar} text="Belum ada event yang terdaftar" />}</div>;
 }
 
 function SubmissionsTab({ submissions, loading }) {

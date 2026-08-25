@@ -32,7 +32,6 @@ import {
   useActivityLogs,
   useActivityLogStats,
   useActivityLogUsers,
-  useActivityLogDetail,
   useCleanupActivityLogs,
   exportActivityLogs,
   useErrorLogs,
@@ -40,6 +39,8 @@ import {
   useResolveError,
   useUserActivity,
 } from '../hooks/queries/useActivityLogs';
+
+const MotionDiv = motion.div;
 
 // Action badge colors
 const ACTION_COLORS = {
@@ -64,7 +65,8 @@ const ACTION_LABELS = {
 };
 
 // Stats Card Component
-function StatsCard({ label, value, icon: Icon, color = 'blue' }) {
+function StatsCard({ label, value, icon, color = 'blue' }) {
+  const IconComponent = icon;
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600 border-blue-100',
     green: 'bg-green-50 text-green-600 border-green-100',
@@ -80,7 +82,7 @@ function StatsCard({ label, value, icon: Icon, color = 'blue' }) {
           <p className="text-2xl font-bold text-slate-800">{value}</p>
         </div>
         <div className={`p-3 rounded-xl border ${colorClasses[color]}`}>
-          <Icon className="w-6 h-6" />
+          <IconComponent className="w-6 h-6" />
         </div>
       </div>
     </div>
@@ -167,7 +169,7 @@ function DataDiffViewer({ oldValues, newValues, changedFields, resolveValue }) {
         if (!isNaN(date)) {
           return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     }
@@ -216,7 +218,7 @@ function ActivityLogItem({ log, onViewDetail }) {
   }, [log.created_at]);
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="bg-white rounded-xl p-4 border border-slate-200 hover:border-slate-300 transition-colors shadow-sm"
@@ -281,7 +283,7 @@ function ActivityLogItem({ log, onViewDetail }) {
           <Eye className="w-4 h-4 text-slate-500" />
         </button>
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 }
 
@@ -290,14 +292,14 @@ function DetailModal({ log, onClose }) {
   if (!log) return null;
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
-      <motion.div
+      <MotionDiv
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
@@ -401,8 +403,8 @@ function DetailModal({ log, onClose }) {
             </div>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </MotionDiv>
+    </MotionDiv>
   );
 }
 
@@ -423,20 +425,24 @@ const SEVERITY_LABELS = {
 
 // Error Log Item Component
 function ErrorLogItem({ log, onResolve }) {
+  const lastSeenAt = log.last_seen_at || log.created_at;
+  const firstSeenAt = log.first_seen_at || log.created_at;
   const timeAgo = useMemo(() => {
-    const date = new Date(log.created_at);
+    const date = new Date(lastSeenAt);
     const now = new Date();
-    const diff = Math.floor((now - date) / 1000);
+    const diff = Math.max(0, Math.floor((now - date) / 1000));
 
     if (diff < 60) return `${diff} detik lalu`;
     if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
     if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
     if (diff < 604800) return `${Math.floor(diff / 86400)} hari lalu`;
     return date.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-  }, [log.created_at]);
+  }, [lastSeenAt]);
+  const firstSeenLabel = new Date(firstSeenAt).toLocaleString('id-ID');
+  const lastSeenLabel = new Date(lastSeenAt).toLocaleString('id-ID');
 
   return (
-    <motion.div
+    <MotionDiv
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={`bg-white rounded-xl p-4 border shadow-sm ${log.is_resolved ? 'border-green-200 bg-green-50/30' : 'border-slate-200 hover:border-slate-300'} transition-colors`}
@@ -458,6 +464,9 @@ function ErrorLogItem({ log, onResolve }) {
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${SEVERITY_COLORS[log.severity]}`}>
               {SEVERITY_LABELS[log.severity]}
             </span>
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">
+              {(log.occurrence_count || 1).toLocaleString('id-ID')} kejadian
+            </span>
             {log.is_resolved && (
               <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
                 Resolved
@@ -468,6 +477,9 @@ function ErrorLogItem({ log, onResolve }) {
           <p className="text-sm text-slate-600">{log.message}</p>
 
           {/* Metadata */}
+          <p className="mt-2 text-xs text-slate-500">
+            Pertama {firstSeenLabel} - Terakhir {lastSeenLabel}
+          </p>
           <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
@@ -491,7 +503,7 @@ function ErrorLogItem({ log, onResolve }) {
           </button>
         )}
       </div>
-    </motion.div>
+    </MotionDiv>
   );
 }
 
@@ -604,9 +616,9 @@ export function ActivityLogsPage() {
           >
             <AlertTriangle className="w-4 h-4" />
             Error Log
-            {errorStats?.unresolved > 0 && (
+            {(errorStats?.unresolved_patterns ?? errorStats?.unresolved ?? 0) > 0 && (
               <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs">
-                {errorStats.unresolved}
+                {errorStats.unresolved_patterns ?? errorStats.unresolved}
               </span>
             )}
           </button>
@@ -635,10 +647,10 @@ export function ActivityLogsPage() {
 
         {activeTab === 'error' && errorStats && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatsCard label="Total Error" value={errorStats.total?.toLocaleString() || 0} icon={AlertTriangle} color="red" />
-            <StatsCard label="Belum Resolved" value={errorStats.unresolved?.toLocaleString() || 0} icon={XCircle} color="red" />
-            <StatsCard label="Hari Ini" value={errorStats.today?.toLocaleString() || 0} icon={TrendingUp} color="purple" />
-            <StatsCard label="Kritis" value={errorStats.by_severity?.critical?.toLocaleString() || 0} icon={AlertTriangle} color="purple" />
+            <StatsCard label="Total Kejadian" value={(errorStats.total_occurrences ?? errorStats.total ?? 0).toLocaleString('id-ID')} icon={AlertTriangle} color="red" />
+            <StatsCard label="Pola Unik Aktif" value={(errorStats.unresolved_patterns ?? errorStats.unresolved ?? 0).toLocaleString('id-ID')} icon={XCircle} color="red" />
+            <StatsCard label="Pola Aktif Hari Ini" value={(errorStats.active_patterns_today ?? errorStats.today ?? 0).toLocaleString('id-ID')} icon={TrendingUp} color="purple" />
+            <StatsCard label="Kejadian Kritis" value={(errorStats.by_severity_occurrences?.critical ?? errorStats.by_severity?.critical ?? 0).toLocaleString('id-ID')} icon={AlertTriangle} color="purple" />
           </div>
         )}
 

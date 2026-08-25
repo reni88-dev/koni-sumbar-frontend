@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, Users, Calendar, Award, MapPin, Clock, Phone, Mail,
-  Loader2, Edit2, Save, X, Layers, Wallet
+  Loader2, Edit2, Save, X, Layers, Wallet, AlertCircle
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { usePortalProfile, usePortalEvents, usePortalDashboard, usePortalAthletes, useUpdatePortalProfile, usePortalCoachClusterHistories, usePortalCoachDevelopmentFunds } from '../hooks/queries/usePortal';
 
+const MotionDiv = motion.div;
 const currentYear = new Date().getFullYear();
 const GENDER_LABELS = { male: 'Laki-laki', female: 'Perempuan' };
 const textOrDash = (value) => value || '-';
@@ -19,12 +20,21 @@ export function CoachPortal() {
   const [editData, setEditData] = useState({});
   const [fundYear, setFundYear] = useState(currentYear);
   
-  const { data: profile, isLoading: profileLoading } = usePortalProfile();
-  const { data: events, isLoading: eventsLoading } = usePortalEvents();
-  const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard();
-  const { data: athletes, isLoading: athletesLoading } = usePortalAthletes();
-  const { data: clustersData, isLoading: clustersLoading } = usePortalCoachClusterHistories();
-  const { data: fundsData, isLoading: fundsLoading } = usePortalCoachDevelopmentFunds({ year: fundYear, perPage: 100 });
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError,
+    refetch: refetchProfile,
+  } = usePortalProfile();
+  const profileReady = profile?.type === 'coach';
+  const { data: events, isLoading: eventsLoading } = usePortalEvents({ enabled: profileReady });
+  const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard({ enabled: profileReady });
+  const { data: athletes, isLoading: athletesLoading } = usePortalAthletes({ enabled: profileReady });
+  const { data: clustersData, isLoading: clustersLoading } = usePortalCoachClusterHistories({ enabled: profileReady });
+  const { data: fundsData, isLoading: fundsLoading } = usePortalCoachDevelopmentFunds(
+    { year: fundYear, perPage: 100 },
+    { enabled: profileReady },
+  );
   const updateProfile = useUpdatePortalProfile();
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
@@ -55,7 +65,7 @@ export function CoachPortal() {
     }
   };
 
-  if (profileLoading || dashboardLoading) {
+  if (profileLoading || (profileReady && dashboardLoading)) {
     return (
       <DashboardLayout title="Portal Pelatih" subtitle="Loading...">
         <div className="flex items-center justify-center h-64">
@@ -65,6 +75,29 @@ export function CoachPortal() {
     );
   }
 
+  if (profileError || !profileReady) {
+    const isProvisioning = profileError?.response?.status === 404 || (!profileError && !profileReady);
+    return (
+      <DashboardLayout title="Portal Pelatih" subtitle="Status profil">
+        <div className="max-w-xl mx-auto mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
+          <AlertCircle className="w-12 h-12 mx-auto mb-3 text-amber-600" />
+          <h2 className="text-lg font-bold text-amber-900">
+            {isProvisioning ? 'Profil pelatih belum terhubung' : 'Profil pelatih tidak dapat dimuat'}
+          </h2>
+          <p className="mt-2 text-sm text-amber-800">
+            {isProvisioning
+              ? 'Akun Anda sudah aktif, tetapi data pelatih masih dalam proses provisioning. Hubungi administrator KONI.'
+              : 'Terjadi gangguan saat memuat profil. Silakan coba kembali.'}
+          </p>
+          {!isProvisioning && (
+            <button type="button" onClick={() => refetchProfile()} className="mt-4 px-4 py-2 rounded-lg bg-amber-700 text-white hover:bg-amber-800">
+              Coba Lagi
+            </button>
+          )}
+        </div>
+      </DashboardLayout>
+    );
+  }
   return (
     <DashboardLayout 
       title="Portal Pelatih" 
@@ -72,7 +105,7 @@ export function CoachPortal() {
     >
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl p-5 shadow-lg"
@@ -84,9 +117,9 @@ export function CoachPortal() {
             </div>
             <Users className="w-10 h-10 opacity-80" />
           </div>
-        </motion.div>
+        </MotionDiv>
 
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
@@ -99,9 +132,9 @@ export function CoachPortal() {
             </div>
             <Calendar className="w-10 h-10 opacity-80" />
           </div>
-        </motion.div>
+        </MotionDiv>
 
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -114,9 +147,9 @@ export function CoachPortal() {
             </div>
             <Clock className="w-10 h-10 opacity-80" />
           </div>
-        </motion.div>
+        </MotionDiv>
 
-        <motion.div
+        <MotionDiv
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
@@ -129,7 +162,7 @@ export function CoachPortal() {
             </div>
             <Award className="w-10 h-10 opacity-80" />
           </div>
-        </motion.div>
+        </MotionDiv>
       </div>
 
       {/* Tab Navigation */}
@@ -260,7 +293,7 @@ export function CoachPortal() {
               ) : athletes?.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {athletes.map((athlete) => (
-                    <motion.div
+                    <MotionDiv
                       key={athlete.id}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
@@ -289,7 +322,7 @@ export function CoachPortal() {
                       }`}>
                         {athlete.is_active ? 'Aktif' : 'Tidak Aktif'}
                       </span>
-                    </motion.div>
+                    </MotionDiv>
                   ))}
                 </div>
               ) : (
@@ -312,8 +345,8 @@ export function CoachPortal() {
               ) : events?.length > 0 ? (
                 <div className="space-y-3">
                   {events.map((event) => (
-                    <motion.div
-                      key={event.id}
+                    <MotionDiv
+                      key={event.event_key || `${event.source || 'legacy'}:${event.id}`}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors"
@@ -345,7 +378,7 @@ export function CoachPortal() {
                       }`}>
                         {event.status}
                       </span>
-                    </motion.div>
+                    </MotionDiv>
                   ))}
                 </div>
               ) : (
@@ -374,6 +407,7 @@ function Loading() {
   return <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-red-600" /></div>;
 }
 
-function Empty({ icon: Icon, text }) {
-  return <div className="text-center py-12 text-slate-400"><Icon className="w-12 h-12 mx-auto mb-3 opacity-50" /><p>{text}</p></div>;
+function Empty({ icon, text }) {
+  const IconComponent = icon;
+  return <div className="text-center py-12 text-slate-400"><IconComponent className="w-12 h-12 mx-auto mb-3 opacity-50" /><p>{text}</p></div>;
 }

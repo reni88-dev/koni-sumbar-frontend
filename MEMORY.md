@@ -379,7 +379,7 @@ Baseline diverifikasi ulang pada **2026-08-24** setelah access hardening.
 
 ### Build
 
-`npm run build` berhasil dengan Vite `7.3.1`: 2.671 module transformed, bundle JS utama `1,675.89 kB` minified/`421.91 kB` gzip. Warning non-blocking chunk >500 kB tetap ada; build ini tidak membuktikan browser/runtime flow.
+`npm run build` berhasil dengan Vite `7.3.1`: 2.672 module transformed, bundle JS utama `1,679.05 kB` minified/`422.71 kB` gzip. Warning non-blocking chunk >500 kB tetap ada; build ini tidak membuktikan browser/runtime flow.
 
 ### Lint
 
@@ -390,6 +390,8 @@ Targeted ESLint untuk seluruh file JS/JSX yang disentuh berhasil tanpa output. F
 ```
 
 Seluruh issue full lint yang dilaporkan berada pada file lama di luar scope perubahan access hardening. Baseline mencakup unused variable/import, React Hooks dependency, `set-state-in-effect`, dan rule lain; jangan klaim full lint lulus dan jangan melakukan cleanup repository-wide dalam pekerjaan sempit.
+
+Pada **2026-08-25**, targeted ESLint untuk `App.jsx`, `PortalRoute.jsx`, `mediaUtils.js`, `usePortal.js`, `ActivityLogs.jsx`, `AthletePortal.jsx`, dan `CoachPortal.jsx` berhasil tanpa output. `npm run build` juga berhasil dengan warning chunk yang sama. Source sekarang membatasi direct route portal berdasarkan role, menunda query turunan sampai `profile.type` sesuai, menampilkan state provisioning untuk profile yang belum terhubung, menggunakan `event_key`, dan membedakan kejadian Error Log dari pola unik. Browser/runtime API belum dijalankan dari workspace ini.
 
 ## Watchlist: Jangan Ikuti Asumsi Usang
 
