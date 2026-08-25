@@ -24,6 +24,7 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
 export function AthleteExportButton({
   isExporting = false,
   isImporting = false,
+  canImport = false,
   onExport,
   onDownloadTemplate,
   onImport,
@@ -139,50 +140,51 @@ export function AthleteExportButton({
               </div>
             </button>
 
-            {/* Divider */}
-            <div className="my-1.5 border-t border-slate-100" />
+            {canImport && (
+              <>
+                <div className="my-1.5 border-t border-slate-100" />
+                <div className="px-3.5 py-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                  Impor & Template
+                </div>
 
-            {/* Header: Impor */}
-            <div className="px-3.5 py-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-              Impor & Template
-            </div>
+                {onDownloadTemplate && (
+                  <button
+                    type="button"
+                    onClick={handleTemplateClick}
+                    disabled={isExporting}
+                    className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
+                  >
+                    <div className="p-2 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
+                      <Download className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 group-hover:text-blue-700">
+                        Unduh Template Excel
+                      </p>
+                      <p className="text-xs text-slate-400">Template import (.xlsx)</p>
+                    </div>
+                  </button>
+                )}
 
-            {onDownloadTemplate && (
-              <button
-                type="button"
-                onClick={handleTemplateClick}
-                disabled={isExporting}
-                className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
-              >
-                <div className="p-2 rounded-lg bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
-                  <Download className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800 group-hover:text-blue-700">
-                    Unduh Template Excel
-                  </p>
-                  <p className="text-xs text-slate-400">Template import (.xlsx)</p>
-                </div>
-              </button>
-            )}
-
-            {onImport && (
-              <button
-                type="button"
-                onClick={handleImportClick}
-                disabled={isImporting}
-                className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
-              >
-                <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
-                  <Upload className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-slate-800 group-hover:text-indigo-700">
-                    Unggah / Impor Excel
-                  </p>
-                  <p className="text-xs text-slate-400">Import data dari file .xlsx</p>
-                </div>
-              </button>
+                {onImport && (
+                  <button
+                    type="button"
+                    onClick={handleImportClick}
+                    disabled={isImporting}
+                    className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
+                  >
+                    <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                      <Upload className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800 group-hover:text-indigo-700">
+                        Unggah / Impor Excel
+                      </p>
+                      <p className="text-xs text-slate-400">Import data dari file .xlsx</p>
+                    </div>
+                  </button>
+                )}
+              </>
             )}
           </Motion.div>
         )}

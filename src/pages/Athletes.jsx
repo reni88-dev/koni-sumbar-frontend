@@ -2,6 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Plus, X, CheckCircle2, Users, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { usePermission } from "../hooks/usePermission";
+import {
+  getSafeApiMessage,
+  isAccountBlockedError,
+  isPermissionDeniedError,
+  isSessionInvalidError,
+} from "../lib/authAccess";
 
 import { DashboardLayout } from "../components/DashboardLayout";
 import { AthleteFormModal } from "../components/AthleteFormModal";
@@ -23,6 +30,11 @@ import {
 import api from "../api/axios";
 
 export function AthletesPage() {
+  const { can } = usePermission();
+  const canView = can("athletes.view");
+  const canCreate = can("athletes.create");
+  const canEdit = can("athletes.edit");
+  const canDelete = can("athletes.delete");
   // ── Filter state ─────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -159,29 +171,40 @@ export function AthletesPage() {
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const openCreateModal = () => {
+    if (!canCreate) return;
     setSelectedAthlete(null);
     setIsFormModalOpen(true);
   };
 
   const openEditModal = async (athlete) => {
+    if (!canEdit) return;
     try {
       const response = await api.get(`/api/athletes/${athlete.id}`);
       setSelectedAthlete(response.data);
       setIsFormModalOpen(true);
     } catch (error) {
-      console.error("Failed to fetch athlete details:", error);
+      if (
+        isPermissionDeniedError(error) ||
+        isSessionInvalidError(error) ||
+        isAccountBlockedError(error)
+      ) return;
       setSelectedAthlete(athlete);
       setIsFormModalOpen(true);
     }
   };
 
   const openDetailModal = async (athlete) => {
+    if (!canView) return;
     try {
       const response = await api.get(`/api/athletes/${athlete.id}`);
       setSelectedAthlete(response.data);
       setIsDetailModalOpen(true);
     } catch (error) {
-      console.error("Failed to fetch athlete details:", error);
+      if (
+        isPermissionDeniedError(error) ||
+        isSessionInvalidError(error) ||
+        isAccountBlockedError(error)
+      ) return;
       setSelectedAthlete(athlete);
       setIsDetailModalOpen(true);
     }
@@ -199,21 +222,29 @@ export function AthletesPage() {
   };
 
   const handleDeleteRequest = (athlete) => {
+    if (!canDelete) return;
     setAthleteToDelete(athlete);
     setIsDeleteModalOpen(true);
   };
 
   const handleDeleteConfirm = async () => {
+    if (!canDelete || !athleteToDelete) return;
     try {
       await deleteAthleteMutation.mutateAsync(athleteToDelete.id);
       setIsDeleteModalOpen(false);
       setAthleteToDelete(null);
     } catch (error) {
-      console.error("Failed to delete athlete:", error);
+      if (
+        isPermissionDeniedError(error) ||
+        isSessionInvalidError(error) ||
+        isAccountBlockedError(error)
+      ) return;
+      alert(getSafeApiMessage(error, "Gagal menghapus atlet. Silakan coba lagi."));
     }
   };
 
   const handleExport = async (type) => {
+    if (!canView) return;
     setIsExporting(true);
     try {
       const params = new URLSearchParams();
@@ -242,7 +273,11 @@ export function AthletesPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Export failed:", error);
+      if (
+        isPermissionDeniedError(error) ||
+        isSessionInvalidError(error) ||
+        isAccountBlockedError(error)
+      ) return;
       alert("Gagal mengekspor data. Silakan coba lagi.");
     } finally {
       setIsExporting(false);
@@ -250,6 +285,7 @@ export function AthletesPage() {
   };
 
   const handleDownloadImportTemplate = async () => {
+    if (!canCreate) return;
     setIsExporting(true);
     try {
       const response = await api.get("/api/athletes/import/template", {
@@ -264,7 +300,11 @@ export function AthletesPage() {
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error("Download import template failed:", error);
+      if (
+        isPermissionDeniedError(error) ||
+        isSessionInvalidError(error) ||
+        isAccountBlockedError(error)
+      ) return;
       alert("Gagal mengunduh template import. Silakan coba lagi.");
     } finally {
       setIsExporting(false);
@@ -272,10 +312,15 @@ export function AthletesPage() {
   };
 
   const handleImportClick = () => {
+    if (!canCreate) return;
     importFileInputRef.current?.click();
   };
 
   const handleImportFile = async (event) => {
+    if (!canCreate) {
+      event.target.value = "";
+      return;
+    }
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -298,7 +343,11 @@ export function AthletesPage() {
       setTimeout(() => setSuccessMessage(""), 3000);
       queryClient.invalidateQueries({ queryKey: athleteKeys.lists() });
     } catch (error) {
-      console.error("Import athletes failed:", error);
+      if (
+        isPermissionDeniedError(error) ||
+        isSessionInvalidError(error) ||
+        isAccountBlockedError(error)
+      ) return;
       alert(error.response?.data?.message || "Gagal mengimport data atlet. Silakan coba lagi.");
     } finally {
       setIsImporting(false);
@@ -363,13 +412,15 @@ export function AthletesPage() {
 
             {/* Action Buttons Group */}
             <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-              <input
-                ref={importFileInputRef}
-                type="file"
-                accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                onChange={handleImportFile}
-                className="hidden"
-              />
+              {canCreate && (
+                <input
+                  ref={importFileInputRef}
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  onChange={handleImportFile}
+                  className="hidden"
+                />
+              )}
 
               <PrintAthleteList
                 total={total}
@@ -413,20 +464,23 @@ export function AthletesPage() {
               <AthleteExportButton
                 isExporting={isExporting}
                 isImporting={isImporting}
+                canImport={canCreate}
                 onExport={handleExport}
                 onDownloadTemplate={handleDownloadImportTemplate}
                 onImport={handleImportClick}
               />
 
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30 shrink-0 cursor-pointer"
-                title="Tambah atlet baru"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Atlet</span>
-              </button>
+              {canCreate && (
+                <button
+                  type="button"
+                  onClick={openCreateModal}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30 shrink-0 cursor-pointer"
+                  title="Tambah atlet baru"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tambah Atlet</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -491,8 +545,8 @@ export function AthletesPage() {
           hasNextPage={hasNextPage}
           sentinelRef={sentinelRef}
           onView={openDetailModal}
-          onEdit={openEditModal}
-          onDelete={handleDeleteRequest}
+          onEdit={canEdit ? openEditModal : undefined}
+          onDelete={canDelete ? handleDeleteRequest : undefined}
         />
       </div>
 
@@ -605,28 +659,34 @@ export function AthletesPage() {
       </AnimatePresence>
 
       {/* Form Modal */}
-      <AthleteFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => setIsFormModalOpen(false)}
-        athlete={selectedAthlete}
-        onSuccess={handleFormSuccess}
-      />
+      {(selectedAthlete ? canEdit : canCreate) && (
+        <AthleteFormModal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          athlete={selectedAthlete}
+          onSuccess={handleFormSuccess}
+        />
+      )}
 
       {/* Detail Modal */}
-      <AthleteDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        athlete={selectedAthlete}
-      />
+      {canView && (
+        <AthleteDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          athlete={selectedAthlete}
+        />
+      )}
 
       {/* Delete Modal */}
-      <AthleteDeleteModal
-        isOpen={isDeleteModalOpen}
-        athlete={athleteToDelete}
-        onConfirm={handleDeleteConfirm}
-        onClose={() => setIsDeleteModalOpen(false)}
-        isPending={deleteAthleteMutation.isPending}
-      />
+      {canDelete && (
+        <AthleteDeleteModal
+          isOpen={isDeleteModalOpen}
+          athlete={athleteToDelete}
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setIsDeleteModalOpen(false)}
+          isPending={deleteAthleteMutation.isPending}
+        />
+      )}
     </DashboardLayout>
   );
 }

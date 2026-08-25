@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react';
 import api from '../../api/axios';
+import {
+  isAccountBlockedError,
+  isPermissionDeniedError,
+  isSessionInvalidError,
+} from '../../lib/authAccess';
 import { firstFieldError, normalizeValidationErrors } from '../form-modal/formUtils';
 import { normalizeIndonesianMobile } from '../form-modal/phoneUtils';
 import {
@@ -181,7 +186,11 @@ export function useAthleteSubmission({
         setErrorMessage(messages.length > 0 ? messages[0] : 'Terjadi kesalahan validasi');
         setStep(getAthleteErrorStep(Object.keys(validationErrors)));
         scrollToTop();
-      } else {
+      } else if (
+        !isPermissionDeniedError(error) &&
+        !isSessionInvalidError(error) &&
+        !isAccountBlockedError(error)
+      ) {
         setErrorMessage(error.response?.data?.error || error.response?.data?.message || 'Terjadi kesalahan server');
         scrollToTop();
       }

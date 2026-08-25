@@ -1,12 +1,7 @@
-export const ROLE_ACCESS_DISABLED_CODE = 'ROLE_ACCESS_DISABLED';
-export const ROLE_ACCESS_DISABLED_EVENT = 'auth:role-access-disabled';
-export const ROLE_ACCESS_DISABLED_STORAGE_KEY = 'auth:role-access-disabled-message';
-export const ROLE_ACCESS_DISABLED_MESSAGE =
-  'Akses untuk role akun Anda sedang dinonaktifkan sementara. Silakan coba kembali nanti.';
-
-export function isRoleAccessDisabledError(error) {
-  return (
-    error.response?.status === 403 &&
-    error.response?.data?.code === ROLE_ACCESS_DISABLED_CODE
-  );
-}
+export {
+  ACCESS_CODES,
+  ACCOUNT_BLOCKED_EVENT as ROLE_ACCESS_DISABLED_EVENT,
+  ACCOUNT_BLOCKED_STORAGE_KEY as ROLE_ACCESS_DISABLED_STORAGE_KEY,
+  ROLE_ACCESS_DISABLED_MESSAGE,
+  isAccountBlockedError as isRoleAccessDisabledError,
+} from './authAccess';

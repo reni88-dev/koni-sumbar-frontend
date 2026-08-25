@@ -45,6 +45,8 @@ import { ComplaintsPage } from './pages/Complaints';
 import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { PortalRoute } from './components/PortalRoute';
+import { PermissionRoute } from './components/PermissionRoute';
 import { useAuth } from './hooks/useAuth';
 
 // Smart Dashboard that redirects based on user role
@@ -97,7 +99,7 @@ function App() {
         path="/portal/atlet"
         element={
           <ProtectedRoute>
-            <AthletePortal />
+            <PortalRoute role="athlete"><AthletePortal /></PortalRoute>
           </ProtectedRoute>
         }
       />
@@ -105,7 +107,7 @@ function App() {
         path="/portal/pelatih"
         element={
           <ProtectedRoute>
-            <CoachPortal />
+            <PortalRoute role="coach"><CoachPortal /></PortalRoute>
           </ProtectedRoute>
         }
       />
@@ -115,7 +117,9 @@ function App() {
         path="/atlet"
         element={
           <ProtectedRoute>
-            <AthletesPage />
+            <PermissionRoute permission="athletes.view">
+              <AthletesPage />
+            </PermissionRoute>
           </ProtectedRoute>
         }
       />

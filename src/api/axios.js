@@ -1,71 +1,88 @@
-import axios from "axios";
+import axios from 'axios';
 import {
-  ROLE_ACCESS_DISABLED_EVENT,
-  ROLE_ACCESS_DISABLED_MESSAGE,
-  ROLE_ACCESS_DISABLED_STORAGE_KEY,
-  isRoleAccessDisabledError,
-} from "../lib/roleAccess";
+  ACCOUNT_BLOCKED_EVENT,
+  ACCOUNT_BLOCKED_STORAGE_KEY,
+  AUTH_UNAUTHORIZED_EVENT,
+  PERMISSION_CHANGED_MESSAGE,
+  PERMISSION_DENIED_EVENT,
+  SESSION_EXPIRED_MESSAGE,
+  getAccountBlock,
+  getSafeApiMessage,
+  isAccountBlockedError,
+  isPermissionDeniedError,
+  isSessionInvalidError,
+} from '../lib/authAccess';
 
 const api = axios.create({
   baseURL: "https://apiclone.satudata.konisumbar.or.id",
   // baseURL: 'https://koni-sumbar-backend-golang.ka2h0x.easypanel.host',
   // baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
   headers: {
-    Accept: "application/json",
+    Accept: 'application/json',
   },
 });
 
-// Request interceptor to add JWT Bearer token
+const publicEndpoints = new Set([
+  '/api/login',
+  '/api/forgot-password',
+  '/api/reset-password/confirm',
+  '/api/account-email-recovery/lookup',
+  '/api/account-email-recovery/submit',
+  '/api/account-email-recovery/verify',
+]);
+
+function getRequestPath(config) {
+  try {
+    return new URL(config?.url || '', 'http://axios.local').pathname;
+  } catch {
+    return '';
+  }
+}
+
 api.interceptors.request.use((config) => {
-  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
     config.headers.setContentType(undefined);
   }
 
-  const token = localStorage.getItem("token");
-  const publicEndpoints = new Set([
-    "/api/login",
-    "/api/forgot-password",
-    "/api/reset-password/confirm",
-    "/api/account-email-recovery/lookup",
-    "/api/account-email-recovery/submit",
-    "/api/account-email-recovery/verify",
-  ]);
-  let requestPath = config.url || "";
-  try {
-    requestPath = new URL(requestPath, "http://axios.local").pathname;
-  } catch {
-    requestPath = "";
-  }
-  if (token && !publicEndpoints.has(requestPath)) {
-    config.headers["Authorization"] = `Bearer ${token}`;
+  const token = localStorage.getItem('token');
+  const path = getRequestPath(config);
+  const isPublic = publicEndpoints.has(path);
+  config.authMeta = { hadToken: Boolean(token), token, isPublic, path };
+
+  if (token && !isPublic) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const isLoginRequest = error.config?.url === "/api/login";
+    const currentToken = localStorage.getItem('token');
+    const meta = error.config?.authMeta || {
+      hadToken: Boolean(currentToken),
+      token: currentToken,
+      isPublic: publicEndpoints.has(getRequestPath(error.config)),
+      path: getRequestPath(error.config),
+    };
+    const isLoginRequest = meta.path === '/api/login';
+    const requestMatchesCurrentSession =
+      meta.hadToken && Boolean(meta.token) && meta.token === currentToken;
 
-    if (isRoleAccessDisabledError(error) && !isLoginRequest) {
-      const message = error.response?.data?.message || ROLE_ACCESS_DISABLED_MESSAGE;
-      localStorage.removeItem("token");
-      sessionStorage.setItem(ROLE_ACCESS_DISABLED_STORAGE_KEY, message);
-      window.dispatchEvent(
-        new CustomEvent(ROLE_ACCESS_DISABLED_EVENT, { detail: { message } }),
-      );
-    }
-
-    // Handle 401 Unauthorized
-    if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      window.dispatchEvent(new CustomEvent("auth:unauthorized"));
-    }
-
-    // Handle 429 Too Many Requests
-    if (error.response?.status === 429) {
-      console.error("Rate limit exceeded. Please wait before trying again.");
+    if (!isLoginRequest && !meta.isPublic && requestMatchesCurrentSession && isAccountBlockedError(error)) {
+      const block = getAccountBlock(error);
+      localStorage.removeItem('token');
+      sessionStorage.setItem(ACCOUNT_BLOCKED_STORAGE_KEY, JSON.stringify(block));
+      window.dispatchEvent(new CustomEvent(ACCOUNT_BLOCKED_EVENT, { detail: block }));
+    } else if (!isLoginRequest && !meta.isPublic && requestMatchesCurrentSession && isSessionInvalidError(error)) {
+      localStorage.removeItem('token');
+      window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT, {
+        detail: { message: getSafeApiMessage(error, SESSION_EXPIRED_MESSAGE) },
+      }));
+    } else if (!isLoginRequest && !meta.isPublic && requestMatchesCurrentSession && isPermissionDeniedError(error)) {
+      window.dispatchEvent(new CustomEvent(PERMISSION_DENIED_EVENT, {
+        detail: { message: PERMISSION_CHANGED_MESSAGE, apiMessage: getSafeApiMessage(error) },
+      }));
     }
 
     return Promise.reject(error);

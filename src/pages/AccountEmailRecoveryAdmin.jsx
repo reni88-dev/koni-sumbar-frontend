@@ -179,8 +179,9 @@ export function AccountEmailRecoveryAdmin() {
               <div className="flex items-start gap-3">
                 <div className="shrink-0 rounded-xl bg-emerald-100 p-2 text-emerald-700"><MailCheck className="h-5 w-5" /></div>
                 <div>
-                  <h3 className="font-bold text-emerald-900">Approval akan membuat &amp; mengantrikan kredensial baru</h3>
-                  <p className="mt-1 text-sm leading-6 text-emerald-800">Jika permintaan ini disetujui, sistem akan:</p>
+                  <h3 className="font-bold text-emerald-900">Menunggu persetujuan admin</h3>
+                  <p className="mt-1 text-sm font-semibold leading-6 text-emerald-800">Email baru telah diverifikasi dan menunggu persetujuan admin. Kredensial belum dibuat.</p>
+                  <p className="mt-2 text-sm leading-6 text-emerald-800">Jika permintaan ini disetujui, sistem akan:</p>
                   <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-emerald-800">
                     <li>mengubah email akun ke email baru yang telah diverifikasi, <span className="font-semibold">{detail.proposed_email || '-'}</span>;</li>
                     <li>membuat password sementara baru;</li>
@@ -191,25 +192,36 @@ export function AccountEmailRecoveryAdmin() {
               </div>
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-2"><Info label="Email entity saat pengajuan" value={detail.entity_email_snapshot || '-'} /><Info label="Email user saat pengajuan" value={detail.user_email_snapshot || '-'} /><Info label="Email baru terverifikasi" value={detail.proposed_email || '-'} highlight /><Info label="Email diverifikasi" value={formatDate(detail.email_verified_at)} /><Info label="Batas review admin" value={formatDate(detail.admin_expires_at)} /><Info label="Terakhir ditinjau" value={formatDate(detail.reviewed_at)} /></div>
-          <div className="rounded-2xl border border-slate-200 p-4">
-            <h3 className="font-bold text-slate-800">Status pengiriman kredensial</h3>
-            <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              <Info label="Status" value={deliveryLabel(detail.delivery_status)} />
-              <Info label="Terakhir masuk antrean" value={formatDate(detail.credentials_last_queued_at)} />
-              <Info label="Password berlaku hingga" value={formatDate(detail.temporary_password_expires_at)} />
-              <Info label="Pengiriman ulang" value={`${resendCount}/3`} />
-              <Info label="Percobaan pengiriman" value={String(detail.delivery_attempts ?? 0)} />
-              <Info label="Terkirim" value={formatDate(detail.delivery_sent_at)} />
+          {detail.status === 'email_verification_pending' && (
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl bg-blue-100 p-2 text-blue-700"><MailCheck className="h-5 w-5" /></div>
+                <div>
+                  <h3 className="font-bold text-blue-900">Menunggu verifikasi email baru</h3>
+                  <p className="mt-1 text-sm leading-6 text-blue-800">Sistem sedang menunggu pemohon memverifikasi alamat email baru. Setelah terverifikasi, permintaan akan masuk ke antrean persetujuan admin.</p>
+                </div>
+              </div>
             </div>
-            {detail.status === 'approved' && (
+          )}
+          <div className="grid gap-4 sm:grid-cols-2"><Info label="Email entity saat pengajuan" value={detail.entity_email_snapshot || '-'} /><Info label="Email user saat pengajuan" value={detail.user_email_snapshot || '-'} /><Info label={detail.email_verified_at ? 'Email baru terverifikasi' : 'Email baru diajukan'} value={detail.proposed_email || '-'} highlight /><Info label="Email diverifikasi" value={formatDate(detail.email_verified_at)} /><Info label="Batas review admin" value={formatDate(detail.admin_expires_at)} /><Info label="Terakhir ditinjau" value={formatDate(detail.reviewed_at)} /></div>
+          {detail.status === 'approved' && (
+            <div className="rounded-2xl border border-slate-200 p-4">
+              <h3 className="font-bold text-slate-800">Status pengiriman kredensial</h3>
+              <div className="mt-3 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                <Info label="Status" value={deliveryLabel(detail.delivery_status)} />
+                <Info label="Terakhir masuk antrean" value={formatDate(detail.credentials_last_queued_at)} />
+                <Info label="Password berlaku hingga" value={formatDate(detail.temporary_password_expires_at)} />
+                <Info label="Pengiriman ulang" value={`${resendCount}/3`} />
+                <Info label="Percobaan pengiriman" value={String(detail.delivery_attempts ?? 0)} />
+                <Info label="Terkirim" value={formatDate(detail.delivery_sent_at)} />
+              </div>
               <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-800">
                 Pengiriman password baru dibatasi maksimal tiga kali dengan cooldown 10 menit antarpermintaan. Backend tetap memvalidasi batas dan cooldown tersebut.
                 {resendLimitReached && <span className="mt-1 block font-bold">Batas tiga kali sudah tercapai. Aksi pembuatan password baru dinonaktifkan.</span>}
               </div>
-            )}
-            {detail.delivery_last_error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-xs text-red-700">{detail.delivery_last_error}</p>}
-          </div>
+              {detail.delivery_last_error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-xs text-red-700">{detail.delivery_last_error}</p>}
+            </div>
+          )}
           {detail.rejection_reason && <div className="rounded-2xl border border-red-100 bg-red-50 p-4"><p className="text-xs font-bold uppercase tracking-wide text-red-600">Alasan penolakan</p><p className="mt-2 text-sm leading-6 text-red-800">{detail.rejection_reason}</p></div>}
           {canReview && (
             <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-end sm:justify-end">

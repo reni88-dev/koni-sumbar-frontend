@@ -205,6 +205,15 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
             {firstFieldError(errors.email) || emailMessage}
           </p>
         )}
+        {email.retryable && (
+          <button
+            type="button"
+            onClick={email.retry}
+            className="mt-2 inline-flex items-center rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+          >
+            Coba Lagi
+          </button>
+        )}
       </div>
     </FormSectionCard>
     </div>

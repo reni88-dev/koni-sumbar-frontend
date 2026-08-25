@@ -16,9 +16,10 @@ export const portalKeys = {
 };
 
 // Fetch user's portal profile
-export function usePortalProfile() {
+export function usePortalProfile(options = {}) {
   return useQuery({
     queryKey: portalKeys.profile(),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/profile');
       return response.data;
@@ -43,9 +44,10 @@ export function useUpdatePortalProfile() {
 }
 
 // Fetch logged-in athlete cluster histories (self-service only)
-export function usePortalClusterHistories() {
+export function usePortalClusterHistories(options = {}) {
   return useQuery({
     queryKey: portalKeys.clusters(),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/profile/clusters');
       return response.data;
@@ -54,9 +56,10 @@ export function usePortalClusterHistories() {
 }
 
 // Fetch logged-in athlete development funds (self-service only)
-export function usePortalDevelopmentFunds(filters = {}) {
+export function usePortalDevelopmentFunds(filters = {}, options = {}) {
   return useQuery({
     queryKey: portalKeys.funds(filters),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/profile/development-funds', {
         params: {
@@ -71,9 +74,10 @@ export function usePortalDevelopmentFunds(filters = {}) {
   });
 }
 
-export function usePortalCoachClusterHistories() {
+export function usePortalCoachClusterHistories(options = {}) {
   return useQuery({
     queryKey: portalKeys.coachClusters(),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/profile/coach-clusters');
       return response.data;
@@ -81,9 +85,10 @@ export function usePortalCoachClusterHistories() {
   });
 }
 
-export function usePortalCoachDevelopmentFunds(filters = {}) {
+export function usePortalCoachDevelopmentFunds(filters = {}, options = {}) {
   return useQuery({
     queryKey: portalKeys.coachFunds(filters),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/profile/coach-development-funds', {
         params: {
@@ -99,9 +104,10 @@ export function usePortalCoachDevelopmentFunds(filters = {}) {
 }
 
 // Fetch user's events
-export function usePortalEvents() {
+export function usePortalEvents(options = {}) {
   return useQuery({
     queryKey: portalKeys.events(),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/events');
       return response.data;
@@ -110,9 +116,10 @@ export function usePortalEvents() {
 }
 
 // Fetch user's form submissions
-export function usePortalSubmissions() {
+export function usePortalSubmissions(options = {}) {
   return useQuery({
     queryKey: portalKeys.submissions(),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/submissions');
       return response.data;
@@ -121,9 +128,10 @@ export function usePortalSubmissions() {
 }
 
 // Fetch dashboard stats
-export function usePortalDashboard() {
+export function usePortalDashboard(options = {}) {
   return useQuery({
     queryKey: portalKeys.dashboard(),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/dashboard');
       return response.data;
@@ -132,9 +140,10 @@ export function usePortalDashboard() {
 }
 
 // Fetch coach's athletes (coach only)
-export function usePortalAthletes() {
+export function usePortalAthletes(options = {}) {
   return useQuery({
     queryKey: portalKeys.athletes(),
+    enabled: options.enabled ?? true,
     queryFn: async () => {
       const response = await api.get('/api/portal/athletes');
       return response.data;

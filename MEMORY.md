@@ -11,19 +11,19 @@ Jika branch, commit, dependency, backend sibling, atau source berubah, verifikas
 
 ## Snapshot Repository
 
-Snapshot diverifikasi pada **2026-07-28** di Windows, timezone `Asia/Jakarta`.
+Snapshot diverifikasi ulang pada **2026-08-24** di Windows, timezone `Asia/Jakarta`.
 
 | Item | Nilai pada snapshot |
 | --- | --- |
 | Repository | `koni-sumbar-frontend` |
 | Package | `frontend@0.0.0`, private, ESM |
 | Branch | `coach-cluster`, tracking `origin/coach-cluster` |
-| Commit | `de95dc3c9e92711b8e80de3d3ef62b52286adc7f` (`de95dc3`) |
-| Commit subject | `update atlit form` |
-| Waktu commit | `2026-07-28T07:13:50+07:00` |
-| Working tree awal | Bersih sebelum tiga dokumen operasional dibuat |
+| Commit | `304701f4e041d1ed3d6ae3152e714dae9c55abd8` (`304701f`) |
+| Commit subject | `update accountemailrecovery.jsx` |
+| Waktu commit | `2026-08-24T06:51:41+07:00` |
+| Working tree awal task access hardening | Bersih |
 | Git line ending | `core.autocrlf=true` |
-| Backend sibling saat diperiksa | `../golang-koni-sumbar`, branch `refactor`, commit `53622d5e27f48f4fa7714f434d9f5bf11260e441` |
+| Backend sibling saat diperiksa | `../golang-koni-sumbar`, branch `refactor`, commit `b06682b01b133e0d8dd8269beb7e09e44514bd40` |
 
 Snapshot branch/commit bukan fakta permanen. Selalu mulai sesi baru dengan status, branch, dan commit terbaru.
 
@@ -169,7 +169,7 @@ Semua route berikut berasal dari `src/App.jsx` pada snapshot.
 - `/` diarahkan ke `/dashboard`.
 - `*` diarahkan ke `/dashboard`.
 
-Seluruh route selain tiga route publik dibungkus `ProtectedRoute`, tetapi route guard tidak memeriksa permission per route.
+Seluruh route selain tiga route publik dibungkus `ProtectedRoute`. Route `/atlet` mempunyai lapisan tambahan `PermissionRoute permission="athletes.view"`; user tanpa permission melihat halaman **Akses Ditolak** dan `AthletesPage` beserta query atlet/master tidak dimount. Route lain belum otomatis mempunyai permission guard per route.
 
 Pada halaman Data Role, field backend `access_enabled` yang belum ada diperlakukan aktif untuk rollout kompatibel. Badge menampilkan `Aktif`, `Dinonaktifkan`, atau `Selalu Aktif`; hanya superadmin melihat toggle role non-superadmin. Mutation memakai `PUT /api/master/roles/{id}/access` dan meng-invalidasi seluruh `roleKeys.all`.
 
@@ -197,32 +197,30 @@ Permission yang dipakai UI mencakup antara lain:
 
 `usePermission` menyediakan `can`, `canAny`, dan `canAll`. Beberapa page juga memakai role name langsung, misalnya `admin_monev`, `athlete`, dan `coach`.
 
-**Fakta keamanan penting:** permission frontend hanya mengatur visibilitas dan interaksi UI. Backend sibling tetap harus menegakkan permission, role, dan organization scope. `ProtectedRoute` saat ini hanya memeriksa auth dan `must_reset_password`.
+Pada halaman atlet, list/filter/detail/print/export memerlukan `athletes.view`; tambah/import/download template memerlukan `athletes.create`; edit memerlukan `athletes.edit`; hapus memerlukan `athletes.delete`. Aksi yang tidak dimiliki disembunyikan, callback mempunyai guard defensif, dan modal create/edit/delete tidak dirender lagi ketika permission terkait dicabut. Wildcard `*` tetap diterima.
+
+**Fakta keamanan penting:** permission frontend hanya mengatur visibilitas dan interaksi UI. Backend sibling tetap harus menegakkan permission, role, dan organization scope. `ProtectedRoute` memeriksa auth dan `must_reset_password`; `PermissionRoute` baru dipakai pada `/atlet` untuk read permission.
 
 ## Auth Flow Aktual
 
 ### Login dan Bootstrap
 
-1. Login page mengambil target kembali dari `location.state.from.pathname`, default `/dashboard`.
+1. Login page mengambil target kembali dari `location.state.from` lengkap dengan pathname, search, dan hash; default `/dashboard`.
 2. `AuthContext.login` mengirim `URLSearchParams` ke `/api/login` dengan content type form-urlencoded.
-3. Response diharapkan berisi `token` dan `user`.
-4. Token disimpan sebagai `localStorage['token']`; user disimpan di state context.
-5. Query cache dibersihkan untuk mencegah data user sebelumnya tersisa.
-6. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
-7. Token hilang atau request user gagal menghasilkan state unauthenticated.
-8. Login role nonaktif menerima `403 ROLE_ACCESS_DISABLED` dan menampilkan pesan backend secara inline tanpa menyimpan token.
+3. Response diharapkan berisi `token` dan `user`; token tetap disimpan sebagai `localStorage['token']`.
+4. Login sukses membersihkan session-expired notice, account-block state, permission notice, dan seluruh QueryClient sebelum berpindah ke URL protected sebelumnya.
+5. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
+6. Bootstrap `/api/user` yang gagal karena network/5xx/`ACCESS_SERVICE_UNAVAILABLE` mempertahankan token dan menampilkan layar **Layanan Akses Tidak Tersedia** dengan tindakan **Coba Lagi** dan **Keluar**.
+7. `AUTH_REQUIRED`/`AUTH_SESSION_INVALID` pada protected request membersihkan user/token/cache dan menyimpan session-expired notice satu kali di session storage.
+8. `ROLE_ACCESS_DISABLED` dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape.
+9. `INSUFFICIENT_PERMISSION` tidak logout; event global menampilkan notice, me-refresh `/api/user` secara terdeduplikasi, lalu membersihkan cache setelah permission terbaru diterima.
+10. Login membedakan credential salah, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
 
 ### Axios Interceptor
 
-Request interceptor menambahkan `Authorization: Bearer <token>` kecuali URL persis berada pada daftar public endpoint:
+Request interceptor menambahkan `Authorization: Bearer <token>` hanya pada endpoint protected. Daftar public endpoint mencakup login, forgot/reset password, dan account-email-recovery.
 
-- `/api/login`
-- `/api/forgot-password`
-- `/api/reset-password/confirm`
-
-Response `401` menghapus token dan mengirim event browser `auth:unauthorized`. AuthProvider memakai satu `clearSession()` untuk menghapus token, user, dan QueryClient.
-
-Response protected `403` hanya diperlakukan sebagai penonaktifan role bila payload mempunyai `code: ROLE_ACCESS_DISABLED`. Axios menghapus token, menyimpan pesan pada `sessionStorage['auth:role-access-disabled-message']`, lalu dispatch `auth:role-access-disabled`. AuthProvider memasang listener sebelum bootstrap `/api/user`, mendeduplikasi kegagalan request paralel, menampilkan dialog global satu tombol, dan mengarahkan kembali ke `/login`. Generic `403` tetap diteruskan sebagai error biasa.
+Response interceptor mengklasifikasikan code akses bersama. Protected `401` hanya memanipulasi auth bila request semula membawa token yang masih sama dengan token aktif; ini mendeduplikasi request paralel dan mencegah respons terlambat dari sesi lama menghapus login baru. Account-blocking code memakai aturan token yang sama. Permission deny hanya memicu permission-refresh event, sedangkan `503`, network failure, 5xx, dan `429` tidak menghapus sesi.
 
 ### Logout dan Password Reset
 
@@ -313,7 +311,7 @@ Backend sibling juga mempunyai family Porprov, tetapi repository frontend ini ti
 
 ## Domain UI Utama
 
-- **Atlet:** infinite/page list, filter, form multipart, detail, print/export/import, cluster history, dan dana pembinaan.
+- **Atlet:** infinite/page list, filter, form multipart, detail, print/export/import, cluster history, dan dana pembinaan. Route/read/action mengikuti matrix `athletes.view/create/edit/delete`. Validasi email membedakan format lokal, available/duplicate, backend 422, permission, 503, network, dan global auth flow; error retryable menyediakan tombol **Coba Lagi** dengan abort dan request-ID race protection.
 - **Pelatih:** list/filter, form multipart, detail, import, cluster, dana pembinaan, dan relasi atlet.
 - **Master data:** user/role/permission, cabor/federasi, cluster/sub-cluster, pendidikan, kelas pertandingan, wilayah, organisasi, venue.
 - **Event:** CRUD event dan registrasi/status atlet dalam event.
@@ -377,42 +375,33 @@ Karena itu repository **belum mempunyai automated test suite**. Jangan mengklaim
 
 ## Baseline Validasi
 
-Baseline diverifikasi pada **2026-07-28** sebelum source aplikasi diubah.
+Baseline diverifikasi ulang pada **2026-08-24** setelah access hardening.
 
 ### Build
 
-`npm run build` berhasil:
-
-- Vite `7.3.1`;
-- 2.614 module transformed;
-- bundle JS utama sekitar `1,464.86 kB` minified, `369.44 kB` gzip;
-- terdapat warning non-blocking bahwa chunk lebih besar dari 500 kB.
-
-Warning ukuran chunk adalah baseline, bukan kegagalan build. Tidak ada route-level code splitting pada snapshot.
-
-Validasi setelah fitur role access pada tanggal yang sama juga berhasil: 2.617 module transformed, bundle JS utama sekitar `1,472.48 kB` minified/`371.37 kB` gzip, dengan warning chunk >500 kB yang sama.
+`npm run build` berhasil dengan Vite `7.3.1`: 2.672 module transformed, bundle JS utama `1,679.05 kB` minified/`422.71 kB` gzip. Warning non-blocking chunk >500 kB tetap ada; build ini tidak membuktikan browser/runtime flow.
 
 ### Lint
 
-`npm run lint` gagal dengan:
+Targeted ESLint untuk seluruh file JS/JSX yang disentuh berhasil tanpa output. Full `npm run lint` tetap nonzero dengan:
 
 ```text
-135 problems (116 errors, 19 warnings)
+104 problems (90 errors, 14 warnings)
 ```
 
-Issue baseline mencakup unused variable/import, React Hooks dependency, `set-state-in-effect`, dan rule lain pada banyak file lama. Pekerjaan sempit tidak boleh memperbaiki seluruh 135 problem tanpa scope. Namun file yang disentuh tidak boleh menambah problem baru; gunakan targeted ESLint dan bandingkan full output terhadap baseline.
+Seluruh issue full lint yang dilaporkan berada pada file lama di luar scope perubahan access hardening. Baseline mencakup unused variable/import, React Hooks dependency, `set-state-in-effect`, dan rule lain; jangan klaim full lint lulus dan jangan melakukan cleanup repository-wide dalam pekerjaan sempit.
 
-Setelah fitur role access, targeted ESLint seluruh file yang disentuh lulus. Full lint tetap nonzero dengan `130 problems (111 errors, 19 warnings)`; lima error baseline hilang karena cleanup import/context pada file yang memang disentuh, dan tidak ada issue baru dari fitur ini.
+Pada **2026-08-25**, targeted ESLint untuk `App.jsx`, `PortalRoute.jsx`, `mediaUtils.js`, `usePortal.js`, `ActivityLogs.jsx`, `AthletePortal.jsx`, dan `CoachPortal.jsx` berhasil tanpa output. `npm run build` juga berhasil dengan warning chunk yang sama. Source sekarang membatasi direct route portal berdasarkan role, menunda query turunan sampai `profile.type` sesuai, menampilkan state provisioning untuk profile yang belum terhubung, menggunakan `event_key`, dan membedakan kejadian Error Log dari pola unik. Browser/runtime API belum dijalankan dari workspace ini.
 
 ## Watchlist: Jangan Ikuti Asumsi Usang
 
 1. **README masih template Vite generik.** Ia tidak menjelaskan domain KONI, route, auth, API, Docker, atau baseline repository aktual.
 2. **API URL production hardcoded.** `VITE_API_URL` ada di Dockerfile tetapi belum dibaca Axios aktif.
-3. **Route protection terbatas.** `ProtectedRoute` hanya memeriksa loading auth, authenticated state, dan `must_reset_password`; bukan permission per route.
+3. **Route permission belum menyeluruh.** `/atlet` sekarang memakai `PermissionRoute athletes.view`, tetapi route lain masih bergantung pada kombinasi sidebar/action gating dan enforcement backend.
 4. **Permission UI bukan boundary keamanan.** Sidebar/tombol yang tersembunyi tidak mencegah direct URL atau request manual. Backend harus tetap enforce.
 5. **Data fetching belum konsisten.** TanStack Query hidup berdampingan dengan Axios/state manual, terutama Monev, form/detail/dropdown/import/export, dan beberapa page besar.
 6. **Tidak ada automated test suite.** Build/lint tidak membuktikan seluruh browser flow, auth, upload, atau cache behavior.
-7. **Full lint sudah merah.** Baseline 116 error dan 19 warning harus dipisahkan dari regresi baru.
+7. **Full lint sudah merah.** Hasil terbaru tetap nonzero dan harus dipisahkan dari regresi baru; gunakan angka validasi bertanggal pada bagian baseline.
 8. **Bundle utama besar.** Build hijau tetapi menghasilkan warning chunk >500 kB; jangan menyatakan optimasi code splitting sudah aktif.
 9. **Version detection perlu dibuktikan.** Regex asset pada `VersionChecker` dapat jatuh ke fallback panjang HTML.
 10. **Route dan sidebar adalah dua sumber yang harus sinkron.** Route yang ada di `App.jsx` tidak otomatis muncul/terguard di sidebar.

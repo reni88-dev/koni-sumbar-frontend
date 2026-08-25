@@ -16,6 +16,9 @@ export function validateSourceFile(file, { allowPDF }) {
   }
   const extension = file.name.split('.').pop()?.toLowerCase() || '';
   const expectedMime = DOCUMENT_MIME_BY_EXTENSION[extension];
+  if (extension === 'heic' || extension === 'heif') {
+    throw new Error('Format HEIC/HEIF belum didukung. Konversi file ke JPG, PNG, atau WebP terlebih dahulu.');
+  }
   if (!expectedMime || (!allowPDF && extension === 'pdf')) {
     throw new Error(allowPDF
       ? 'Format file harus PDF, JPG, PNG, atau WebP.'
