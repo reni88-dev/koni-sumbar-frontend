@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   User, Users, Calendar, Award, MapPin, Clock, Phone, Mail,
   Loader2, Edit2, Save, X, Layers, Wallet, AlertCircle
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { ProtectedImage } from '../components/ProtectedImage';
+import { ProfilePhotoField } from '../components/form-modal/ProfilePhotoField';
+import { compressImageToWebP, validateSourceFile } from '../components/form-modal/mediaUtils';
 import { usePortalProfile, usePortalEvents, usePortalDashboard, usePortalAthletes, useUpdatePortalProfile, usePortalCoachClusterHistories, usePortalCoachDevelopmentFunds } from '../hooks/queries/usePortal';
 
 const MotionDiv = motion.div;
@@ -14,11 +17,29 @@ const textOrDash = (value) => value || '-';
 const formatDate = (value) => value ? new Date(value).toLocaleDateString('id-ID') : '-';
 const formatCurrency = (value) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(value || 0));
 
+function getProfileUpdateError(error) {
+  const payload = error?.response?.data;
+  if (typeof payload?.error === 'string' && payload.error) return payload.error;
+  if (typeof payload?.message === 'string' && payload.message) return payload.message;
+  if (payload?.errors && typeof payload.errors === 'object') {
+    for (const messages of Object.values(payload.errors)) {
+      if (Array.isArray(messages) && messages[0]) return messages[0];
+      if (typeof messages === 'string' && messages) return messages;
+    }
+  }
+  return error?.message || 'Profil gagal diperbarui. Silakan coba lagi.';
+}
+
 export function CoachPortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({});
   const [fundYear, setFundYear] = useState(currentYear);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(null);
+  const [photoProcessing, setPhotoProcessing] = useState(false);
+  const [profileFormError, setProfileFormError] = useState('');
+  const photoProcessingIdRef = useRef(0);
   
   const {
     data: profile,
@@ -38,6 +59,17 @@ export function CoachPortal() {
   const updateProfile = useUpdatePortalProfile();
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
+  const isProfileBusy = photoProcessing || updateProfile.isPending;
+
+  useEffect(() => () => {
+    photoProcessingIdRef.current += 1;
+  }, []);
+
+  useEffect(() => () => {
+    if (photoPreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(photoPreview);
+    }
+  }, [photoPreview]);
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: User },
@@ -47,21 +79,78 @@ export function CoachPortal() {
     { id: 'events', label: 'Event', icon: Calendar },
   ];
 
+  const resetPhotoSelection = (preview = profile?.photo || null) => {
+    photoProcessingIdRef.current += 1;
+    setPhotoFile(null);
+    setPhotoPreview(preview);
+    setPhotoProcessing(false);
+  };
+
   const handleEditStart = () => {
     setEditData({
       phone: profile?.phone || '',
       email: profile?.email || '',
       address: profile?.details?.address || ''
     });
+    resetPhotoSelection();
+    setProfileFormError('');
     setIsEditing(true);
   };
 
-  const handleSave = async () => {
+  const handleEditCancel = () => {
+    if (updateProfile.isPending) return;
+    resetPhotoSelection();
+    setProfileFormError('');
+    setIsEditing(false);
+  };
+
+  const handlePhotoChange = async (event) => {
+    const input = event.target;
+    const sourceFile = input.files?.[0];
+    input.value = '';
+    if (!sourceFile) return;
+
+    const processingId = ++photoProcessingIdRef.current;
+    setPhotoFile(null);
+    setPhotoPreview(profile?.photo || null);
+    setPhotoProcessing(true);
+    setProfileFormError('');
+
     try {
-      await updateProfile.mutateAsync(editData);
+      validateSourceFile(sourceFile, { allowPDF: false });
+      const compressedFile = await compressImageToWebP(sourceFile, { maxWidth: 800 });
+      if (processingId !== photoProcessingIdRef.current) return;
+      setPhotoFile(compressedFile);
+      setPhotoPreview(URL.createObjectURL(compressedFile));
+    } catch (error) {
+      if (processingId !== photoProcessingIdRef.current) return;
+      setProfileFormError(error.message || 'Foto gagal diproses. Silakan pilih file lain.');
+    } finally {
+      if (processingId === photoProcessingIdRef.current) {
+        setPhotoProcessing(false);
+      }
+    }
+  };
+
+  const handleSave = async () => {
+    if (isProfileBusy) return;
+    setProfileFormError('');
+
+    let payload = editData;
+    if (photoFile) {
+      payload = new FormData();
+      payload.append('phone', editData.phone || '');
+      payload.append('email', editData.email || '');
+      payload.append('address', editData.address || '');
+      payload.append('photo', photoFile);
+    }
+
+    try {
+      await updateProfile.mutateAsync(payload);
+      resetPhotoSelection(null);
       setIsEditing(false);
     } catch (error) {
-      console.error('Failed to update profile:', error);
+      setProfileFormError(getProfileUpdateError(error));
     }
   };
 
@@ -167,12 +256,12 @@ export function CoachPortal() {
 
       {/* Tab Navigation */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 mb-6">
-        <div className="flex border-b border-slate-100">
+        <div className="flex overflow-x-auto border-b border-slate-100">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-colors
+              className={`min-w-32 flex-1 flex items-center justify-center gap-2 px-4 py-4 text-sm font-medium transition-colors
                 ${activeTab === tab.id 
                   ? 'text-red-600 border-b-2 border-red-600 bg-red-50/50' 
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
@@ -184,41 +273,75 @@ export function CoachPortal() {
           ))}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="text-lg font-bold text-slate-800">Profil Saya</h3>
                 {!isEditing ? (
                   <button
+                    type="button"
                     onClick={handleEditStart}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   >
                     <Edit2 className="w-4 h-4" />
                     Edit Profil
                   </button>
                 ) : (
-                  <div className="flex gap-2">
+                  <div className="flex w-full sm:w-auto gap-2">
                     <button
-                      onClick={() => setIsEditing(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                      type="button"
+                      onClick={handleEditCancel}
+                      disabled={updateProfile.isPending}
+                      className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <X className="w-4 h-4" />
                       Batal
                     </button>
                     <button
+                      type="button"
                       onClick={handleSave}
-                      disabled={updateProfile.isPending}
-                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+                      disabled={isProfileBusy}
+                      className="flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {updateProfile.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                      {isProfileBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                       Simpan
                     </button>
                   </div>
                 )}
               </div>
 
+              {isEditing ? (
+                <ProfilePhotoField
+                  subjectLabel="Pelatih"
+                  photoFile={photoFile}
+                  preview={photoPreview}
+                  processing={photoProcessing}
+                  onChange={handlePhotoChange}
+                />
+              ) : (
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white flex items-center justify-center">
+                    {profile?.photo ? (
+                      <ProtectedImage src={profile.photo} alt={profile.name} className="h-full w-full object-cover" />
+                    ) : (
+                      <User className="h-11 w-11 text-slate-300" />
+                    )}
+                  </div>
+                  <div className="min-w-0 text-center sm:text-left">
+                    <p className="text-lg font-bold text-slate-800 break-words">{profile?.name || '-'}</p>
+                    <p className="mt-1 text-sm text-slate-500">{profile?.cabor_name || 'Cabang olahraga belum tersedia'}</p>
+                  </div>
+                </div>
+              )}
+
+              {isEditing && profileFormError && (
+                <div role="alert" className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{profileFormError}</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
                   <div>
@@ -249,6 +372,19 @@ export function CoachPortal() {
                       />
                     ) : (
                       <p className="text-slate-800 font-medium">{profile?.phone || '-'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 uppercase tracking-wider">Alamat</label>
+                    {isEditing ? (
+                      <textarea
+                        rows={3}
+                        value={editData.address}
+                        onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                        className="w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-100 focus:border-red-400 resize-y"
+                      />
+                    ) : (
+                      <p className="text-slate-800 font-medium whitespace-pre-wrap break-words">{profile?.details?.address || '-'}</p>
                     )}
                   </div>
                 </div>
