@@ -27,7 +27,9 @@ import {
   Bot,
   Layers,
   MessageSquareWarning,
-  MailQuestion
+  MailQuestion,
+  ChartPie,
+  ScanSearch
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -185,6 +187,21 @@ function SidebarContent({ onNavigate }) {
     { icon: FileText, label: 'Form Builder', path: '/form-builder', permission: 'forms.view' },
   ]);
 
+  const analysisChildren = filterVisibleItems([
+    { icon: ChartPie, label: 'Summary Data', path: '/data-summary', permission: 'data_summary.view' },
+    { icon: ScanSearch, label: 'Analisis Duplikat', path: '/data-analysis/duplicates', permission: 'data_duplicates.view' },
+  ]).map((item) => ({ icon: item.icon, label: item.label, path: item.path }));
+
+  const analysisItems = filterVisibleItems([
+    ...(analysisChildren.length
+      ? [{
+          icon: ChartPie,
+          label: 'Analisis Data',
+          path: '#',
+          children: analysisChildren,
+        }]
+      : []),
+  ]);
   const masterDataChildren = filterVisibleItems([
     { icon: Users, label: 'Data User', path: '/master/users', permission: 'users.view' },
     { icon: Shield, label: 'Data Role', path: '/master/roles', permission: 'roles.view' },
@@ -226,6 +243,7 @@ function SidebarContent({ onNavigate }) {
     ...createSection('Utama', dashboardItems),
     ...createSection('Pembinaan', pembinaanItems),
     ...createSection('Kegiatan', kegiatanItems),
+    ...createSection('Analisis Data', analysisItems),
     ...createSection('Master Data', masterDataItems),
     ...createSection('Sistem', systemItems),
   ];

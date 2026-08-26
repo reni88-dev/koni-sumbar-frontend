@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Plus, X, CheckCircle2, Users, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { usePermission } from "../hooks/usePermission";
 import {
   getSafeApiMessage,
@@ -30,6 +31,8 @@ import {
 import api from "../api/axios";
 
 export function AthletesPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("search")?.trim() || "";
   const { can } = usePermission();
   const canView = can("athletes.view");
   const canCreate = can("athletes.create");
@@ -40,8 +43,8 @@ export function AthletesPage() {
   const canCreateSensitive = canCreate && canViewSensitive;
   const canEditSensitive = canEdit && canViewSensitive;
   // ── Filter state ─────────────────────────────────────────────────────────
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [filterCabor, setFilterCabor] = useState("");
   const [filterGender, setFilterGender] = useState("");
   const [filterOrganization, setFilterOrganization] = useState("");

@@ -39,7 +39,7 @@ function AccessDenied() {
         </div>
         <h1 className="mb-2 text-2xl font-bold text-slate-800">Akses Ditolak</h1>
         <p className="mb-7 max-w-md text-sm leading-6 text-slate-500">
-          Anda tidak memiliki izin untuk melihat data atlet. Hubungi administrator jika akses ini diperlukan.
+          Anda tidak memiliki izin untuk membuka halaman ini. Hubungi administrator jika akses tersebut diperlukan.
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <button

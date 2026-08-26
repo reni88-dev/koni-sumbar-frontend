@@ -24,6 +24,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { usePermission } from '../hooks/usePermission';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CoachFormModal } from '../components/CoachFormModal';
@@ -36,6 +37,8 @@ import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import api from '../api/axios';
 
 export function CoachesPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search')?.trim() || '';
   const { can } = usePermission();
   const canView = can('coaches.view');
   const canCreate = can('coaches.create');
@@ -45,8 +48,8 @@ export function CoachesPage() {
   const canCreateSensitive = canCreate && canViewSensitive;
   const canEditSensitive = canEdit && canViewSensitive;
 
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [filterCabor, setFilterCabor] = useState('');
   const [filterActive, setFilterActive] = useState('');
   const [filterCluster, setFilterCluster] = useState('');

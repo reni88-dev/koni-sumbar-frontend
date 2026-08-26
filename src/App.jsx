@@ -44,6 +44,8 @@ import { SettingsPage } from './pages/Settings';
 import { ComplaintsPage } from './pages/Complaints';
 import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
+import { DataSummaryPage } from './pages/DataSummary';
+import { DataDuplicatesPage } from './pages/DataDuplicates';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PortalRoute } from './components/PortalRoute';
 import { PermissionRoute } from './components/PermissionRoute';
@@ -112,6 +114,27 @@ function App() {
         }
       />
 
+      {/* Data Analysis Routes */}
+      <Route
+        path="/data-summary"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="data_summary.view">
+              <DataSummaryPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/data-analysis/duplicates"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="data_duplicates.view">
+              <DataDuplicatesPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
       {/* Athletes Route */}
       <Route
         path="/atlet"
