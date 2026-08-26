@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   Search, 
@@ -17,12 +17,17 @@ import {
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { CompetitionClassFormModal } from '../../components/CompetitionClassFormModal';
 import { useCaborsAll } from '../../hooks/queries/useCabors';
+import { usePermission } from '../../hooks/usePermission';
 import { 
   useCompetitionClasses, 
   useDeleteCompetitionClass 
 } from '../../hooks/queries/useMasterData';
 
 export function CompetitionClassesPage() {
+  const { can } = usePermission();
+  const canCreate = can('competition_classes.create');
+  const canEdit = can('competition_classes.edit');
+  const canDelete = can('competition_classes.delete');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterCabor, setFilterCabor] = useState('');
@@ -63,10 +68,6 @@ export function CompetitionClassesPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Reset page when filter changes
-  useEffect(() => {
-    setPage(1);
-  }, [filterCabor]);
 
   const openCreateModal = () => {
     setSelectedClass(null);
@@ -117,7 +118,7 @@ export function CompetitionClassesPage() {
             <Filter className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
             <select
               value={filterCabor}
-              onChange={(e) => setFilterCabor(e.target.value)}
+              onChange={(e) => { setFilterCabor(e.target.value); setPage(1); }}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none appearance-none"
             >
               <option value="">Semua Cabor</option>
@@ -125,13 +126,15 @@ export function CompetitionClassesPage() {
             </select>
           </div>
         </div>
-        <button
-          onClick={openCreateModal}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Tambah Kelas</span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={openCreateModal}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20"
+          >
+            <Plus className="w-5 h-5" />
+            <span>Tambah Kelas</span>
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -205,18 +208,23 @@ export function CompetitionClassesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditModal(item)}
-                          className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => { setClassToDelete(item); setIsDeleteModalOpen(true); }}
-                          className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => openEditModal(item)}
+                            className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={() => { setClassToDelete(item); setIsDeleteModalOpen(true); }}
+                            className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                        {!canEdit && !canDelete && <span className="text-slate-400">-</span>}
                       </div>
                     </td>
                   </tr>
@@ -341,16 +349,16 @@ export function CompetitionClassesPage() {
 
       {/* Delete Modal */}
       <AnimatePresence>
-        {isDeleteModalOpen && (
+        {isDeleteModalOpen && canDelete && (
           <>
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
               onClick={() => setIsDeleteModalOpen(false)}
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -380,7 +388,7 @@ export function CompetitionClassesPage() {
                   </button>
                 </div>
               </div>
-            </motion.div>
+            </Motion.div>
           </>
         )}
       </AnimatePresence>

@@ -17,7 +17,7 @@ export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
       await onUploadPhotos(formData);
       setPhotoFiles([]);
       setPhotoCaption('');
-    } catch (err) {
+    } catch {
       alert('Gagal upload foto');
     }
     setUploading(false);
@@ -48,7 +48,7 @@ export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
           {session.photos.map(photo => (
             <div key={photo.id} className="relative group rounded-xl overflow-hidden border border-slate-200">
               <ProtectedImage
-                src={photo.photo_url.startsWith('http') ? photo.photo_url : `/api/storage/${photo.photo_url}`}
+                src={photo.photo_url}
                 alt={photo.caption || 'Foto latihan'}
                 className="w-full h-48 object-contain bg-slate-100"
               />

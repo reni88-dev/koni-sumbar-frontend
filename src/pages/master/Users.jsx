@@ -17,15 +17,28 @@ import { usePermission } from '../../hooks/usePermission';
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../../hooks/queries/useMasterData';
 import { useRolesAll } from '../../hooks/queries/useMasterData';
 import { useOrganizationsAll } from '../../hooks/queries/useOrganizations';
+import { useCaborSports } from '../../hooks/queries/useCabors';
 import { PrintUserList } from '../../components/PrintUserList';
 
+const CABOR_REQUIRED_ROLES = new Set([
+  'pengprov', 'admin_pengprov',
+  'pengkot', 'admin_pengkot',
+  'komcab', 'admin_komcab',
+]);
+
+const LOCAL_ORGANIZATION_ROLES = new Set([
+  'koni_kabkota', 'admin_koni_kabkota',
+  'pengkot', 'admin_pengkot',
+  'komcab', 'admin_komcab',
+]);
+
+const PROVINCE_ORGANIZATION_ROLES = new Set([
+  'pengprov', 'admin_pengprov',
+]);
+
 const ORGANIZATION_REQUIRED_ROLES = new Set([
-  'pengprov',
-  'admin_pengprov',
-  'pengkot',
-  'admin_pengkot',
-  'komcab',
-  'admin_komcab',
+  ...LOCAL_ORGANIZATION_ROLES,
+  ...PROVINCE_ORGANIZATION_ROLES,
   'porprov_kontingen',
   'porprov_admin_kabkota',
 ]);
@@ -48,16 +61,29 @@ export function UsersPage() {
   const [userToDelete, setUserToDelete] = useState(null);
 
   // Form states
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role_id: '', organization_id: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', role_id: '', organization_id: '', cabor_id: '' });
   const [formErrors, setFormErrors] = useState({});
 
   // TanStack Query hooks
   const { data: usersData, isLoading: loading } = useUsers({ page, search: debouncedSearch, roleId: filterRole, sort: filterSort });
   const { data: roles = [] } = useRolesAll({ enabled: canViewRoles });
   const { data: organizations = [] } = useOrganizationsAll();
+  const { data: caborSports = [] } = useCaborSports();
   const activeOrganizations = organizations.filter((organization) => organization?.is_active !== false);
   const selectedRole = roles.find((role) => String(role.id) === String(formData.role_id));
-  const organizationRequired = ORGANIZATION_REQUIRED_ROLES.has(selectedRole?.name);
+  const selectedRoleName = selectedRole?.name || '';
+  const organizationRequired = ORGANIZATION_REQUIRED_ROLES.has(selectedRoleName);
+  const caborRequired = CABOR_REQUIRED_ROLES.has(selectedRoleName);
+  const availableOrganizations = activeOrganizations.filter((organization) => {
+    if (LOCAL_ORGANIZATION_ROLES.has(selectedRoleName)) {
+      return organization.type === 'pengkot' || organization.type === 'pengkab';
+    }
+    if (PROVINCE_ORGANIZATION_ROLES.has(selectedRoleName)) {
+      return organization.type === 'koni';
+    }
+    return true;
+  });
+  const organizationById = new Map(activeOrganizations.map((organization) => [String(organization.id), organization]));
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const deleteUserMutation = useDeleteUser();
@@ -80,7 +106,7 @@ export function UsersPage() {
 
   const openCreateModal = () => {
     setModalMode('create');
-    setFormData({ name: '', email: '', password: '', role_id: '', organization_id: '' });
+    setFormData({ name: '', email: '', password: '', role_id: '', organization_id: '', cabor_id: '' });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -93,7 +119,8 @@ export function UsersPage() {
       email: user.email, 
       password: '',
       role_id: user.role_id || '',
-      organization_id: user.organization_id?.toString() || ''
+      organization_id: user.organization_id?.toString() || '',
+      cabor_id: user.cabor_id?.toString() || ''
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -107,9 +134,17 @@ export function UsersPage() {
       setFormErrors({ organization_id: ['Organisasi wajib dipilih untuk role ini'] });
       return;
     }
+    if (caborRequired && !formData.cabor_id) {
+      setFormErrors({ cabor_id: ['Cabor induk wajib dipilih untuk role ini'] });
+      return;
+    }
 
     try {
-      const data = { ...formData, organization_id: formData.organization_id || null };
+      const data = {
+        ...formData,
+        organization_id: formData.organization_id || null,
+        cabor_id: formData.cabor_id || null,
+      };
       if (modalMode === 'edit' && !data.password) {
         delete data.password;
       }
@@ -162,7 +197,7 @@ export function UsersPage() {
           >
             <option value="">Semua Role</option>
             {roles.map(role => (
-              <option key={role.id} value={role.id}>{role.name}</option>
+              <option key={role.id} value={role.id}>{role.display_name || role.name}</option>
             ))}
           </select>
           <select
@@ -202,20 +237,21 @@ export function UsersPage() {
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Nama</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Email</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
-                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Organisasi</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lembaga / Wilayah</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor Penugasan</th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
+                  <td colSpan={6} className="px-6 py-12 text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                     Tidak ada data user
                   </td>
                 </tr>
@@ -233,11 +269,19 @@ export function UsersPage() {
                     <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm">
-                        {user.role?.name || '-'}
+                        {user.role?.display_name || user.role?.name || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
-                      {user.organization?.name || '-'}
+                      <div className="font-medium text-slate-700">{user.organization?.name || '-'}</div>
+                      {user.organization_id && organizationById.get(String(user.organization_id))?.region?.name && (
+                        <div className="mt-1 text-xs text-slate-400">
+                          {organizationById.get(String(user.organization_id)).region.name}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {user.cabor?.name || '-'}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
@@ -369,12 +413,17 @@ export function UsersPage() {
                     <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
                     <select
                       value={formData.role_id}
-                      onChange={e => setFormData({...formData, role_id: e.target.value})}
+                      onChange={e => setFormData({
+                        ...formData,
+                        role_id: e.target.value,
+                        organization_id: '',
+                        cabor_id: '',
+                      })}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
                     >
                       <option value="">-- Pilih Role --</option>
                       {roles.map(role => (
-                        <option key={role.id} value={role.id}>{role.name}</option>
+                        <option key={role.id} value={role.id}>{role.display_name || role.name}</option>
                       ))}
                     </select>
                   </div>
@@ -390,13 +439,44 @@ export function UsersPage() {
                       required={organizationRequired}
                     >
                       <option value="">{organizationRequired ? '-- Pilih Organisasi --' : '-- Tanpa Organisasi --'}</option>
-                      {activeOrganizations.map(organization => (
-                        <option key={organization.id} value={organization.id}>{organization.name} ({organization.type})</option>
+                      {availableOrganizations.map(organization => (
+                        <option key={organization.id} value={organization.id}>
+                          {organization.name} ({organization.type}){organization.region?.name ? ' - ' + organization.region.name : ''}
+                        </option>
                       ))}
                     </select>
-                    {organizationRequired && <p className="text-slate-500 text-xs mt-1">Wajib untuk role organisasi Pengprov, Pengkot, Komcab, dan Porprov.</p>}
+                    {organizationRequired && (
+                      <p className="text-slate-500 text-xs mt-1">
+                        {LOCAL_ORGANIZATION_ROLES.has(selectedRoleName)
+                          ? 'Pilih lembaga KONI/pengurus tingkat kabupaten atau kota.'
+                          : PROVINCE_ORGANIZATION_ROLES.has(selectedRoleName)
+                            ? 'Pengprov wajib menggunakan organisasi KONI Provinsi.'
+                            : 'Organisasi wajib dipilih untuk role Porprov ini.'}
+                      </p>
+                    )}
                     {formErrors.organization_id && <p className="text-red-500 text-xs mt-1">{formErrors.organization_id[0]}</p>}
                   </div>
+
+                  {caborRequired && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Cabor Induk <span className="text-red-600">*</span>
+                      </label>
+                      <select
+                        value={formData.cabor_id}
+                        onChange={e => setFormData({...formData, cabor_id: e.target.value})}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                        required
+                      >
+                        <option value="">-- Pilih Cabor Induk --</option>
+                        {caborSports.filter(cabor => cabor?.is_active !== false).map(cabor => (
+                          <option key={cabor.id} value={cabor.id}>{cabor.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-slate-500 text-xs mt-1">Scope mencakup cabor induk ini beserta seluruh discipline aktifnya.</p>
+                      {formErrors.cabor_id && <p className="text-red-500 text-xs mt-1">{formErrors.cabor_id[0]}</p>}
+                    </div>
+                  )}
                   
                   <div className="flex gap-3 pt-4">
                     <button
