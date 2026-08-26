@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Calendar, Clock, MapPin, Repeat, Edit2, Trash2, Zap } from 'lucide-react';
 import { ConfirmDialog } from '../ConfirmDialog';
 
@@ -20,7 +20,7 @@ export function ScheduleCard({ schedule, onGenerate, onEdit, onDelete, isDeletin
 
   return (
     <>
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-shadow"
@@ -66,47 +66,59 @@ export function ScheduleCard({ schedule, onGenerate, onEdit, onDelete, isDeletin
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <button
-              onClick={() => onGenerate(schedule)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors font-medium"
-              title="Generate sesi"
-            >
-              <Zap className="w-3.5 h-3.5" />
-              Generate
-            </button>
-            <div className="flex gap-1">
-              <button
-                onClick={() => onEdit(schedule)}
-                className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                title="Edit"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => setShowConfirm(true)}
-                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Hapus"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+          {(onGenerate || onEdit || onDelete) && (
+            <div className="flex flex-col gap-1.5">
+              {onGenerate && (
+                <button
+                  onClick={() => onGenerate(schedule)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 transition-colors font-medium"
+                  title="Generate sesi"
+                >
+                  <Zap className="w-3.5 h-3.5" />
+                  Generate
+                </button>
+              )}
+              {(onEdit || onDelete) && (
+                <div className="flex gap-1">
+                  {onEdit && (
+                    <button
+                      onClick={() => onEdit(schedule)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => setShowConfirm(true)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Hapus"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
-      </motion.div>
+      </Motion.div>
 
-      <ConfirmDialog
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={() => {
-          onDelete(schedule.id);
-          setShowConfirm(false);
-        }}
-        title="Hapus Jadwal Berulang"
-        message={<>Apakah Anda yakin ingin menghapus jadwal <strong>{schedule.title}</strong>? Sesi latihan yang sudah di-generate tidak akan terpengaruh.</>}
-        confirmText="Hapus"
-        isPending={isDeleting}
-      />
+      {onDelete && (
+        <ConfirmDialog
+          isOpen={showConfirm}
+          onClose={() => setShowConfirm(false)}
+          onConfirm={() => {
+            onDelete(schedule.id);
+            setShowConfirm(false);
+          }}
+          title="Hapus Jadwal Berulang"
+          message={<>Apakah Anda yakin ingin menghapus jadwal <strong>{schedule.title}</strong>? Sesi latihan yang sudah di-generate tidak akan terpengaruh.</>}
+          confirmText="Hapus"
+          isPending={isDeleting}
+        />
+      )}
     </>
   );
 }

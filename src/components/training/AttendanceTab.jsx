@@ -5,6 +5,8 @@ export function AttendanceTab({
   attendanceData,
   isOngoing,
   isCompleted,
+  readOnly = false,
+  personal = false,
   onUpdateAttendance,
   onMarkAllPresent,
   onSaveAttendance,
@@ -16,23 +18,32 @@ export function AttendanceTab({
   return (
     <div className="space-y-4">
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: 'Total', value: totalCount, color: 'bg-slate-50 text-slate-700' },
-          { label: 'Hadir', value: presentCount, color: 'bg-green-50 text-green-700' },
-          { label: 'Sakit', value: attendanceData.filter(a => a.status === 'sick').length, color: 'bg-yellow-50 text-yellow-700' },
-          { label: 'Izin', value: attendanceData.filter(a => a.status === 'permission').length, color: 'bg-blue-50 text-blue-700' },
-        ].map(stat => (
-          <div key={stat.label} className={`p-3 rounded-xl text-center ${stat.color}`}>
-            <div className="text-2xl font-bold">{stat.value}</div>
-            <div className="text-xs font-medium">{stat.label}</div>
-          </div>
-        ))}
-      </div>
+      {!personal && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { label: 'Total', value: totalCount, color: 'bg-slate-50 text-slate-700' },
+            { label: 'Hadir', value: presentCount, color: 'bg-green-50 text-green-700' },
+            { label: 'Sakit', value: attendanceData.filter(a => a.status === 'sick').length, color: 'bg-yellow-50 text-yellow-700' },
+            { label: 'Izin', value: attendanceData.filter(a => a.status === 'permission').length, color: 'bg-blue-50 text-blue-700' },
+          ].map(stat => (
+            <div key={stat.label} className={`p-3 rounded-xl text-center ${stat.color}`}>
+              <div className="text-2xl font-bold">{stat.value}</div>
+              <div className="text-xs font-medium">{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {(isOngoing || isCompleted) && attendanceData.length > 0 && (
+      {readOnly && attendanceData.length > 0 && (
+        <div>
+          <h2 className="font-semibold text-slate-800">{personal ? 'Status Kehadiran Anda' : 'Data Kehadiran'}</h2>
+          <p className="text-sm text-slate-500 mt-1">{personal ? 'Status ini dicatat oleh pelatih atau pengelola latihan.' : 'Data kehadiran ditampilkan dalam mode baca saja.'}</p>
+        </div>
+      )}
+
+      {(readOnly || isOngoing || isCompleted) && attendanceData.length > 0 && (
         <>
-          {isOngoing && (
+          {isOngoing && !readOnly && (
             <div className="flex justify-between items-center">
               <button onClick={onMarkAllPresent} className="text-sm text-green-600 hover:text-green-700 font-medium">
                 ✓ Tandai Semua Hadir
@@ -52,9 +63,10 @@ export function AttendanceTab({
                   {i + 1}
                 </div>
                 <div className="flex-1">
-                  <div className="font-medium text-slate-800">{a.athlete_name}</div>
+                  <div className="font-medium text-slate-800">{personal ? 'Kehadiran Saya' : a.athlete_name}</div>
+                  {readOnly && a.notes && <div className="text-sm text-slate-500 mt-1">Catatan: {a.notes}</div>}
                 </div>
-                {isOngoing ? (
+                {isOngoing && !readOnly ? (
                   <div className="flex gap-1">
                     {['present', 'absent', 'sick', 'permission'].map(s => (
                       <button key={s} onClick={() => onUpdateAttendance(a.athlete_id, 'status', s)}
@@ -79,7 +91,7 @@ export function AttendanceTab({
       {attendanceData.length === 0 && (
         <div className="text-center py-10 text-slate-400">
           <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
-          <p>Belum ada atlet terdaftar untuk sesi ini</p>
+          <p>{personal ? 'Status kehadiran Anda belum tersedia' : 'Belum ada atlet terdaftar untuk sesi ini'}</p>
         </div>
       )}
     </div>

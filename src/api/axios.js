@@ -1,15 +1,16 @@
 import axios from 'axios';
 import {
+  ACCESS_CODES,
   ACCOUNT_BLOCKED_EVENT,
   ACCOUNT_BLOCKED_STORAGE_KEY,
   AUTH_UNAUTHORIZED_EVENT,
   PERMISSION_CHANGED_MESSAGE,
   PERMISSION_DENIED_EVENT,
   SESSION_EXPIRED_MESSAGE,
+  getAccessCode,
   getAccountBlock,
   getSafeApiMessage,
   isAccountBlockedError,
-  isPermissionDeniedError,
   isSessionInvalidError,
 } from '../lib/authAccess';
 
@@ -77,7 +78,7 @@ api.interceptors.response.use(
       window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT, {
         detail: { message: getSafeApiMessage(error, SESSION_EXPIRED_MESSAGE) },
       }));
-    } else if (!isLoginRequest && !meta.isPublic && requestMatchesCurrentSession && isPermissionDeniedError(error)) {
+    } else if (!isLoginRequest && !meta.isPublic && requestMatchesCurrentSession && getAccessCode(error) === ACCESS_CODES.INSUFFICIENT_PERMISSION) {
       window.dispatchEvent(new CustomEvent(PERMISSION_DENIED_EVENT, {
         detail: { message: PERMISSION_CHANGED_MESSAGE, apiMessage: getSafeApiMessage(error) },
       }));

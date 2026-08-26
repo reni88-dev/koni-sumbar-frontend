@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Camera, Upload, Loader2 } from 'lucide-react';
 import { ProtectedImage } from '../ProtectedImage';
 
-export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
+export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos, readOnly = false }) {
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -25,7 +25,7 @@ export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
 
   return (
     <div className="space-y-4">
-      {(isOngoing || isScheduled) && (
+      {!readOnly && (isOngoing || isScheduled) && (
         <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
           <label className="block text-sm font-medium text-slate-700">Upload Foto Latihan</label>
           <input type="file" accept="image/*" multiple
