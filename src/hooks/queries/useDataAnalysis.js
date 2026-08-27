@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { athleteKeys } from './useAthletes';
+import { coachKeys } from './useCoaches';
 
 export const dataAnalysisKeys = {
   all: ['data-analysis'],
@@ -55,6 +57,29 @@ export function useReviewDataDuplicate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: dataAnalysisKeys.duplicates() });
+      queryClient.invalidateQueries({ queryKey: dataSummaryKeys.all });
+    },
+  });
+}
+
+export function useDeleteDataDuplicateRecord() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (record) => {
+      const resource = record?.entity_type === 'athlete'
+        ? 'athletes'
+        : record?.entity_type === 'coach'
+          ? 'coaches'
+          : '';
+      if (!resource || !record?.id) {
+        throw new Error('Record duplikat tidak valid.');
+      }
+      await api.delete(`/api/${resource}/${record.id}`);
+      return record;
+    },
+    onSuccess: (record) => {
+      const entityKey = record.entity_type === 'athlete' ? athleteKeys.all : coachKeys.all;
+      queryClient.invalidateQueries({ queryKey: entityKey });
       queryClient.invalidateQueries({ queryKey: dataSummaryKeys.all });
     },
   });
