@@ -95,14 +95,22 @@ export function mapCoachToForm(coach) {
   };
 }
 
-export function buildCoachFormData(formData, achievementsList, files, normalizedPhone) {
+export function buildCoachFormData(
+  formData,
+  achievementsList,
+  files,
+  normalizedPhone,
+  { excludedFields = [], includeEmptyFields = false } = {}
+) {
   const data = new FormData();
+  const excluded = new Set(excludedFields);
   const submissionData = { ...formData, phone: normalizedPhone || '' };
   Object.entries(submissionData).forEach(([key, value]) => {
+    if (excluded.has(key)) return;
     if (key === 'is_active') {
       data.append(key, value ? 'true' : 'false');
-    } else if (value !== '' && value !== null && value !== undefined) {
-      data.append(key, value);
+    } else if (includeEmptyFields || (value !== '' && value !== null && value !== undefined)) {
+      data.append(key, value ?? '');
     }
   });
 

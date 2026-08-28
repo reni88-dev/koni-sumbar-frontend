@@ -12,7 +12,13 @@ import { useCoachLookups } from './useCoachLookups';
 import { useCoachMedia } from './useCoachMedia';
 import { useCoachSubmission } from './useCoachSubmission';
 
-export function useCoachFormController({ isOpen, coach, onSuccess }) {
+export function useCoachFormController({
+  isOpen,
+  coach,
+  onSuccess,
+  mode = 'admin',
+  submitRequest
+}) {
   const formContainerRef = useRef(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(createInitialCoachFormData);
@@ -47,7 +53,13 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
 
   const scrollToTop = useCallback(() => {
     setTimeout(() => {
-      formContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+      const container = formContainerRef.current;
+      if (!container) return;
+      if (container.scrollHeight > container.clientHeight) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }, 50);
   }, []);
 
@@ -61,7 +73,9 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
     setErrorMessage,
     setStep,
     scrollToTop,
-    onSuccess
+    onSuccess,
+    mode,
+    submitRequest
   });
 
   const { fetchLookups } = lookups;
@@ -127,18 +141,15 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
 
   const isStepValid = () => {
     if (step === 1) {
-      const nikValid = !formData.nik || IDENTITY_PATTERN.test(formData.nik);
+      const nikValid = IDENTITY_PATTERN.test(formData.nik);
       const hasIdentityDocument = Boolean(media.identityDocumentFile || media.canReuseStoredIdentity);
-      const hasBPJSDocument = Boolean(media.bpjsDocumentFile || media.canReuseStoredBPJS);
       return formData.name.trim() !== '' &&
         formData.cabor_id !== '' &&
         formData.province.trim() !== '' &&
         formData.city.trim() !== '' &&
         formData.district.trim() !== '' &&
-        formData.village.trim() !== '' &&
         nikValid &&
         hasIdentityDocument &&
-        hasBPJSDocument &&
         !media.photoProcessing &&
         !media.documentProcessing.identity &&
         !media.documentProcessing.bpjs &&
@@ -151,8 +162,7 @@ export function useCoachFormController({ isOpen, coach, onSuccess }) {
       return phoneValid && emailValid;
     }
     if (step === 3) {
-      const hasCertificate = Boolean(media.certificateFile || media.canReuseStoredCertificate);
-      return hasCertificate && !media.certificateProcessing && !media.certificateError;
+      return !media.certificateProcessing && !media.certificateError;
     }
     return true;
   };

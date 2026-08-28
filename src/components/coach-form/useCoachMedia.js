@@ -12,6 +12,10 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
   const certificateOpenControllerRef = useRef(null);
   const certificatePreviewWindowRef = useRef(null);
   const certificateViewUrlRef = useRef('');
+  const documentOpenRequestIdsRef = useRef({ identity: 0, bpjs: 0 });
+  const documentOpenControllersRef = useRef({});
+  const documentPreviewWindowsRef = useRef({});
+  const documentViewUrlsRef = useRef({});
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoProcessing, setPhotoProcessing] = useState(false);
@@ -22,6 +26,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
   const [identityDocumentFile, setIdentityDocumentFile] = useState(null);
   const [bpjsDocumentFile, setBPJSDocumentFile] = useState(null);
   const [documentProcessing, setDocumentProcessing] = useState({ identity: false, bpjs: false });
+  const [documentOpening, setDocumentOpening] = useState({ identity: false, bpjs: false });
   const [documentErrors, setDocumentErrors] = useState({ identity: '', bpjs: '' });
   const coachPhotoUrl = getCoachPhotoUrl(coach);
 
@@ -38,6 +43,13 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     }
   }, []);
 
+  const revokeDocumentViewUrls = useCallback(() => {
+    Object.values(documentViewUrlsRef.current).forEach((url) => {
+      if (url) URL.revokeObjectURL(url);
+    });
+    documentViewUrlsRef.current = {};
+  }, []);
+
   const cancelPending = useCallback(() => {
     photoProcessingIdRef.current += 1;
     certificateProcessingIdRef.current += 1;
@@ -48,16 +60,25 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     certificateOpenControllerRef.current = null;
     certificatePreviewWindowRef.current?.close();
     certificatePreviewWindowRef.current = null;
+    for (const kind of ['identity', 'bpjs']) {
+      documentOpenRequestIdsRef.current[kind] += 1;
+      documentOpenControllersRef.current[kind]?.abort();
+      documentPreviewWindowsRef.current[kind]?.close();
+    }
+    documentOpenControllersRef.current = {};
+    documentPreviewWindowsRef.current = {};
   }, []);
 
   useEffect(() => () => {
     cancelPending();
     revokeCertificateViewUrl();
-  }, [cancelPending, revokeCertificateViewUrl]);
+    revokeDocumentViewUrls();
+  }, [cancelPending, revokeCertificateViewUrl, revokeDocumentViewUrls]);
 
   const reset = useCallback((preview = null) => {
     cancelPending();
     revokeCertificateViewUrl();
+    revokeDocumentViewUrls();
     setPhotoFile(null);
     setPhotoPreview(preview);
     setPhotoProcessing(false);
@@ -68,8 +89,9 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     setIdentityDocumentFile(null);
     setBPJSDocumentFile(null);
     setDocumentProcessing({ identity: false, bpjs: false });
+    setDocumentOpening({ identity: false, bpjs: false });
     setDocumentErrors({ identity: '', bpjs: '' });
-  }, [cancelPending, revokeCertificateViewUrl]);
+  }, [cancelPending, revokeCertificateViewUrl, revokeDocumentViewUrls]);
 
   const handlePhotoChange = useCallback(async (event) => {
     const input = event.target;
@@ -245,6 +267,76 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     }
   }, [certificateOpening, coach?.certificate_document, revokeCertificateViewUrl]);
 
+  const handleOpenStoredDocument = useCallback(async (kind) => {
+    const documentUrl = kind === 'identity'
+      ? coach?.identity_document
+      : coach?.bpjs_document;
+    if (!documentUrl || documentOpening[kind]) return;
+
+    const requestId = ++documentOpenRequestIdsRef.current[kind];
+    documentOpenControllersRef.current[kind]?.abort();
+    const controller = new AbortController();
+    documentOpenControllersRef.current[kind] = controller;
+
+    const previewWindow = window.open('', '_blank');
+    documentPreviewWindowsRef.current[kind] = previewWindow;
+    if (previewWindow) {
+      previewWindow.opener = null;
+      previewWindow.document.title = 'Memuat dokumen...';
+      previewWindow.document.body.textContent = 'Memuat dokumen...';
+    }
+    setDocumentOpening((previous) => ({ ...previous, [kind]: true }));
+    setDocumentErrors((previous) => ({ ...previous, [kind]: '' }));
+
+    try {
+      const response = await api.get(documentUrl, {
+        responseType: 'blob',
+        signal: controller.signal
+      });
+      if (requestId !== documentOpenRequestIdsRef.current[kind] || controller.signal.aborted) {
+        previewWindow?.close();
+        return;
+      }
+      if (documentViewUrlsRef.current[kind]) {
+        URL.revokeObjectURL(documentViewUrlsRef.current[kind]);
+      }
+      const objectUrl = URL.createObjectURL(response.data);
+      documentViewUrlsRef.current[kind] = objectUrl;
+      if (previewWindow) {
+        previewWindow.location.replace(objectUrl);
+      } else {
+        const link = document.createElement('a');
+        link.href = objectUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (error) {
+      previewWindow?.close();
+      if (
+        requestId !== documentOpenRequestIdsRef.current[kind] ||
+        error.name === 'CanceledError' ||
+        error.code === 'ERR_CANCELED'
+      ) {
+        return;
+      }
+      const label = kind === 'identity' ? 'KTP' : 'dokumen BPJS';
+      setDocumentErrors((previous) => ({
+        ...previous,
+        [kind]: error.response?.status === 404
+          ? `${label} tersimpan tidak ditemukan.`
+          : `Gagal membuka ${label} tersimpan.`
+      }));
+    } finally {
+      if (requestId === documentOpenRequestIdsRef.current[kind]) {
+        delete documentOpenControllersRef.current[kind];
+        delete documentPreviewWindowsRef.current[kind];
+        setDocumentOpening((previous) => ({ ...previous, [kind]: false }));
+      }
+    }
+  }, [coach?.bpjs_document, coach?.identity_document, documentOpening]);
   return {
     photoFile,
     photoPreview,
@@ -256,6 +348,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     identityDocumentFile,
     bpjsDocumentFile,
     documentProcessing,
+    documentOpening,
     documentErrors,
     canReuseStoredCertificate: Boolean(coach?.certificate_document),
     canReuseStoredIdentity: Boolean(coach?.identity_document),
@@ -268,6 +361,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     handlePhotoChange,
     handleCertificateChange,
     handleDocumentChange,
-    handleOpenStoredCertificate
+    handleOpenStoredCertificate,
+    handleOpenStoredDocument
   };
 }

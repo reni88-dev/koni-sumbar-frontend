@@ -1,7 +1,7 @@
 import { Plus, ShieldCheck, Trash2, Trophy } from 'lucide-react';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
-export function CoachAchievementsSection({ form }) {
+export function CoachAchievementsSection({ form, showActiveStatus = true }) {
   const {
     data: formData,
     updateField,
@@ -62,32 +62,33 @@ export function CoachAchievementsSection({ form }) {
       </div>
     </FormSectionCard>
 
-    {/* 4. Status Keaktifan */}
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-4">
-      <div className="flex items-center gap-3">
-        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
-          formData.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
-        }`}>
-          <ShieldCheck className="w-5 h-5" />
-        </span>
-        <div>
-          <h4 className="text-sm font-bold text-slate-800">Status Keaktifan Pelatih</h4>
-          <p className="text-xs text-slate-500">
-            {formData.is_active ? 'Pelatih berstatus aktif dan terdaftar dalam pembinaan olahraga' : 'Pelatih berstatus nonaktif'}
-          </p>
+    {showActiveStatus && (
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 sm:p-5 shadow-xs flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+            formData.is_active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-400'
+          }`}>
+            <ShieldCheck className="w-5 h-5" />
+          </span>
+          <div>
+            <h4 className="text-sm font-bold text-slate-800">Status Keaktifan Pelatih</h4>
+            <p className="text-xs text-slate-500">
+              {formData.is_active ? 'Pelatih berstatus aktif dan terdaftar dalam pembinaan olahraga' : 'Pelatih berstatus nonaktif'}
+            </p>
+          </div>
         </div>
-      </div>
 
-      <label className="relative inline-flex items-center cursor-pointer shrink-0">
-        <input
-          type="checkbox"
-          checked={formData.is_active}
-          onChange={(e) => updateField('is_active', e.target.checked)}
-          className="sr-only peer"
-        />
-        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
-      </label>
-    </div>
+        <label className="relative inline-flex items-center cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={formData.is_active}
+            onChange={(e) => updateField('is_active', e.target.checked)}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+        </label>
+      </div>
+    )}
     </>
   );
 }

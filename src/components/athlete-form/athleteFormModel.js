@@ -157,7 +157,6 @@ export function getDocumentValidationErrors({
   formData,
   athlete,
   identityDocumentFile,
-  bpjsDocumentFile,
   documentErrors
 }) {
   const validationErrors = {};
@@ -166,7 +165,6 @@ export function getDocumentValidationErrors({
   const canReuseStoredIdentity = Boolean(athlete?.identity_document) &&
     isIdentityTypeValidForAge(storedIdentityType, ageGroup) &&
     formData.identity_document_type === storedIdentityType;
-  const canReuseStoredBPJS = Boolean(athlete?.bpjs_document);
 
   if (!ageGroup) {
     validationErrors.birth_date = ['Tanggal lahir wajib valid dan tidak boleh di masa depan'];
@@ -179,9 +177,6 @@ export function getDocumentValidationErrors({
     validationErrors.identity_document = [athlete?.identity_document
       ? 'Dokumen identitas tersimpan tidak sesuai. Unggah dokumen pengganti.'
       : 'Dokumen identitas wajib diunggah'];
-  }
-  if (!bpjsDocumentFile && !canReuseStoredBPJS) {
-    validationErrors.bpjs_document = ['Dokumen BPJS wajib diunggah'];
   }
   if (documentErrors.identity) {
     validationErrors.identity_document = [documentErrors.identity];

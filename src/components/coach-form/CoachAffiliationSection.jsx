@@ -4,6 +4,8 @@ import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { RegionCascadeFields } from '../form-modal/RegionCascadeFields';
 
+const OPTIONAL_REGION_FIELDS = ['village'];
+
 export function CoachAffiliationSection({ form, lookups, validation }) {
   const { data: formData, updateField } = form;
   const { cabors, organizations } = lookups;
@@ -54,7 +56,12 @@ export function CoachAffiliationSection({ form, lookups, validation }) {
         />
       </div>
 
-      <RegionCascadeFields form={form} validation={validation} />
+      <RegionCascadeFields
+        form={form}
+        validation={validation}
+        optionalFields={OPTIONAL_REGION_FIELDS}
+        allowManualVillage
+      />
     </FormSectionCard>
   );
 }

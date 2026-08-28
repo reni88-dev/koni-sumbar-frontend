@@ -67,11 +67,11 @@ export function AthleteParentsStep({ form, validation }) {
       iconColor="text-emerald-600"
       iconBg="bg-emerald-50"
       title="Kontak Darurat Orang Tua / Wali"
-      subtitle="Minimal salah satu nomor WhatsApp orang tua/wali wajib terdaftar dan terverifikasi"
+      subtitle="Nomor WhatsApp ayah dan ibu bersifat opsional; nomor yang diisi akan diverifikasi"
     >
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-          WhatsApp Ayah / Wali
+          WhatsApp Ayah / Wali (Opsional)
         </label>
         <div className="relative">
           <input
@@ -104,7 +104,7 @@ export function AthleteParentsStep({ form, validation }) {
 
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-          WhatsApp Ibu / Wali
+          WhatsApp Ibu / Wali (Opsional)
         </label>
         <div className="relative">
           <input

@@ -214,7 +214,6 @@ export function useAthleteFormController({
     formData,
     athlete,
     identityDocumentFile: media.identityDocumentFile,
-    bpjsDocumentFile: media.bpjsDocumentFile,
     documentErrors: media.documentErrors
   });
 
@@ -255,7 +254,6 @@ export function useAthleteFormController({
     return formData.father_name.trim() !== '' &&
       formData.mother_name.trim() !== '' &&
       formData.parent_address.trim() !== '' &&
-      (fatherPhone !== '' || motherPhone !== '') &&
       (fatherPhone === '' || fatherPhoneValidation.status === 'valid') &&
       (motherPhone === '' || motherPhoneValidation.status === 'valid');
   };

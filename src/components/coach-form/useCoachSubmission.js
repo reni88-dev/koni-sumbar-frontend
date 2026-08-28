@@ -19,7 +19,9 @@ export function useCoachSubmission({
   setErrorMessage,
   setStep,
   scrollToTop,
-  onSuccess
+  onSuccess,
+  mode = 'admin',
+  submitRequest
 }) {
   const submitRequestIdRef = useRef(0);
   const submitControllerRef = useRef(null);
@@ -49,19 +51,15 @@ export function useCoachSubmission({
     if (!formData.province.trim()) step1Errors.province = ['Provinsi wajib dipilih'];
     if (!formData.city.trim()) step1Errors.city = ['Kota/Kabupaten wajib dipilih'];
     if (!formData.district.trim()) step1Errors.district = ['Kecamatan/Distrik wajib dipilih'];
-    if (!formData.village.trim()) step1Errors.village = ['Kelurahan/Desa wajib dipilih'];
-    if (formData.nik && !IDENTITY_PATTERN.test(formData.nik)) {
-      step1Errors.nik = ['NIK harus tepat 16 digit angka'];
+    if (!IDENTITY_PATTERN.test(formData.nik)) {
+      step1Errors.nik = [formData.nik.trim()
+        ? 'NIK harus tepat 16 digit angka'
+        : 'NIK wajib diisi dengan 16 digit angka'];
     }
     if (!files.identityDocumentFile && !files.canReuseStoredIdentity) {
       step1Errors.identity_document = [coach
         ? 'Data pelatih lama ini belum memiliki KTP. Unggah KTP sebelum menyimpan perubahan.'
         : 'KTP pelatih wajib diunggah.'];
-    }
-    if (!files.bpjsDocumentFile && !files.canReuseStoredBPJS) {
-      step1Errors.bpjs_document = [coach
-        ? 'Data pelatih lama ini belum memiliki dokumen BPJS. Unggah BPJS sebelum menyimpan perubahan.'
-        : 'Dokumen BPJS pelatih wajib diunggah.'];
     }
     if (files.documentErrors.identity) {
       step1Errors.identity_document = [files.documentErrors.identity];
@@ -103,11 +101,8 @@ export function useCoachSubmission({
       return;
     }
 
-    if (!files.certificateFile && !files.canReuseStoredCertificate) {
-      const message = files.certificateError || (coach
-        ? 'Data pelatih lama ini belum memiliki sertifikat. Unggah sertifikat sebelum menyimpan perubahan.'
-        : 'Sertifikat pelatih wajib diunggah.');
-      files.setCertificateError(message);
+    if (files.certificateError) {
+      const message = files.certificateError;
       setErrors({ certificate_document: [message] });
       setErrorMessage(message);
       setStep(3);
@@ -124,14 +119,19 @@ export function useCoachSubmission({
     setErrorMessage('');
 
     try {
-      const data = buildCoachFormData(formData, achievementsList, files, normalizedPhone);
-      if (coach) {
+      const data = buildCoachFormData(formData, achievementsList, files, normalizedPhone, {
+        excludedFields: mode === 'portal' ? ['is_active'] : [],
+        includeEmptyFields: mode === 'portal'
+      });
+      if (submitRequest) {
+        await submitRequest(data);
+      } else if (coach) {
         await api.put(`/api/coaches/${coach.id}`, data, { signal: controller.signal });
       } else {
         await api.post('/api/coaches', data, { signal: controller.signal });
       }
       if (requestId === submitRequestIdRef.current && !controller.signal.aborted) {
-        onSuccess();
+        onSuccess?.();
       }
     } catch (error) {
       if (

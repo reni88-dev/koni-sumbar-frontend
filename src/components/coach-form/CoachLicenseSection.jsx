@@ -10,11 +10,11 @@ export function CoachLicenseSection({ form }) {
       iconColor="text-amber-600"
       iconBg="bg-amber-50"
       title="Lisensi & Spesialisasi"
-      subtitle="Data sertifikasi lisensi dan bidang keahlian kepelatihan"
+      subtitle="Data lisensi dan bidang keahlian bersifat opsional"
     >
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-          Nomor Lisensi
+          Nomor Lisensi <span className="normal-case text-slate-400">(Opsional)</span>
         </label>
         <input
           type="text"
@@ -27,7 +27,7 @@ export function CoachLicenseSection({ form }) {
 
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-          Level Lisensi
+          Level Lisensi <span className="normal-case text-slate-400">(Opsional)</span>
         </label>
         <select
           value={formData.license_level}
@@ -43,7 +43,7 @@ export function CoachLicenseSection({ form }) {
 
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-          Spesialisasi
+          Spesialisasi <span className="normal-case text-slate-400">(Opsional)</span>
         </label>
         <input
           type="text"

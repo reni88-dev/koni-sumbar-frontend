@@ -40,7 +40,6 @@ export function useAthleteSubmission({
       formData,
       athlete,
       identityDocumentFile: files.identityDocumentFile,
-      bpjsDocumentFile: files.bpjsDocumentFile,
       documentErrors: files.documentErrors
     });
     if (!formData.name.trim()) identityErrors.name = ['Nama lengkap wajib diisi'];
@@ -125,9 +124,6 @@ export function useAthleteSubmission({
       parentPhoneErrors.mother_phone = ['Format nomor WhatsApp tidak valid'];
     } else if (normalizedMotherPhone && motherPhoneValidation.status !== 'valid') {
       parentPhoneErrors.mother_phone = [motherPhoneValidation.message || 'Nomor WhatsApp ibu/wali harus valid sebelum menyimpan data'];
-    }
-    if (!formData.father_phone.trim() && !formData.mother_phone.trim()) {
-      parentPhoneErrors.father_phone = ['Minimal salah satu nomor WhatsApp orang tua/wali wajib diisi'];
     }
     if (Object.keys(parentPhoneErrors).length > 0) {
       setErrors(parentPhoneErrors);

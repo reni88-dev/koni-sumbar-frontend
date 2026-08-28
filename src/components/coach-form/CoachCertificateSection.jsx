@@ -18,8 +18,8 @@ export function CoachCertificateSection({ coach, files, validation, loading }) {
       icon={FileText}
       iconColor="text-blue-600"
       iconBg="bg-blue-50"
-      title="Dokumen Sertifikat Kepelatihan"
-      subtitle="Unggah bukti fisik sertifikat / lisensi resmi pelatih (Wajib)"
+      title="Dokumen Sertifikat Kepelatihan (Opsional)"
+      subtitle="Unggah bukti fisik sertifikat atau lisensi bila tersedia"
     >
       <div className="sm:col-span-2 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">

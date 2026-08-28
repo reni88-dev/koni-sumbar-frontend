@@ -1,4 +1,4 @@
-import { AlertCircle, CheckCircle2, FileText, Loader2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { DOCUMENT_ACCEPT } from '../form-modal/mediaUtils';
@@ -11,7 +11,10 @@ function DocumentUploadCard({
   processing,
   error,
   fieldError,
-  onChange
+  onChange,
+  opening = false,
+  onOpenStored,
+  required = true
 }) {
   const hasDocument = Boolean(file || stored);
   const hasError = Boolean(error || fieldError);
@@ -19,7 +22,7 @@ function DocumentUploadCard({
     <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
       <div className="flex items-center justify-between gap-2">
         <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-          {title} <span className="text-red-500">*</span>
+          {title} {required ? <span className="text-red-500">*</span> : <span className="normal-case text-slate-400">(Opsional)</span>}
         </label>
         <span className="text-[10px] font-semibold text-slate-500">PDF/Gambar, maks. 10 MB</span>
       </div>
@@ -59,6 +62,18 @@ function DocumentUploadCard({
         />
       </label>
 
+      {stored && onOpenStored && (
+        <button
+          type="button"
+          onClick={onOpenStored}
+          disabled={opening || processing}
+          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {opening ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+          <span>{opening ? 'Membuka Dokumen...' : `Buka ${title} Tersimpan`}</span>
+        </button>
+      )}
+
       {file ? (
         <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 bg-emerald-50 p-2 rounded-lg border border-emerald-200">
           <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
@@ -88,8 +103,8 @@ export function CoachDocumentsSection({ files, validation }) {
       icon={FileText}
       iconColor="text-indigo-600"
       iconBg="bg-indigo-50"
-      title="Dokumen Wajib Verifikasi"
-      subtitle="Unggah KTP dan bukti kepesertaan BPJS Kesehatan/Ketenagakerjaan"
+      title="Dokumen Verifikasi"
+      subtitle="KTP wajib diunggah; dokumen BPJS dapat dilampirkan bila tersedia"
     >
       <DocumentUploadCard
         title="KTP Pelatih"
@@ -100,16 +115,21 @@ export function CoachDocumentsSection({ files, validation }) {
         error={files.documentErrors.identity}
         fieldError={errors.identity_document}
         onChange={files.handleDocumentChange('identity')}
+        opening={files.documentOpening.identity}
+        onOpenStored={() => files.handleOpenStoredDocument('identity')}
       />
       <DocumentUploadCard
         title="BPJS Kesehatan/Ketenagakerjaan"
-        hint="Unggah kartu atau surat kepesertaan BPJS yang dapat digunakan untuk verifikasi."
+        required={false}
+        hint="Opsional. Unggah kartu atau surat kepesertaan BPJS jika tersedia."
         file={files.bpjsDocumentFile}
         stored={files.canReuseStoredBPJS}
         processing={files.documentProcessing.bpjs}
         error={files.documentErrors.bpjs}
         fieldError={errors.bpjs_document}
         onChange={files.handleDocumentChange('bpjs')}
+        opening={files.documentOpening.bpjs}
+        onOpenStored={() => files.handleOpenStoredDocument('bpjs')}
       />
     </FormSectionCard>
   );

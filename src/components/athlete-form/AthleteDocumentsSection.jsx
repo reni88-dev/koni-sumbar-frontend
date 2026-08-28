@@ -25,8 +25,8 @@ export function AthleteDocumentsSection({ athlete, form, files, validation }) {
       icon={FileText}
       iconColor="text-indigo-600"
       iconBg="bg-indigo-50"
-      title="Dokumen Wajib Verifikasi"
-      subtitle="Unggah scan/foto identitas resmi dan kartu BPJS Kesehatan/Ketenagakerjaan"
+      title="Dokumen Verifikasi"
+      subtitle="Dokumen identitas wajib diunggah; dokumen BPJS dapat dilampirkan bila tersedia"
     >
       {/* Dokumen Identitas Box */}
       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
@@ -112,13 +112,13 @@ export function AthleteDocumentsSection({ athlete, form, files, validation }) {
       <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-            Dokumen BPJS <span className="text-red-500">*</span>
+            Dokumen BPJS <span className="normal-case text-slate-400">(Opsional)</span>
           </label>
           <span className="text-[10px] font-semibold text-slate-500">Kesehatan/Naker</span>
         </div>
 
         <p className="text-xs text-slate-500">
-          Unggah scan kartu atau surat kepesertaan BPJS aktif (PDF, JPG, PNG, WebP maks. 10 MB).
+          Opsional. Unggah scan kartu atau surat kepesertaan BPJS (PDF, JPG, PNG, WebP maks. 10 MB).
         </p>
 
         <label className={`flex items-center justify-center gap-2 w-full px-4 py-3 border border-dashed rounded-xl transition-all ${
