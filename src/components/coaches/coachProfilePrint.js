@@ -8,7 +8,6 @@ import {
 } from '../profilePrintUtils';
 
 const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
-const maritalLabels = { single: 'Belum Menikah', married: 'Menikah', divorced: 'Cerai', widowed: 'Duda/Janda' };
 
 function formatDate(dateStr) {
   if (!dateStr) return '-';
@@ -45,9 +44,34 @@ function renderIdentityItem(label, value) {
     </div>`;
 }
 
-export function buildAthleteProfilePrintHtml({
-  athlete = {},
-  educationLevelName,
+export function parseCoachAchievements(achievements) {
+  if (!achievements) return [];
+  if (Array.isArray(achievements)) {
+    return achievements.map((item) => {
+      if (typeof item === 'string') return item;
+      if (typeof item === 'object' && item !== null) {
+        return item.title || item.name || item.achievement || item.description || JSON.stringify(item);
+      }
+      return String(item);
+    }).filter(Boolean);
+  }
+  if (typeof achievements === 'string') {
+    const trimmed = achievements.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        return parseCoachAchievements(JSON.parse(trimmed));
+      } catch {
+        // Continue with one achievement per line.
+      }
+    }
+    return trimmed.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+  }
+  return [String(achievements)];
+}
+
+export function buildCoachProfilePrintHtml({
+  coach = {},
   histories = [],
   funds = [],
   fundsTotalAmount,
@@ -64,48 +88,42 @@ export function buildAthleteProfilePrintHtml({
   const totalFunds = fundsTotalAmount === null || fundsTotalAmount === undefined || fundsTotalAmount === ''
     ? calculatedFundsTotal
     : Number(fundsTotalAmount || 0);
-  const topAchievements = Array.isArray(athlete.top_achievements)
-    ? athlete.top_achievements.filter(Boolean)
-    : [];
-  const printAchievements = topAchievements.length > 0 ? topAchievements : ['-'];
-  const educationLevel = educationLevelName
-    || athlete.education_level?.name
-    || athlete.education_level_name
-    || '-';
-  const organizationName = athlete.organization?.name || athlete.organization_name;
-  const competitionClassName = athlete.competition_class?.name || athlete.competition_class_name;
-  const caborName = athlete.cabor?.display_name || athlete.cabor?.name;
-  const currentCluster = athlete.current_cluster_label || 'Atlet Non Binaan';
-  const currentSubCluster = athlete.current_sub_cluster_label;
+  const achievements = parseCoachAchievements(coach.achievements);
+  const printAchievements = achievements.length > 0 ? achievements : ['-'];
+  const organizationName = coach.organization?.name || coach.organization_name;
+  const caborName = coach.cabor?.display_name || coach.cabor?.name;
+  const currentCluster = coach.current_cluster_label || 'Pelatih Non Binaan';
+  const currentSubCluster = coach.current_sub_cluster_label;
   const clusterLabel = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
-  const activeStatus = athlete.is_active ? 'Aktif' : 'Nonaktif';
-  const statusMarkup = `<span class="badge ${athlete.is_active ? 'badge-active' : 'badge-inactive'}">${escapePrintHtml(activeStatus)}</span>`;
+  const activeStatus = coach.is_active ? 'Aktif' : 'Nonaktif';
+  const licenseSummary = [coach.license_level, coach.license_number].filter(Boolean).join(' / ') || '-';
+  const statusMarkup = `<span class="badge ${coach.is_active ? 'badge-active' : 'badge-inactive'}">${escapePrintHtml(activeStatus)}</span>`;
 
   return `<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PROFIL ATLET KONI SUMATERA BARAT</title>
+  <title>PROFIL PELATIH KONI SUMATERA BARAT</title>
   <style>${PROFILE_PRINT_STYLES}</style>
 </head>
 <body>
   <div class="header">
-    <h1>PROFIL ATLET</h1>
+    <h1>PROFIL PELATIH</h1>
     <h2>KONI SUMATERA BARAT</h2>
   </div>
 
   <div class="identity-card">
-    ${buildProfilePhotoMarkup({ photoDataUrl, name: athlete.name })}
+    ${buildProfilePhotoMarkup({ photoDataUrl, name: coach.name })}
     <div class="identity-content">
-      <div class="identity-eyebrow">Identitas Atlet</div>
-      <div class="identity-name">${escapePrintHtml(athlete.name)}</div>
+      <div class="identity-eyebrow">Identitas Pelatih</div>
+      <div class="identity-name">${escapePrintHtml(coach.name)}</div>
       <div class="identity-meta">
         ${renderIdentityItem('Cabang Olahraga', escapePrintHtml(caborName))}
         ${renderIdentityItem('Organisasi', escapePrintHtml(organizationName))}
         ${renderIdentityItem('Status', statusMarkup)}
         ${renderIdentityItem('Kluster Aktif', escapePrintHtml(clusterLabel))}
-        ${renderIdentityItem('Kelas Pertandingan', escapePrintHtml(competitionClassName))}
+        ${renderIdentityItem('Lisensi', escapePrintHtml(licenseSummary))}
       </div>
     </div>
   </div>
@@ -113,62 +131,43 @@ export function buildAthleteProfilePrintHtml({
   <div class="section keep-together">
     <h3>Data Pribadi</h3>
     <div class="grid">
-      ${renderPrintRow('Nama', athlete.name)}
+      ${renderPrintRow('Nama', coach.name)}
       ${renderPrintRow('Status Aktif', activeStatus)}
-      ${renderPrintRow('NIK', athlete.nik)}
-      ${renderPrintRow('No. Kartu Keluarga', athlete.no_kk)}
-      ${renderPrintRow('No. Atlit Nasional', athlete.national_athlete_number)}
-      ${renderPrintRow('Jenis Kelamin', genderLabels[athlete.gender] || athlete.gender)}
-      ${renderPrintRow('Tempat Lahir', athlete.birth_place)}
-      ${renderPrintRow('Tanggal Lahir', formatDate(athlete.birth_date))}
-      ${renderPrintRow('Agama', athlete.religion)}
-      ${renderPrintRow('Status Menikah', maritalLabels[athlete.marital_status] || athlete.marital_status)}
-      <div class="full info-row"><div class="label">Alamat</div><div class="value">${escapePrintHtml(athlete.address)}</div></div>
+      ${renderPrintRow('NIK', coach.nik)}
+      ${renderPrintRow('Jenis Kelamin', genderLabels[coach.gender] || coach.gender)}
+      ${renderPrintRow('Tempat Lahir', coach.birth_place)}
+      ${renderPrintRow('Tanggal Lahir', formatDate(coach.birth_date))}
+      ${renderPrintRow('Agama', coach.religion)}
+      <div class="full info-row"><div class="label">Alamat</div><div class="value">${escapePrintHtml(coach.address)}</div></div>
     </div>
   </div>
 
   <div class="section keep-together">
-    <h3>Olahraga dan Karir</h3>
+    <h3>Kepelatihan dan Lisensi</h3>
     <div class="grid">
       ${renderPrintRow('Cabang Olahraga', caborName)}
-      ${renderPrintRow('Kelas Pertandingan', competitionClassName)}
+      ${renderPrintRow('Nomor Lisensi', coach.license_number)}
+      ${renderPrintRow('Level Lisensi', coach.license_level)}
+      ${renderPrintRow('Spesialisasi', coach.specialization)}
+      ${renderPrintRow('Tahun Mulai Melatih', coach.coaching_start_year)}
       ${renderPrintRow('Organisasi', organizationName)}
-      ${renderPrintRow('Tahun Mulai Karir', athlete.career_start_year)}
       ${renderPrintRow('Kluster Aktif', currentCluster)}
       ${renderPrintRow('Sub-kluster Aktif', currentSubCluster)}
     </div>
   </div>
 
   <div class="section keep-together">
-    <h3>Fisik, Kontak, Pendidikan dan Pekerjaan</h3>
+    <h3>Kontak</h3>
     <div class="grid">
-      ${renderPrintRow('Tinggi Badan', athlete.height ? `${athlete.height} cm` : '-')}
-      ${renderPrintRow('Berat Badan', athlete.weight ? `${athlete.weight} kg` : '-')}
-      ${renderPrintRow('Golongan Darah', athlete.blood_type)}
-      ${renderPrintRow('Pendidikan', educationLevel)}
-      ${renderPrintRow('Telepon', athlete.phone)}
-      ${renderPrintRow('Email', athlete.email)}
-      ${renderPrintRow('Pekerjaan', athlete.occupation)}
-      ${renderPrintRow('Hobi', athlete.hobby)}
+      ${renderPrintRow('Telepon', coach.phone)}
+      ${renderPrintRow('Email', coach.email)}
     </div>
   </div>
 
   <div class="section keep-together">
-    <h3>Orang Tua/Wali</h3>
+    <h3>Riwayat Prestasi Kepelatihan</h3>
     <div class="grid">
-      ${renderPrintRow('Nama Ayah', athlete.father_name)}
-      ${renderPrintRow('Telepon Ayah', athlete.father_phone)}
-      ${renderPrintRow('Nama Ibu', athlete.mother_name)}
-      ${renderPrintRow('Telepon Ibu', athlete.mother_phone)}
-      <div class="full info-row"><div class="label">Alamat Orang Tua/Wali</div><div class="value">${escapePrintHtml(athlete.parent_address)}</div></div>
-    </div>
-  </div>
-
-  <div class="section keep-together">
-    <h3>Riwayat Prestasi dan Cedera</h3>
-    <div class="grid">
-      <div class="full info-row"><div class="label">Prestasi Tertinggi</div><div class="value">${printAchievements.map((achievement) => escapePrintHtml(achievement)).join('<br>')}</div></div>
-      <div class="full info-row"><div class="label">Riwayat Cedera/Penyakit</div><div class="value">${escapePrintHtml(athlete.injury_illness_history)}</div></div>
+      <div class="full info-row"><div class="label">Prestasi</div><div class="value">${printAchievements.map((achievement) => escapePrintHtml(achievement)).join('<br>')}</div></div>
     </div>
   </div>
 
@@ -201,8 +200,8 @@ export function buildAthleteProfilePrintHtml({
   </div>
 
   <div class="section">
-    <h3>Biaya Pembinaan</h3>
-    ${fundsError ? '<div class="warning">Biaya pembinaan gagal dimuat.</div>' : safeFunds.length === 0 ? '<div class="empty">Belum ada biaya pembinaan.</div>' : `
+    <h3>Dana Pembinaan</h3>
+    ${fundsError ? '<div class="warning">Dana pembinaan gagal dimuat. Pastikan akun memiliki izin melihat dana pembinaan.</div>' : safeFunds.length === 0 ? '<div class="empty">Belum ada dana pembinaan.</div>' : `
       <table>
         <thead>
           <tr>
@@ -222,7 +221,7 @@ export function buildAthleteProfilePrintHtml({
             </tr>`).join('')}
         </tbody>
       </table>
-      <div class="total">Total Biaya Pembinaan: ${escapePrintHtml(formatCurrency(totalFunds))}</div>`}
+      <div class="total">Total Dana Pembinaan: ${escapePrintHtml(formatCurrency(totalFunds))}</div>`}
   </div>
 
   <div class="footer">Dicetak oleh : KONI Sumbar pada tanggal ${escapePrintHtml(printedDate)} jam ${escapePrintHtml(printedTime)}</div>
@@ -230,12 +229,12 @@ export function buildAthleteProfilePrintHtml({
 </html>`;
 }
 
-export function openAthleteProfilePrintWindow() {
+export function openCoachProfilePrintWindow() {
   return openProfilePrintWindow();
 }
 
-export async function printAthleteProfile(printWindow, options) {
+export async function printCoachProfile(printWindow, options) {
   const photoDataUrl = await fetchProtectedImageDataUrl(options.photoUrl);
-  const html = buildAthleteProfilePrintHtml({ ...options, photoDataUrl });
+  const html = buildCoachProfilePrintHtml({ ...options, photoDataUrl });
   return printProfileDocument(printWindow, html);
 }

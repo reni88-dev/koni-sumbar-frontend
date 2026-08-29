@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -107,6 +107,7 @@ function TabButton(props) {
 export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive = false }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
+  const printingRef = useRef(false);
   const { data: educationLevels = [] } = useEducationLevelsAll();
   if (!isOpen || !athlete) return null;
 
@@ -124,12 +125,14 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
 
   const handlePrintDetail = async () => {
-    if (!canViewSensitive || isPrinting) return;
+    if (!canViewSensitive || isPrinting || printingRef.current) return;
 
+    printingRef.current = true;
     setIsPrinting(true);
     const printWindow = openAthleteProfilePrintWindow();
 
     if (!printWindow) {
+      printingRef.current = false;
       setIsPrinting(false);
       return;
     }
@@ -159,12 +162,14 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
         funds,
         clusterError,
         fundsError,
+        photoUrl: athlete.photo || null,
       });
     } catch (error) {
       console.error('Print detail error:', error);
       if (!printWindow.closed) printWindow.close();
       window.alert('Gagal menyiapkan data cetak. Silakan coba lagi.');
     } finally {
+      printingRef.current = false;
       setIsPrinting(false);
     }
   };

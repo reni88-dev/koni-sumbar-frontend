@@ -2,11 +2,14 @@ import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
+  Building2,
   CheckCircle2,
+  ChevronDown,
   Database,
   RefreshCw,
   ShieldCheck,
   TrendingUp,
+  Trophy,
   UserCheck,
   Users,
 } from 'lucide-react';
@@ -25,6 +28,14 @@ function number(value) {
 
 function percentage(value) {
   return `${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`;
+}
+
+function knownCategoryCount(items = []) {
+  return new Set(
+    items
+      .filter((item) => item?.key && item.key !== 'unknown')
+      .map((item) => String(item.key)),
+  ).size;
 }
 
 function KpiCard({ label, value, detail, icon, tone = 'red' }) {
@@ -107,13 +118,17 @@ function DonutChart({ title, items = [] }) {
   );
 }
 
-function HorizontalBars({ title, items = [], valueKey = 'count' }) {
+function HorizontalBars({ title, items = [], valueKey = 'count', collapsible = false, previewLimit = 5 }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = collapsible && items.length > previewLimit;
+  const visibleItems = hasMore && !expanded ? items.slice(0, previewLimit) : items;
   const maximum = Math.max(1, ...items.map((item) => Number(item[valueKey] || 0)));
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <h3 className="font-bold text-slate-800">{title}</h3>
       <div className="mt-5 space-y-3.5">
-        {items.map((item) => (
+        {visibleItems.map((item) => (
           <div key={item.key || item.label}>
             <div className="mb-1.5 flex items-center justify-between gap-3 text-sm">
               <span className="truncate font-medium text-slate-600">{item.label}</span>
@@ -129,6 +144,17 @@ function HorizontalBars({ title, items = [], valueKey = 'count' }) {
         ))}
         {!items.length && <p className="text-sm text-slate-400">Belum ada data.</p>}
       </div>
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          aria-expanded={expanded}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 border-t border-slate-100 pt-4 text-sm font-semibold text-red-600 transition-colors hover:text-red-700"
+        >
+          {expanded ? 'Tampilkan lebih sedikit' : `Tampilkan ${items.length - previewLimit} lainnya`}
+          <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+        </button>
+      )}
     </section>
   );
 }
@@ -184,7 +210,11 @@ function TrendChart({ items = [] }) {
   );
 }
 
-function DistributionTable({ title, items = [] }) {
+function DistributionTable({ title, items = [], collapsible = false, previewLimit = 5 }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasMore = collapsible && items.length > previewLimit;
+  const visibleItems = hasMore && !expanded ? items.slice(0, previewLimit) : items;
+
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-100 px-5 py-4">
@@ -201,7 +231,7 @@ function DistributionTable({ title, items = [] }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {items.map((item) => (
+            {visibleItems.map((item) => (
               <tr key={item.key || item.label}>
                 <td className="px-5 py-3.5 font-medium text-slate-700">{item.label}</td>
                 <td className="px-5 py-3.5 text-right text-slate-500">{number(item.athletes)}</td>
@@ -215,6 +245,19 @@ function DistributionTable({ title, items = [] }) {
           </tbody>
         </table>
       </div>
+      {hasMore && (
+        <div className="border-t border-slate-100 px-5 py-3">
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            aria-expanded={expanded}
+            className="inline-flex w-full items-center justify-center gap-2 text-sm font-semibold text-red-600 transition-colors hover:text-red-700"
+          >
+            {expanded ? 'Tampilkan lebih sedikit' : `Tampilkan ${items.length - previewLimit} lainnya`}
+            <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      )}
     </section>
   );
 }
@@ -274,8 +317,8 @@ function QualityPanel({ title, quality }) {
 function LoadingSummary() {
   return (
     <div className="space-y-6 animate-pulse">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[1, 2, 3, 4].map((item) => <div key={item} className="h-28 rounded-2xl bg-slate-200" />)}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        {[1, 2, 3, 4, 5, 6].map((item) => <div key={item} className="h-28 rounded-2xl bg-slate-200" />)}
       </div>
       <div className="grid gap-6 xl:grid-cols-2">
         {[1, 2, 3, 4].map((item) => <div key={item} className="h-72 rounded-2xl bg-slate-100" />)}
@@ -294,6 +337,8 @@ export function DataSummaryPage() {
   const data = query.data;
   const athletes = data?.overview?.athletes || {};
   const coaches = data?.overview?.coaches || {};
+  const totalCabors = knownCategoryCount(data?.distributions?.cabors);
+  const totalOrganizations = knownCategoryCount(data?.distributions?.organizations);
   const duplicate = data?.duplicate_summary || {};
 
   return (
@@ -375,9 +420,11 @@ export function DataSummaryPage() {
           </div>
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <KpiCard label="Total atlet" value={number(athletes.total)} detail={`${number(athletes.active)} aktif · ${number(athletes.inactive)} tidak aktif`} icon={Users} tone="red" />
               <KpiCard label="Total pelatih" value={number(coaches.total)} detail={`${number(coaches.active)} aktif · ${number(coaches.inactive)} tidak aktif`} icon={UserCheck} tone="blue" />
+              <KpiCard label="Total Cabor" value={number(totalCabors)} detail="Berdasarkan hasil filter saat ini" icon={Trophy} tone="amber" />
+              <KpiCard label="Total Organisasi" value={number(totalOrganizations)} detail="Berdasarkan hasil filter saat ini" icon={Building2} tone="violet" />
               <KpiCard label="Akun terhubung" value={number((athletes.linked_users || 0) + (coaches.linked_users || 0))} detail={`Atlet ${number(athletes.linked_users)} · Pelatih ${number(coaches.linked_users)}`} icon={ShieldCheck} tone="emerald" />
               <KpiCard label="Rata-rata umur" value={`${athletes.average_age || 0} / ${coaches.average_age || 0}`} detail="Atlet / Pelatih (tahun)" icon={TrendingUp} tone="amber" />
             </div>
@@ -388,14 +435,14 @@ export function DataSummaryPage() {
               <DonutChart title="Gender Pelatih" items={data?.distributions?.coach_gender} />
               <HorizontalBars title="Kelompok Umur Atlet" items={data?.distributions?.athlete_age_groups} />
               <HorizontalBars title="Kelompok Umur Pelatih" items={data?.distributions?.coach_age_groups} />
-              <HorizontalBars title="Cluster Atlet" items={data?.distributions?.athlete_clusters} />
-              <HorizontalBars title="Cluster Pelatih" items={data?.distributions?.coach_clusters} />
-              <HorizontalBars title="Level Lisensi Pelatih" items={data?.distributions?.coach_license_levels} />
+              <HorizontalBars title="Cluster Atlet" items={data?.distributions?.athlete_clusters} collapsible />
+              <HorizontalBars title="Cluster Pelatih" items={data?.distributions?.coach_clusters} collapsible />
+              <HorizontalBars title="Level Lisensi Pelatih" items={data?.distributions?.coach_license_levels} collapsible />
             </div>
 
             <div className="grid gap-6 xl:grid-cols-2">
-              <DistributionTable title="Distribusi Cabang Olahraga" items={data?.distributions?.cabors} />
-              <DistributionTable title="Distribusi Organisasi" items={data?.distributions?.organizations} />
+              <DistributionTable title="Distribusi Cabang Olahraga" items={data?.distributions?.cabors} collapsible />
+              <DistributionTable title="Distribusi Organisasi" items={data?.distributions?.organizations} collapsible />
             </div>
 
             <div className="grid gap-6 xl:grid-cols-2">

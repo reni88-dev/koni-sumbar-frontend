@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Printer, Loader2 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -7,8 +7,18 @@ import api from '../api/axios';
  */
 export function PrintAthleteList({ filters, filterParams }) {
   const [loading, setLoading] = useState(false);
+  const printInProgressRef = useRef(false);
 
   const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
+  const nationalNumberLabels = {
+    true: 'Sudah Punya',
+    false: 'Belum Punya',
+    1: 'Sudah Punya',
+    0: 'Belum Punya',
+  };
+
+  const hasFilterValue = (value) =>
+    value !== undefined && value !== null && value !== '';
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '-';
@@ -16,23 +26,94 @@ export function PrintAthleteList({ filters, filterParams }) {
   };
 
   const handlePrint = async () => {
+    if (printInProgressRef.current) return;
+
+    printInProgressRef.current = true;
     setLoading(true);
+    let printWindow = null;
 
     try {
-      // Fetch ALL athletes with current filters (no pagination limit)
-      const params = { per_page: 9999, page: 1 };
-      if (filterParams?.search) params.search = filterParams.search;
-      if (filterParams?.caborId) params.cabor_id = filterParams.caborId;
-      if (filterParams?.gender) params.gender = filterParams.gender;
-      if (filterParams?.organizationId) params.organization_id = filterParams.organizationId;
+      // Open synchronously from the click event so browsers do not block it
+      // while the paginated requests are still running.
+      printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        window.alert('Popup cetak diblokir. Izinkan popup untuk mencetak data atlet.');
+        return;
+      }
 
-      const response = await api.get('/api/athletes', { params });
-      const athletes = response.data?.data || [];
+      printWindow.opener = null;
+      printWindow.document.write(`<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Menyiapkan Data Atlet</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #334155; background: #f8fafc; }
+    .status { text-align: center; padding: 32px; }
+    .spinner { width: 36px; height: 36px; margin: 0 auto 16px; border: 4px solid #e2e8f0; border-top-color: #dc2626; border-radius: 999px; animation: spin 0.8s linear infinite; }
+    h1 { margin: 0 0 8px; font-size: 20px; color: #0f172a; }
+    p { margin: 0; font-size: 13px; color: #64748b; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="status">
+    <div class="spinner" aria-hidden="true"></div>
+    <h1>Menyiapkan data...</h1>
+    <p>Mohon tunggu hingga seluruh data atlet selesai dimuat.</p>
+  </div>
+</body>
+</html>`);
+      printWindow.document.close();
+
+      const baseParams = { per_page: 100 };
+      if (hasFilterValue(filterParams?.search)) baseParams.search = filterParams.search;
+      if (hasFilterValue(filterParams?.caborId)) baseParams.cabor_id = filterParams.caborId;
+      if (hasFilterValue(filterParams?.gender)) baseParams.gender = filterParams.gender;
+      if (hasFilterValue(filterParams?.organizationId)) baseParams.organization_id = filterParams.organizationId;
+      if (hasFilterValue(filterParams?.clusterId)) baseParams.cluster_id = filterParams.clusterId;
+      if (hasFilterValue(filterParams?.subClusterId)) baseParams.sub_cluster_id = filterParams.subClusterId;
+      if (hasFilterValue(filterParams?.hasNationalAthleteNumber)) {
+        baseParams.has_national_athlete_number = filterParams.hasNationalAthleteNumber;
+      }
+
+      const firstResponse = await api.get('/api/athletes', {
+        params: { ...baseParams, page: 1 },
+      });
+      const firstPage = firstResponse.data;
+      const lastPage = Number(firstPage?.last_page);
+
+      if (!Array.isArray(firstPage?.data) || !Number.isInteger(lastPage) || lastPage < 1) {
+        throw new Error('Invalid athlete pagination response');
+      }
+
+      const athletes = [...firstPage.data];
+      for (let page = 2; page <= lastPage; page += 1) {
+        const response = await api.get('/api/athletes', {
+          params: { ...baseParams, page },
+        });
+        const pageData = response.data?.data;
+
+        if (!Array.isArray(pageData)) {
+          throw new Error(`Invalid athlete data on page ${page}`);
+        }
+
+        athletes.push(...pageData);
+      }
 
       const filterDesc = [];
       if (filters?.cabor) filterDesc.push(`Cabor: ${filters.cabor}`);
       if (filters?.gender) filterDesc.push(`Gender: ${genderLabels[filters.gender] || filters.gender}`);
       if (filters?.organization) filterDesc.push(`Organisasi: ${filters.organization}`);
+      if (filters?.cluster) filterDesc.push(`Kluster: ${filters.cluster}`);
+      if (filters?.subCluster) filterDesc.push(`Sub-Kluster: ${filters.subCluster}`);
+      if (hasFilterValue(filterParams?.hasNationalAthleteNumber)) {
+        const nationalNumberValue = filterParams.hasNationalAthleteNumber;
+        filterDesc.push(
+          `Nomor Atlet Nasional: ${nationalNumberLabels[nationalNumberValue] || nationalNumberValue}`,
+        );
+      }
       if (filters?.search) filterDesc.push(`Pencarian: "${filters.search}"`);
 
       const now = new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -133,19 +214,25 @@ export function PrintAthleteList({ filters, filterParams }) {
 </body>
 </html>`;
 
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(html);
-        printWindow.document.close();
-        printWindow.onload = () => {
-          setTimeout(() => printWindow.print(), 300);
-        };
+      if (printWindow.closed) {
+        throw new Error('Print window was closed before the document was ready');
       }
+
+      printWindow.document.open();
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        if (!printWindow.closed) printWindow.print();
+      }, 300);
     } catch (err) {
       console.error('Print error:', err);
+      if (printWindow && !printWindow.closed) printWindow.close();
+      window.alert('Gagal menyiapkan seluruh data atlet untuk dicetak. Silakan coba lagi.');
+    } finally {
+      printInProgressRef.current = false;
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
@@ -161,7 +248,7 @@ export function PrintAthleteList({ filters, filterParams }) {
       ) : (
         <Printer className="w-4 h-4 text-slate-600" />
       )}
-      <span>Cetak</span>
+      <span>{loading ? 'Menyiapkan...' : 'Cetak'}</span>
     </button>
   );
 }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -12,6 +12,7 @@ import {
   Loader2,
   MapPin,
   Phone,
+  Printer,
   Save,
   Trophy,
   User,
@@ -21,6 +22,10 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { ProtectedImage } from '../components/ProtectedImage';
+import {
+  openCoachProfilePrintWindow,
+  printCoachProfile,
+} from '../components/coaches/coachProfilePrint';
 import { CoachContactStep } from '../components/coach-form/CoachContactStep';
 import { CoachLicenseCareerStep } from '../components/coach-form/CoachLicenseCareerStep';
 import { CoachPersonalStep } from '../components/coach-form/CoachPersonalStep';
@@ -87,6 +92,8 @@ export function CoachPortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
   const [fundYear, setFundYear] = useState(currentYear);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const printingRef = useRef(false);
 
   const {
     data: profile,
@@ -98,8 +105,16 @@ export function CoachPortal() {
   const { data: events, isLoading: eventsLoading } = usePortalEvents({ enabled: profileReady });
   const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard({ enabled: profileReady });
   const { data: athletes, isLoading: athletesLoading } = usePortalAthletes({ enabled: profileReady });
-  const { data: clustersData, isLoading: clustersLoading } = usePortalCoachClusterHistories({ enabled: profileReady });
-  const { data: fundsData, isLoading: fundsLoading } = usePortalCoachDevelopmentFunds(
+  const {
+    data: clustersData,
+    isLoading: clustersLoading,
+    isError: clustersError,
+  } = usePortalCoachClusterHistories({ enabled: profileReady });
+  const {
+    data: fundsData,
+    isLoading: fundsLoading,
+    isError: fundsError,
+  } = usePortalCoachDevelopmentFunds(
     { year: fundYear, perPage: 100 },
     { enabled: profileReady },
   );
@@ -107,6 +122,8 @@ export function CoachPortal() {
   const coach = useMemo(() => getCoach(profile), [profile]);
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
+  const isPrintDataLoading = clustersLoading || fundsLoading;
+  const isPrintBusy = isPrinting || isPrintDataLoading;
   const tabs = [
     { id: 'overview', label: 'Profil', icon: User },
     { id: 'clusters', label: 'Kluster', icon: Layers },
@@ -114,6 +131,39 @@ export function CoachPortal() {
     { id: 'athletes', label: 'Atlet Saya', icon: Users },
     { id: 'events', label: 'Event', icon: Calendar },
   ];
+
+  const handlePrint = async () => {
+    if (isPrintBusy || printingRef.current) return;
+
+    printingRef.current = true;
+    setIsPrinting(true);
+    const printWindow = openCoachProfilePrintWindow();
+
+    if (!printWindow) {
+      printingRef.current = false;
+      setIsPrinting(false);
+      return;
+    }
+
+    try {
+      await printCoachProfile(printWindow, {
+        coach,
+        histories: clusters,
+        funds,
+        fundsTotalAmount: fundsData?.total_amount,
+        clusterError: clustersError,
+        fundsError,
+        photoUrl: coach?.photo ? '/api/portal/profile/photo' : null,
+      });
+    } catch (error) {
+      console.error('Print detail error:', error);
+      if (!printWindow.closed) printWindow.close();
+      window.alert('Gagal menyiapkan data cetak. Silakan coba lagi.');
+    } finally {
+      printingRef.current = false;
+      setIsPrinting(false);
+    }
+  };
 
   if (profileLoading || (profileReady && dashboardLoading)) {
     return (
@@ -189,16 +239,27 @@ export function CoachPortal() {
                   <h3 className="text-lg font-bold text-slate-800">Profil Saya</h3>
                   <p className="text-sm text-slate-500">Data lengkap pelatih, afiliasi, domisili, lisensi, dan prestasi.</p>
                 </div>
-                {!isEditing && (
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 sm:w-auto"
+                    onClick={handlePrint}
+                    disabled={isPrintBusy}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                   >
-                    <Edit2 className="w-4 h-4" />
-                    Edit Profil
+                    {isPrintBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                    Cetak Profil
                   </button>
-                )}
+                  {!isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 sm:w-auto"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Edit Profil
+                    </button>
+                  )}
+                </div>
               </div>
 
               {!isEditing ? (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   User, Calendar, FileText, Award, MapPin, Clock,
@@ -62,6 +62,7 @@ export function AthletePortal() {
   const [isEditing, setIsEditing] = useState(false);
   const [fundYear, setFundYear] = useState(currentYear);
   const [isPrinting, setIsPrinting] = useState(false);
+  const printingRef = useRef(false);
 
   const {
     data: profile,
@@ -109,12 +110,14 @@ export function AthletePortal() {
   const handleEditStart = () => setIsEditing(true);
 
   const handlePrint = async () => {
-    if (isPrintBusy) return;
+    if (isPrintBusy || printingRef.current) return;
 
+    printingRef.current = true;
     setIsPrinting(true);
     const printWindow = openAthleteProfilePrintWindow();
 
     if (!printWindow) {
+      printingRef.current = false;
       setIsPrinting(false);
       return;
     }
@@ -128,12 +131,14 @@ export function AthletePortal() {
         fundsTotalAmount: fundsData?.total_amount,
         clusterError: clustersError,
         fundsError,
+        photoUrl: athlete?.photo ? '/api/portal/profile/photo' : null,
       });
     } catch (error) {
       console.error('Print detail error:', error);
       if (!printWindow.closed) printWindow.close();
       window.alert('Gagal menyiapkan data cetak. Silakan coba lagi.');
     } finally {
+      printingRef.current = false;
       setIsPrinting(false);
     }
   };
