@@ -208,15 +208,16 @@ Query `/api/master/roles/all` pada halaman User hanya aktif bila user memiliki `
 ### Login dan Bootstrap
 
 1. Login page mengambil target kembali dari `location.state.from` lengkap dengan pathname, search, dan hash; default `/dashboard`.
-2. `AuthContext.login` mengirim `URLSearchParams` ke `/api/login` dengan content type form-urlencoded.
-3. Response diharapkan berisi `token` dan `user`; token tetap disimpan sebagai `localStorage['token']`.
-4. Login sukses membersihkan session-expired notice, account-block state, permission notice, dan seluruh QueryClient sebelum berpindah ke URL protected sebelumnya.
-5. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
-6. Bootstrap `/api/user` yang gagal karena network/5xx/`ACCESS_SERVICE_UNAVAILABLE` mempertahankan token dan menampilkan layar **Layanan Akses Tidak Tersedia** dengan tindakan **Coba Lagi** dan **Keluar**.
-7. `AUTH_REQUIRED`/`AUTH_SESSION_INVALID` pada protected request membersihkan user/token/cache dan menyimpan session-expired notice satu kali di session storage.
-8. `ROLE_ACCESS_DISABLED` dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape.
-9. `INSUFFICIENT_PERMISSION` tidak logout; event global menampilkan notice, me-refresh `/api/user` secara terdeduplikasi, lalu membersihkan cache setelah permission terbaru diterima.
-10. Login membedakan credential salah, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
+2. `AuthContext.login` membersihkan seluruh QueryClient tepat sebelum setiap request `POST /api/login`, termasuk percobaan yang akhirnya gagal; token dan browser storage tidak dihapus pada tahap ini.
+3. Request login mengirim `URLSearchParams` dengan content type form-urlencoded.
+4. Response diharapkan berisi `token` dan `user`; token tetap disimpan sebagai `localStorage['token']`.
+5. Login sukses membersihkan session-expired notice, account-block state, permission notice, dan access-unavailable state; kemudian menyimpan token dan user sebelum berpindah ke URL protected sebelumnya.
+6. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
+7. Bootstrap `/api/user` yang gagal karena network/5xx/`ACCESS_SERVICE_UNAVAILABLE` mempertahankan token dan menampilkan layar **Layanan Akses Tidak Tersedia** dengan tindakan **Coba Lagi** dan **Keluar**.
+8. `AUTH_REQUIRED`/`AUTH_SESSION_INVALID` pada protected request membersihkan user/token/cache dan menyimpan session-expired notice satu kali di session storage.
+9. `ROLE_ACCESS_DISABLED` dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape.
+10. `INSUFFICIENT_PERMISSION` tidak logout; event global menampilkan notice, me-refresh `/api/user` secara terdeduplikasi, lalu membersihkan cache setelah permission terbaru diterima.
+11. Login membedakan credential salah, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
 
 ### Axios Interceptor
 

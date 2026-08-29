@@ -115,6 +115,8 @@ export function AuthProvider({ children }) {
   }, [queryClient]);
 
   const login = async (email, password) => {
+    queryClient.clear();
+
     const response = await api.post('/api/login', new URLSearchParams({ email, password }), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
@@ -126,7 +128,6 @@ export function AuthProvider({ children }) {
     setAccessUnavailable(null);
     localStorage.setItem('token', token);
     setUser(userData);
-    queryClient.clear();
     return response.data;
   };
 
