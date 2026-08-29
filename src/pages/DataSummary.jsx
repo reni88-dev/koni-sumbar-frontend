@@ -14,6 +14,7 @@ import {
   Users,
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { PrintDataSummary } from '../components/data-summary/PrintDataSummary';
 import { useDataSummary } from '../hooks/queries/useDataAnalysis';
 
 const DONUT_COLORS = ['#dc2626', '#2563eb', '#059669', '#d97706', '#7c3aed', '#0891b2', '#64748b'];
@@ -348,6 +349,20 @@ export function DataSummaryPage() {
     >
       <div className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-bold text-slate-800">Filter Laporan</h2>
+              <p className="mt-1 text-sm text-slate-400">Laporan cetak mengikuti scope akses dan filter aktif.</p>
+            </div>
+            <PrintDataSummary
+              data={data}
+              filters={filters}
+              totalCabors={totalCabors}
+              totalOrganizations={totalOrganizations}
+              disabled={!data || query.isError || query.isFetching}
+              isFetching={query.isFetching}
+            />
+          </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold text-slate-500">Organisasi</span>
