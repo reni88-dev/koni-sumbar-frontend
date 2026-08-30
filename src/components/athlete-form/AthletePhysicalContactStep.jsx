@@ -1,5 +1,6 @@
 import { Activity, CheckCircle2, Loader2, Phone, XCircle } from 'lucide-react';
 import { firstFieldError } from '../form-modal/formUtils';
+import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { MARITAL_STATUSES } from './athleteFormModel';
 
@@ -25,6 +26,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           Tinggi Badan (cm) <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('height', errors)}
           type="number"
           value={formData.height}
           onChange={e => updateField('height', e.target.value)}
@@ -33,7 +35,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           min={50}
           max={300}
         />
-        {errors.height && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.height)}</p>}
+        {errors.height && <p id={getFieldErrorId('height')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.height)}</p>}
       </div>
 
       <div>
@@ -41,6 +43,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           Berat Badan (kg) <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('weight', errors)}
           type="number"
           step="0.1"
           value={formData.weight}
@@ -50,7 +53,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           min={20}
           max={300}
         />
-        {errors.weight && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.weight)}</p>}
+        {errors.weight && <p id={getFieldErrorId('weight')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.weight)}</p>}
       </div>
 
       <div>
@@ -58,6 +61,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           Golongan Darah <span className="text-red-500">*</span>
         </label>
         <select
+          {...getFieldControlProps('blood_type', errors)}
           value={formData.blood_type}
           onChange={e => updateField('blood_type', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
@@ -68,7 +72,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           <option value="AB">AB</option>
           <option value="O">O</option>
         </select>
-        {errors.blood_type && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.blood_type)}</p>}
+        {errors.blood_type && <p id={getFieldErrorId('blood_type')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.blood_type)}</p>}
       </div>
 
       <div>
@@ -76,6 +80,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           Pendidikan Terakhir <span className="text-red-500">*</span>
         </label>
         <select
+          {...getFieldControlProps('education_level_id', errors)}
           value={formData.education_level_id}
           onChange={e => updateField('education_level_id', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
@@ -83,7 +88,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           <option value="">-- Pilih Jenjang Pendidikan --</option>
           {educationLevels.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
         </select>
-        {errors.education_level_id && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.education_level_id)}</p>}
+        {errors.education_level_id && <p id={getFieldErrorId('education_level_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.education_level_id)}</p>}
       </div>
 
       <div>
@@ -91,13 +96,14 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           Pekerjaan <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('occupation', errors)}
           type="text"
           value={formData.occupation}
           onChange={e => updateField('occupation', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
           placeholder="Contoh: Pelajar / Mahasiswa / Swasta"
         />
-        {errors.occupation && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.occupation)}</p>}
+        {errors.occupation && <p id={getFieldErrorId('occupation')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.occupation)}</p>}
       </div>
 
       <div>
@@ -105,6 +111,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           Status Perkawinan <span className="text-red-500">*</span>
         </label>
         <select
+          {...getFieldControlProps('marital_status', errors)}
           value={formData.marital_status}
           onChange={e => updateField('marital_status', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white cursor-pointer"
@@ -112,7 +119,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           <option value="">-- Pilih Status --</option>
           {MARITAL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
-        {errors.marital_status && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.marital_status)}</p>}
+        {errors.marital_status && <p id={getFieldErrorId('marital_status')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.marital_status)}</p>}
       </div>
 
       <div className="sm:col-span-2">
@@ -120,6 +127,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
           Hobi / Kegemaran
         </label>
         <input
+          {...getFieldControlProps('hobby', errors)}
           type="text"
           value={formData.hobby}
           onChange={e => updateField('hobby', e.target.value)}
@@ -143,6 +151,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
         </label>
         <div className="relative">
           <input
+            {...getFieldControlProps('phone', errors)}
             type="text"
             value={formData.phone}
             onChange={e => updateField('phone', e.target.value)}
@@ -176,6 +185,7 @@ export function AthletePhysicalContactStep({ form, lookups, validation }) {
         </label>
         <div className="relative">
           <input
+            {...getFieldControlProps('email', errors)}
             type="email"
             value={formData.email}
             onChange={e => updateField('email', e.target.value)}

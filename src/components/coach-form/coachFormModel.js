@@ -1,5 +1,6 @@
 import { formatDateForInput } from '../form-modal/formUtils';
 import { normalizeIndonesianMobile } from '../form-modal/phoneUtils';
+import { COACH_EMAIL_PATTERN, COACH_IDENTITY_PATTERN } from './coachProfileValidation';
 
 export const RELIGIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'];
 export const GENDERS = [
@@ -7,8 +8,8 @@ export const GENDERS = [
   { value: 'female', label: 'Perempuan' }
 ];
 export const LICENSE_LEVELS = ['Nasional', 'Daerah', 'Internasional'];
-export const IDENTITY_PATTERN = /^[0-9]{16}$/;
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const IDENTITY_PATTERN = COACH_IDENTITY_PATTERN;
+export const EMAIL_PATTERN = COACH_EMAIL_PATTERN;
 
 export function createInitialCoachFormData() {
   return {

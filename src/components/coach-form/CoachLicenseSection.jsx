@@ -17,6 +17,8 @@ export function CoachLicenseSection({ form }) {
           Nomor Lisensi <span className="normal-case text-slate-400">(Opsional)</span>
         </label>
         <input
+          name="license_number"
+          data-field="license_number"
           type="text"
           value={formData.license_number}
           onChange={(e) => updateField('license_number', e.target.value)}
@@ -30,6 +32,8 @@ export function CoachLicenseSection({ form }) {
           Level Lisensi <span className="normal-case text-slate-400">(Opsional)</span>
         </label>
         <select
+          name="license_level"
+          data-field="license_level"
           value={formData.license_level}
           onChange={(e) => updateField('license_level', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white"
@@ -46,6 +50,8 @@ export function CoachLicenseSection({ form }) {
           Spesialisasi <span className="normal-case text-slate-400">(Opsional)</span>
         </label>
         <input
+          name="specialization"
+          data-field="specialization"
           type="text"
           value={formData.specialization}
           onChange={(e) => updateField('specialization', e.target.value)}
@@ -59,6 +65,8 @@ export function CoachLicenseSection({ form }) {
           Tahun Mulai Melatih
         </label>
         <input
+          name="coaching_start_year"
+          data-field="coaching_start_year"
           type="number"
           value={formData.coaching_start_year}
           onChange={(e) => updateField('coaching_start_year', e.target.value)}

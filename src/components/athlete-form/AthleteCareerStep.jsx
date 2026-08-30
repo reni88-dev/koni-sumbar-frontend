@@ -1,5 +1,6 @@
 import { Activity, Award, Briefcase } from 'lucide-react';
 import { firstFieldError } from '../form-modal/formUtils';
+import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
 export function AthleteCareerStep({ form, validation, showActiveStatus = true }) {
@@ -19,6 +20,7 @@ export function AthleteCareerStep({ form, validation, showActiveStatus = true })
           Tahun Mulai Karir <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('career_start_year', errors)}
           type="number"
           value={formData.career_start_year}
           onChange={e => updateField('career_start_year', e.target.value)}
@@ -28,7 +30,7 @@ export function AthleteCareerStep({ form, validation, showActiveStatus = true })
           max={new Date().getFullYear()}
         />
         {errors.career_start_year && (
-          <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.career_start_year)}</p>
+          <p id={getFieldErrorId('career_start_year')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.career_start_year)}</p>
         )}
       </div>
 
@@ -39,6 +41,7 @@ export function AthleteCareerStep({ form, validation, showActiveStatus = true })
         </label>
         <div className="flex items-center gap-3 mt-1.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50">
           <input
+            {...getFieldControlProps('is_active', errors)}
             type="checkbox"
             id="is_active"
             checked={formData.is_active}
@@ -65,7 +68,7 @@ export function AthleteCareerStep({ form, validation, showActiveStatus = true })
         </div>
       </div>
 
-      <div className="space-y-2.5 pt-1">
+      <div data-field="top_achievements" className="space-y-2.5 pt-1">
         {formData.top_achievements.map((achievement, index) => {
           const medalEmojis = ['🥇', '🥈', '🥉'];
           const rankLabels = ['Prestasi Utama (Tertinggi)', 'Prestasi Kedua', 'Prestasi Ketiga'];
@@ -75,6 +78,7 @@ export function AthleteCareerStep({ form, validation, showActiveStatus = true })
                 {medalEmojis[index]}
               </span>
               <input
+                name="top_achievements"
                 type="text"
                 value={achievement}
                 onChange={e => updateAchievement(index, e.target.value)}
@@ -97,6 +101,7 @@ export function AthleteCareerStep({ form, validation, showActiveStatus = true })
     >
       <div className="sm:col-span-2">
         <textarea
+          {...getFieldControlProps('injury_illness_history', errors)}
           value={formData.injury_illness_history}
           onChange={e => updateField('injury_illness_history', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm resize-none"

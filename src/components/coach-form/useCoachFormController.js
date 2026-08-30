@@ -1,13 +1,24 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useValidatedPhoneField } from '../form-modal/useValidatedPhoneField';
 import { getCoachPhotoUrl } from '../../lib/coachPhoto';
+import { normalizeValidationErrors } from '../form-modal/formUtils';
+import {
+  filterValidationErrorsByStep,
+  focusValidationField,
+  getStepErrorCounts,
+  orderedValidationEntries,
+  replaceStepValidationErrors,
+} from '../form-validation/profileValidation';
+import { useValidatedPhoneField } from '../form-modal/useValidatedPhoneField';
 import {
   createInitialCoachFormData,
-  EMAIL_PATTERN,
   IDENTITY_PATTERN,
-  mapCoachToForm
+  mapCoachToForm,
 } from './coachFormModel';
+import {
+  COACH_PROFILE_FIELDS,
+  validateCoachProfile,
+} from './coachProfileValidation';
 import { useCoachLookups } from './useCoachLookups';
 import { useCoachMedia } from './useCoachMedia';
 import { useCoachSubmission } from './useCoachSubmission';
@@ -17,14 +28,16 @@ export function useCoachFormController({
   coach,
   onSuccess,
   mode = 'admin',
-  submitRequest
+  submitRequest,
 }) {
   const formContainerRef = useRef(null);
+  const validationSummaryRef = useRef(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(createInitialCoachFormData);
   const [achievementsList, setAchievementsList] = useState(['', '', '']);
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
+  const [initialIncompleteCount, setInitialIncompleteCount] = useState(0);
   const [initialPhoneValue, setInitialPhoneValue] = useState('');
 
   const updateField = useCallback((field, value) => {
@@ -35,6 +48,7 @@ export function useCoachFormController({
       delete next[field];
       return next;
     });
+    setErrorMessage('');
   }, []);
 
   const normalizePhone = useCallback((value) => {
@@ -48,20 +62,46 @@ export function useCoachFormController({
     isOpen,
     recordId: coach?.id,
     initialValue: initialPhoneValue,
-    onNormalize: normalizePhone
+    onNormalize: normalizePhone,
   });
 
-  const scrollToTop = useCallback(() => {
-    setTimeout(() => {
-      const container = formContainerRef.current;
-      if (!container) return;
-      if (container.scrollHeight > container.clientHeight) {
-        container.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
-  }, []);
+  const validateProfile = useCallback(() => validateCoachProfile(formData, {
+    isEdit: Boolean(coach),
+    identityDocumentFile: media.identityDocumentFile,
+    canReuseStoredIdentity: media.canReuseStoredIdentity,
+    documentErrors: media.documentErrors,
+    phoneStatus: phoneValidation.status,
+    phoneMessage: phoneValidation.message,
+    certificateError: media.certificateError,
+  }), [
+    coach,
+    formData,
+    media.canReuseStoredIdentity,
+    media.certificateError,
+    media.documentErrors,
+    media.identityDocumentFile,
+    phoneValidation.message,
+    phoneValidation.status,
+  ]);
+
+  const navigateToError = useCallback((field) => focusValidationField({
+    field,
+    metadata: COACH_PROFILE_FIELDS,
+    rootRef: formContainerRef,
+    summaryRef: validationSummaryRef,
+    onStepChange: mode === 'admin' ? setStep : undefined,
+  }), [mode]);
+
+  const presentErrors = useCallback(async (rawErrors, { focus = true } = {}) => {
+    const nextErrors = normalizeValidationErrors(rawErrors || {});
+    const entries = orderedValidationEntries(nextErrors, COACH_PROFILE_FIELDS);
+    setErrors(nextErrors);
+    setErrorMessage(entries.length > 0 ? `${entries.length} field perlu diperbaiki.` : '');
+    if (focus && entries.length > 0) {
+      await navigateToError(entries[0].field);
+    }
+    return nextErrors;
+  }, [navigateToError]);
 
   const submission = useCoachSubmission({
     coach,
@@ -69,13 +109,13 @@ export function useCoachFormController({
     achievementsList,
     files: media,
     phoneValidation,
+    validateProfile,
+    presentErrors,
     setErrors,
     setErrorMessage,
-    setStep,
-    scrollToTop,
     onSuccess,
     mode,
-    submitRequest
+    submitRequest,
   });
 
   const { fetchLookups } = lookups;
@@ -87,6 +127,7 @@ export function useCoachFormController({
     resetSubmission();
     setErrors({});
     setErrorMessage('');
+    setInitialIncompleteCount(0);
 
     if (!isOpen) {
       setFormData(createInitialCoachFormData());
@@ -102,6 +143,11 @@ export function useCoachFormController({
       setInitialPhoneValue(mapped.savedPhone);
       setFormData(mapped.formData);
       setAchievementsList(mapped.achievements);
+      setInitialIncompleteCount(Object.keys(validateCoachProfile(mapped.formData, {
+        isEdit: true,
+        canReuseStoredIdentity: Boolean(coach.identity_document),
+        phoneStatus: mapped.formData.phone ? 'valid' : undefined,
+      })).length);
     } else {
       setInitialPhoneValue('');
       setFormData(createInitialCoachFormData());
@@ -119,13 +165,19 @@ export function useCoachFormController({
     fetchLookups,
     isOpen,
     resetMedia,
-    resetSubmission
+    resetSubmission,
   ]);
 
   const handleAchievementChange = useCallback((index, value) => {
     setAchievementsList((previous) => {
       const next = [...previous];
       next[index] = value;
+      return next;
+    });
+    setErrors((previous) => {
+      if (!previous.achievements) return previous;
+      const next = { ...previous };
+      delete next.achievements;
       return next;
     });
   }, []);
@@ -139,72 +191,69 @@ export function useCoachFormController({
     });
   }, []);
 
-  const isStepValid = () => {
-    if (step === 1) {
-      const nikValid = IDENTITY_PATTERN.test(formData.nik);
-      const hasIdentityDocument = Boolean(media.identityDocumentFile || media.canReuseStoredIdentity);
-      return formData.name.trim() !== '' &&
-        formData.cabor_id !== '' &&
-        formData.province.trim() !== '' &&
-        formData.city.trim() !== '' &&
-        formData.district.trim() !== '' &&
-        nikValid &&
-        hasIdentityDocument &&
-        !media.photoProcessing &&
-        !media.documentProcessing.identity &&
-        !media.documentProcessing.bpjs &&
-        !media.documentErrors.identity &&
-        !media.documentErrors.bpjs;
+  const isStepValid = () => Object.keys(
+    filterValidationErrorsByStep(validateProfile(), COACH_PROFILE_FIELDS, step),
+  ).length === 0 && !media.isAnyFileProcessing;
+
+  const goToNextStep = async () => {
+    if (media.isAnyFileProcessing || step >= 3) return;
+    const stepErrors = filterValidationErrorsByStep(
+      validateProfile(),
+      COACH_PROFILE_FIELDS,
+      step,
+    );
+    if (Object.keys(stepErrors).length > 0) {
+      const merged = replaceStepValidationErrors(errors, stepErrors, COACH_PROFILE_FIELDS, step);
+      setErrors(merged);
+      setErrorMessage(`${Object.keys(stepErrors).length} field pada langkah ini perlu diperbaiki.`);
+      const first = orderedValidationEntries(stepErrors, COACH_PROFILE_FIELDS)[0];
+      if (first) await navigateToError(first.field);
+      return;
     }
-    if (step === 2) {
-      const phoneValid = !formData.phone?.trim() || phoneValidation.status === 'valid';
-      const emailValid = !formData.email?.trim() || EMAIL_PATTERN.test(formData.email.trim());
-      return phoneValid && emailValid;
-    }
-    if (step === 3) {
-      return !media.certificateProcessing && !media.certificateError;
-    }
-    return true;
+    setErrors((previous) => replaceStepValidationErrors(previous, {}, COACH_PROFILE_FIELDS, step));
+    setErrorMessage('');
+    setStep((current) => Math.min(current + 1, 3));
+    formContainerRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
   };
 
-  const goToNextStep = () => {
-    if (isStepValid() && step < 3) {
-      setStep(step + 1);
-      scrollToTop();
-    }
-  };
   const goToPrevStep = () => {
     if (step > 1) {
-      setStep(step - 1);
-      scrollToTop();
+      setStep((current) => current - 1);
+      formContainerRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' });
     }
   };
 
   return {
     formContainerRef,
+    validationSummaryRef,
     form: {
       data: formData,
       updateField,
       achievementsList,
       handleAchievementChange,
       handleAddAchievement,
-      handleRemoveAchievement
+      handleRemoveAchievement,
     },
     lookups,
     files: media,
     validation: {
       errors,
       errorMessage,
+      metadata: COACH_PROFILE_FIELDS,
+      navigateToError,
+      stepErrorCounts: getStepErrorCounts(errors, COACH_PROFILE_FIELDS),
+      initialIncompleteCount,
       phone: phoneValidation,
-      nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik))
+      nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik)),
     },
     navigation: {
       step,
       setStep,
       goToNextStep,
       goToPrevStep,
-      currentStepValid: isStepValid()
+      currentStepValid: isStepValid(),
+      navigateToError,
     },
-    submission
+    submission,
   };
 }

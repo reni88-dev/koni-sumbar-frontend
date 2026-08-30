@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertCircle,
@@ -30,7 +30,10 @@ import { CoachContactStep } from '../components/coach-form/CoachContactStep';
 import { CoachLicenseCareerStep } from '../components/coach-form/CoachLicenseCareerStep';
 import { CoachPersonalStep } from '../components/coach-form/CoachPersonalStep';
 import { parseAchievementsForForm } from '../components/coach-form/coachFormModel';
+import { COACH_PROFILE_FIELDS } from '../components/coach-form/coachProfileValidation';
 import { useCoachFormController } from '../components/coach-form/useCoachFormController';
+import { ProfileCompletionBanner } from '../components/form-validation/ProfileCompletionBanner';
+import { ValidationSummary } from '../components/form-validation/ValidationSummary';
 import {
   usePortalAthletes,
   usePortalCoachClusterHistories,
@@ -165,6 +168,11 @@ export function CoachPortal() {
     }
   };
 
+  const handleCompleteProfile = () => {
+    setActiveTab('overview');
+    setIsEditing(true);
+  };
+
   if (profileLoading || (profileReady && dashboardLoading)) {
     return (
       <DashboardLayout title="Portal Pelatih" subtitle="Loading...">
@@ -211,6 +219,14 @@ export function CoachPortal() {
         <StatCard color="from-purple-500 to-purple-600" label="Event Mendatang" value={dashboard?.upcoming_events || 0} icon={Clock} delay={0.2} />
         <StatCard color="from-orange-500 to-red-500" label="Cabor" value={dashboard?.cabor_name || caborLabel(coach)} icon={Award} delay={0.3} small />
       </div>
+
+      {profile?.profile_complete === false && (
+        <ProfileCompletionBanner
+          missingFields={profile.missing_fields || []}
+          metadata={COACH_PROFILE_FIELDS}
+          onComplete={handleCompleteProfile}
+        />
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 mb-6 overflow-hidden">
         <div className="flex overflow-x-auto border-b border-slate-100">
@@ -269,6 +285,7 @@ export function CoachPortal() {
                   coach={coach}
                   onCancel={() => setIsEditing(false)}
                   onSuccess={() => setIsEditing(false)}
+                  missingFields={profile.missing_fields || []}
                 />
               )}
             </div>
@@ -424,7 +441,7 @@ function InfoGrid({ items }) {
   );
 }
 
-function CoachProfileEditor({ coach, onCancel, onSuccess }) {
+function CoachProfileEditor({ coach, onCancel, onSuccess, missingFields }) {
   const updateProfile = useUpdatePortalProfile();
   const controller = useCoachFormController({
     isOpen: true,
@@ -433,8 +450,13 @@ function CoachProfileEditor({ coach, onCancel, onSuccess }) {
     mode: 'portal',
     submitRequest: updateProfile.mutateAsync,
   });
-  const { formContainerRef, form, lookups, files, validation, submission } = controller;
+  const { formContainerRef, validationSummaryRef, form, lookups, files, validation, submission } = controller;
   const isBusy = submission.loading || updateProfile.isPending || files.isAnyFileProcessing;
+  const { navigateToError } = validation;
+
+  useEffect(() => {
+    if (missingFields?.[0]) navigateToError(missingFields[0]);
+  }, [missingFields, navigateToError]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -443,7 +465,13 @@ function CoachProfileEditor({ coach, onCancel, onSuccess }) {
 
   return (
     <form ref={formContainerRef} onSubmit={handleSubmit} className="space-y-5" aria-busy={isBusy}>
-      {validation.errorMessage && (
+      <ValidationSummary
+        ref={validationSummaryRef}
+        errors={validation.errors}
+        metadata={validation.metadata}
+        onNavigate={validation.navigateToError}
+      />
+      {validation.errorMessage && Object.keys(validation.errors).length === 0 && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>

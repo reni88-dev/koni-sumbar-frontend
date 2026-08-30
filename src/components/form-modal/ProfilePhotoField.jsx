@@ -33,7 +33,7 @@ export function ProfilePhotoField({
           </p>
         </div>
         <div>
-          <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
+          <label data-field="photo" tabIndex={-1} className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
             processing
               ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-wait'
               : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 shadow-2xs hover:border-slate-300 cursor-pointer'
@@ -41,6 +41,7 @@ export function ProfilePhotoField({
             {processing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5 text-slate-600" />}
             <span>{processing ? 'Memproses Foto...' : preview ? 'Ganti Foto' : `Pilih Foto ${subjectLabel}`}</span>
             <input
+              name="photo"
               type="file"
               accept={IMAGE_ACCEPT}
               onChange={onChange}

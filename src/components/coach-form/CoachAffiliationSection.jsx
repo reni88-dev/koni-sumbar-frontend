@@ -2,6 +2,7 @@ import { Building2 } from 'lucide-react';
 import { SearchableSelect } from '../SearchableSelect';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
+import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { RegionCascadeFields } from '../form-modal/RegionCascadeFields';
 
 const OPTIONAL_REGION_FIELDS = ['village'];
@@ -23,12 +24,13 @@ export function CoachAffiliationSection({ form, lookups, validation }) {
           Cabang Olahraga <span className="text-red-500">*</span>
         </label>
         <SearchableSelect
+          {...getFieldControlProps('cabor_id', errors)}
           options={cabors}
           value={formData.cabor_id}
           onChange={(val) => updateField('cabor_id', val)}
           placeholder="Cari & pilih cabang olahraga..."
         />
-        {errors.cabor_id && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.cabor_id)}</p>}
+        {errors.cabor_id && <p id={getFieldErrorId('cabor_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.cabor_id)}</p>}
       </div>
 
       <div>
@@ -36,6 +38,7 @@ export function CoachAffiliationSection({ form, lookups, validation }) {
           Organisasi / Pengcab
         </label>
         <SearchableSelect
+          {...getFieldControlProps('organization_id', errors)}
           options={organizations}
           value={formData.organization_id}
           onChange={(val) => updateField('organization_id', val)}
@@ -48,6 +51,7 @@ export function CoachAffiliationSection({ form, lookups, validation }) {
           Alamat Domisili
         </label>
         <textarea
+          {...getFieldControlProps('address', errors)}
           value={formData.address}
           onChange={(e) => updateField('address', e.target.value)}
           rows={2}

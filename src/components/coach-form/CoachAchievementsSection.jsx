@@ -1,7 +1,8 @@
 import { Plus, ShieldCheck, Trash2, Trophy } from 'lucide-react';
+import { getFieldControlProps } from '../form-validation/profileValidation';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
-export function CoachAchievementsSection({ form, showActiveStatus = true }) {
+export function CoachAchievementsSection({ form, validation, showActiveStatus = true }) {
   const {
     data: formData,
     updateField,
@@ -10,6 +11,7 @@ export function CoachAchievementsSection({ form, showActiveStatus = true }) {
     handleAddAchievement,
     handleRemoveAchievement
   } = form;
+  const errors = validation?.errors || {};
   return (
     <>
     <FormSectionCard
@@ -19,13 +21,14 @@ export function CoachAchievementsSection({ form, showActiveStatus = true }) {
       title="Prestasi Kepelatihan"
       subtitle="Daftar prestasi terbaik yang pernah diraih atlet asuhan / kepelatihan"
     >
-      <div className="sm:col-span-2 space-y-2.5">
+      <div data-field="achievements" className="sm:col-span-2 space-y-2.5">
         {achievementsList.map((ach, idx) => (
           <div key={`coach-ach-${idx}`} className="flex items-center gap-2">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-50 border border-amber-200/80 text-amber-700 text-xs font-bold font-mono">
               #{idx + 1}
             </span>
             <input
+              name="achievements"
               type="text"
               value={ach}
               onChange={(e) => handleAchievementChange(idx, e.target.value)}
@@ -80,6 +83,7 @@ export function CoachAchievementsSection({ form, showActiveStatus = true }) {
 
         <label className="relative inline-flex items-center cursor-pointer shrink-0">
           <input
+            {...getFieldControlProps('is_active', errors)}
             type="checkbox"
             checked={formData.is_active}
             onChange={(e) => updateField('is_active', e.target.checked)}

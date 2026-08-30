@@ -1,6 +1,7 @@
 import { User } from 'lucide-react';
 import { DateInput } from '../DateInput';
 import { firstFieldError } from '../form-modal/formUtils';
+import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { GENDERS, RELIGIONS } from './coachFormModel';
 
@@ -20,6 +21,7 @@ export function CoachIdentitySection({ form, validation }) {
           Nama Lengkap <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('name', errors)}
           type="text"
           value={formData.name}
           onChange={(e) => updateField('name', e.target.value)}
@@ -28,7 +30,7 @@ export function CoachIdentitySection({ form, validation }) {
           }`}
           placeholder="Masukkan nama lengkap sesuai KTP"
         />
-        {errors.name && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.name)}</p>}
+        {errors.name && <p id={getFieldErrorId('name')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.name)}</p>}
       </div>
 
       <div className="sm:col-span-2">
@@ -36,6 +38,7 @@ export function CoachIdentitySection({ form, validation }) {
           NIK (Nomor Induk Kependudukan) <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('nik', errors)}
           type="text"
           inputMode="numeric"
           value={formData.nik}
@@ -66,6 +69,7 @@ export function CoachIdentitySection({ form, validation }) {
           Tempat Lahir
         </label>
         <input
+          {...getFieldControlProps('birth_place', errors)}
           type="text"
           value={formData.birth_place}
           onChange={(e) => updateField('birth_place', e.target.value)}
@@ -79,6 +83,7 @@ export function CoachIdentitySection({ form, validation }) {
           Tanggal Lahir
         </label>
         <DateInput
+          {...getFieldControlProps('birth_date', errors)}
           value={formData.birth_date}
           onChange={(e) => updateField('birth_date', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
@@ -90,6 +95,7 @@ export function CoachIdentitySection({ form, validation }) {
           Jenis Kelamin
         </label>
         <select
+          {...getFieldControlProps('gender', errors)}
           value={formData.gender}
           onChange={(e) => updateField('gender', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white"
@@ -106,6 +112,7 @@ export function CoachIdentitySection({ form, validation }) {
           Agama
         </label>
         <select
+          {...getFieldControlProps('religion', errors)}
           value={formData.religion}
           onChange={(e) => updateField('religion', e.target.value)}
           className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm bg-white"

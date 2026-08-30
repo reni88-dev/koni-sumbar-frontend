@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   User, Calendar, FileText, Award, MapPin, Clock,
@@ -15,7 +15,10 @@ import { AthleteCareerStep } from '../components/athlete-form/AthleteCareerStep'
 import { AthleteParentsStep } from '../components/athlete-form/AthleteParentsStep';
 import { AthletePersonalStep } from '../components/athlete-form/AthletePersonalStep';
 import { AthletePhysicalContactStep } from '../components/athlete-form/AthletePhysicalContactStep';
+import { ATHLETE_PROFILE_FIELDS } from '../components/athlete-form/athleteProfileValidation';
 import { useAthleteFormController } from '../components/athlete-form/useAthleteFormController';
+import { ProfileCompletionBanner } from '../components/form-validation/ProfileCompletionBanner';
+import { ValidationSummary } from '../components/form-validation/ValidationSummary';
 import {
   usePortalProfile,
   usePortalEvents,
@@ -108,6 +111,10 @@ export function AthletePortal() {
   ];
 
   const handleEditStart = () => setIsEditing(true);
+  const handleCompleteProfile = () => {
+    setActiveTab('overview');
+    setIsEditing(true);
+  };
 
   const handlePrint = async () => {
     if (isPrintBusy || printingRef.current) return;
@@ -185,6 +192,14 @@ export function AthletePortal() {
         <StatCard color="from-orange-500 to-red-500" label="Cabor" value={dashboard?.cabor_name || '-'} icon={Award} delay={0.3} small />
       </div>
 
+      {profile?.profile_complete === false && (
+        <ProfileCompletionBanner
+          missingFields={profile.missing_fields || []}
+          metadata={ATHLETE_PROFILE_FIELDS}
+          onComplete={handleCompleteProfile}
+        />
+      )}
+
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 mb-6 overflow-hidden">
         <div className="flex overflow-x-auto border-b border-slate-100">
           {tabs.map((tab) => (
@@ -228,6 +243,7 @@ export function AthletePortal() {
                   athlete={athlete}
                   onCancel={() => setIsEditing(false)}
                   onSuccess={() => setIsEditing(false)}
+                  missingFields={profile.missing_fields || []}
                 />
               )}
             </div>
@@ -299,7 +315,7 @@ function InfoGrid({ items }) {
   return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{items.map(([label, value]) => <InfoItem key={label} label={label} value={value} />)}</div>;
 }
 
-function AthleteProfileEditor({ athlete, onCancel, onSuccess }) {
+function AthleteProfileEditor({ athlete, onCancel, onSuccess, missingFields }) {
   const updateProfile = useUpdatePortalProfile();
   const controller = useAthleteFormController({
     isOpen: true,
@@ -308,8 +324,13 @@ function AthleteProfileEditor({ athlete, onCancel, onSuccess }) {
     mode: 'portal',
     submitRequest: updateProfile.mutateAsync,
   });
-  const { formContainerRef, form, lookups, files, validation, submission } = controller;
+  const { formContainerRef, validationSummaryRef, form, lookups, files, validation, submission } = controller;
   const isBusy = submission.loading || updateProfile.isPending || files.isAnyFileProcessing;
+  const { navigateToError } = validation;
+
+  useEffect(() => {
+    if (missingFields?.[0]) navigateToError(missingFields[0]);
+  }, [missingFields, navigateToError]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -318,7 +339,13 @@ function AthleteProfileEditor({ athlete, onCancel, onSuccess }) {
 
   return (
     <form ref={formContainerRef} onSubmit={handleSubmit} className="space-y-5" aria-busy={isBusy}>
-      {validation.errorMessage && (
+      <ValidationSummary
+        ref={validationSummaryRef}
+        errors={validation.errors}
+        metadata={validation.metadata}
+        onNavigate={validation.navigateToError}
+      />
+      {validation.errorMessage && Object.keys(validation.errors).length === 0 && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>

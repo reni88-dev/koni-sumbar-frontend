@@ -1,5 +1,6 @@
 import { Loader2, RefreshCw } from 'lucide-react';
 import { firstFieldError } from './formUtils';
+import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { useRegionCascade } from './useRegionCascade';
 
 const FIELD_CONFIG = [
@@ -36,6 +37,7 @@ export function RegionCascadeFields({
         </label>
         <div className="relative">
           <select
+            {...getFieldControlProps(key, errors)}
             value={field.value}
             onChange={(event) => field.onChange(event.target.value)}
             disabled={field.disabled}
@@ -60,6 +62,7 @@ export function RegionCascadeFields({
         </div>
         {field.manual && (
           <input
+            {...getFieldControlProps(key, errors)}
             type="text"
             value={field.manualValue}
             onChange={(event) => field.onManualChange(event.target.value)}
@@ -96,7 +99,7 @@ export function RegionCascadeFields({
           <p className="mt-1 text-xs text-slate-500">Pilih wilayah induk terlebih dahulu.</p>
         )}
         {errors[key] && (
-          <p className="text-red-500 text-xs mt-1">{firstFieldError(errors[key])}</p>
+          <p id={getFieldErrorId(key)} className="text-red-500 text-xs mt-1">{firstFieldError(errors[key])}</p>
         )}
       </div>
     );

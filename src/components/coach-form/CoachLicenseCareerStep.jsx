@@ -12,7 +12,7 @@ export function CoachLicenseCareerStep({ coach, form, files, validation, loading
         validation={validation}
         loading={loading}
       />
-      <CoachAchievementsSection form={form} showActiveStatus={showActiveStatus} />
+      <CoachAchievementsSection form={form} validation={validation} showActiveStatus={showActiveStatus} />
     </div>
   );
 }
