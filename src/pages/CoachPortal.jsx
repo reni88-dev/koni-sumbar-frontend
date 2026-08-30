@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { ProtectedImage } from '../components/ProtectedImage';
+import { SuccessToast } from '../components/SuccessToast';
 import {
   openCoachProfilePrintWindow,
   printCoachProfile,
@@ -94,6 +95,7 @@ function InfoItem({ label, value }) {
 export function CoachPortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [successToast, setSuccessToast] = useState({ isOpen: false, message: '', version: 0 });
   const [fundYear, setFundYear] = useState(currentYear);
   const [isPrinting, setIsPrinting] = useState(false);
   const printingRef = useRef(false);
@@ -168,9 +170,24 @@ export function CoachPortal() {
     }
   };
 
+  const handleSuccessToastClose = () => {
+    setSuccessToast((current) => ({ ...current, isOpen: false }));
+  };
+  const handleEditStart = () => {
+    handleSuccessToastClose();
+    setIsEditing(true);
+  };
+  const handleEditSuccess = () => {
+    setIsEditing(false);
+    setSuccessToast((current) => ({
+      isOpen: true,
+      message: 'Profil pelatih berhasil diperbarui.',
+      version: current.version + 1,
+    }));
+  };
   const handleCompleteProfile = () => {
     setActiveTab('overview');
-    setIsEditing(true);
+    handleEditStart();
   };
 
   if (profileLoading || (profileReady && dashboardLoading)) {
@@ -213,6 +230,12 @@ export function CoachPortal() {
 
   return (
     <DashboardLayout title="Portal Pelatih" subtitle={`Selamat datang, ${coach?.name || 'Pelatih'}!`}>
+      <SuccessToast
+        key={successToast.version}
+        isOpen={successToast.isOpen}
+        message={successToast.message}
+        onClose={handleSuccessToastClose}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard color="from-blue-500 to-blue-600" label="Total Atlet" value={dashboard?.total_athletes || 0} icon={Users} />
         <StatCard color="from-green-500 to-green-600" label="Total Event" value={dashboard?.total_events || 0} icon={Calendar} delay={0.1} />
@@ -268,7 +291,7 @@ export function CoachPortal() {
                   {!isEditing && (
                     <button
                       type="button"
-                      onClick={() => setIsEditing(true)}
+                      onClick={handleEditStart}
                       className="flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 sm:w-auto"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -284,7 +307,7 @@ export function CoachPortal() {
                 <CoachProfileEditor
                   coach={coach}
                   onCancel={() => setIsEditing(false)}
-                  onSuccess={() => setIsEditing(false)}
+                  onSuccess={handleEditSuccess}
                   missingFields={profile.missing_fields || []}
                 />
               )}

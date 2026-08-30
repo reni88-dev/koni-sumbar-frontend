@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { ProtectedImage } from '../components/ProtectedImage';
+import { SuccessToast } from '../components/SuccessToast';
 import {
   openAthleteProfilePrintWindow,
   printAthleteProfile,
@@ -63,6 +64,7 @@ function InfoItem({ label, value }) {
 export function AthletePortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [successToast, setSuccessToast] = useState({ isOpen: false, message: '', version: 0 });
   const [fundYear, setFundYear] = useState(currentYear);
   const [isPrinting, setIsPrinting] = useState(false);
   const printingRef = useRef(false);
@@ -110,10 +112,24 @@ export function AthletePortal() {
     { id: 'submissions', label: 'Form Submission', icon: FileText },
   ];
 
-  const handleEditStart = () => setIsEditing(true);
+  const handleSuccessToastClose = () => {
+    setSuccessToast((current) => ({ ...current, isOpen: false }));
+  };
+  const handleEditStart = () => {
+    handleSuccessToastClose();
+    setIsEditing(true);
+  };
+  const handleEditSuccess = () => {
+    setIsEditing(false);
+    setSuccessToast((current) => ({
+      isOpen: true,
+      message: 'Profil atlet berhasil diperbarui.',
+      version: current.version + 1,
+    }));
+  };
   const handleCompleteProfile = () => {
     setActiveTab('overview');
-    setIsEditing(true);
+    handleEditStart();
   };
 
   const handlePrint = async () => {
@@ -185,6 +201,12 @@ export function AthletePortal() {
   }
   return (
     <DashboardLayout title="Portal Atlet" subtitle={`Selamat datang, ${profile?.name || 'Atlet'}!`}>
+      <SuccessToast
+        key={successToast.version}
+        isOpen={successToast.isOpen}
+        message={successToast.message}
+        onClose={handleSuccessToastClose}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard color="from-blue-500 to-blue-600" label="Total Event" value={dashboard?.total_events || 0} icon={Calendar} />
         <StatCard color="from-green-500 to-green-600" label="Event Mendatang" value={dashboard?.upcoming_events || 0} icon={Clock} delay={0.1} />
@@ -242,7 +264,7 @@ export function AthletePortal() {
                 <AthleteProfileEditor
                   athlete={athlete}
                   onCancel={() => setIsEditing(false)}
-                  onSuccess={() => setIsEditing(false)}
+                  onSuccess={handleEditSuccess}
                   missingFields={profile.missing_fields || []}
                 />
               )}
