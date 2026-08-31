@@ -46,9 +46,11 @@ import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
 import { DataSummaryPage } from './pages/DataSummary';
 import { DataDuplicatesPage } from './pages/DataDuplicates';
+import { SystemAnnouncementsPage } from './pages/SystemAnnouncements';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PortalRoute } from './components/PortalRoute';
 import { PermissionRoute } from './components/PermissionRoute';
+import { AnnouncementCenter } from './components/announcements/AnnouncementCenter';
 import { useAuth } from './hooks/useAuth';
 
 // Smart Dashboard that redirects based on user role
@@ -75,6 +77,7 @@ function App() {
   return (
     <>
     <VersionChecker />
+    <AnnouncementCenter />
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
@@ -409,6 +412,16 @@ function App() {
         }
       />
 
+      <Route
+        path="/admin/announcements"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="announcements.view">
+              <SystemAnnouncementsPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
       {/* Activity Logs Route (Super Admin only - enforced on backend) */}
       <Route
         path="/activity-logs"

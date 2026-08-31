@@ -30,3 +30,6 @@ export * from './useAccountEmailRecovery';
 
 // Data analysis and summary queries
 export * from './useDataAnalysis';
+
+// System announcements
+export * from './useAnnouncements';
