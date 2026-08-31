@@ -79,9 +79,10 @@ function buildFilterDetails(data, filters) {
   ];
 }
 
-function buildKpiGrid(data, totalCabors, totalOrganizations) {
-  const athletes = data?.overview?.athletes || {};
-  const coaches = data?.overview?.coaches || {};
+function buildKpiGrid(data, totalOrganizations) {
+  const overview = data?.overview || {};
+  const athletes = overview.athletes || {};
+  const coaches = overview.coaches || {};
   const items = [
     {
       label: 'Total atlet',
@@ -96,9 +97,9 @@ function buildKpiGrid(data, totalCabors, totalOrganizations) {
       tone: 'blue',
     },
     {
-      label: 'Total Cabor',
-      value: formatNumber(totalCabors),
-      detail: 'Tidak termasuk kategori Tidak diketahui',
+      label: 'Total Cabor Induk',
+      value: formatNumber(overview.total_parent_cabors),
+      detail: 'Mengikuti scope akses dan filter aktif',
       tone: 'amber',
     },
     {
@@ -324,7 +325,7 @@ function buildDuplicateSummary(duplicate) {
   </section>`;
 }
 
-function buildPrintHtml({ data, filters, totalCabors, totalOrganizations, printedAt }) {
+function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
   const filterDetails = buildFilterDetails(data, filters);
   const distributions = data?.distributions || {};
   const quality = data?.data_quality || {};
@@ -422,7 +423,7 @@ function buildPrintHtml({ data, filters, totalCabors, totalOrganizations, printe
     <p class="scope-note">Laporan mengikuti scope akses pengguna dan filter aktif pada saat dicetak.</p>
   </header>
 
-  ${buildKpiGrid(data, totalCabors, totalOrganizations)}
+  ${buildKpiGrid(data, totalOrganizations)}
 
   <section class="report-section">
     <h3>Tren Penambahan Data</h3>
@@ -484,7 +485,6 @@ function writePrintDocument(printWindow, html) {
 export function PrintDataSummary({
   data,
   filters,
-  totalCabors = 0,
   totalOrganizations = 0,
   disabled = false,
   isFetching = false,
@@ -515,7 +515,6 @@ export function PrintDataSummary({
       const html = buildPrintHtml({
         data,
         filters,
-        totalCabors,
         totalOrganizations,
         printedAt: new Date(),
       });
