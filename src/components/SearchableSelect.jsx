@@ -1,5 +1,19 @@
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
+
+const DEFAULT_MENU_HEIGHT = 252;
+const SEARCH_AREA_HEIGHT = 58;
+
+function findVerticalScrollParent(element) {
+  let parent = element?.parentElement;
+  while (parent) {
+    const { overflowY } = window.getComputedStyle(parent);
+    if (/(auto|scroll|overlay)/.test(overflowY)) return parent;
+    parent = parent.parentElement;
+  }
+
+  return null;
+}
 
 /**
  * SearchableSelect — a dropdown with inline search filtering.
@@ -10,6 +24,7 @@ import { ChevronDown, Search, X } from 'lucide-react';
  *  - placeholder: text shown when nothing selected
  *  - disabled: boolean
  *  - className: extra wrapper classes
+ *  - dropdownPlacement: "bottom", "top", or "auto"
  */
 export function SearchableSelect({
   options = [],
@@ -18,6 +33,7 @@ export function SearchableSelect({
   placeholder = 'Pilih...',
   disabled = false,
   className = '',
+  dropdownPlacement = 'bottom',
   name,
   'aria-invalid': ariaInvalid,
   'aria-describedby': ariaDescribedBy,
@@ -25,7 +41,12 @@ export function SearchableSelect({
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
   const containerRef = useRef(null);
+  const menuRef = useRef(null);
   const inputRef = useRef(null);
+  const [menuLayout, setMenuLayout] = useState({
+    placement: 'bottom',
+    maxHeight: DEFAULT_MENU_HEIGHT,
+  });
 
   // Selected option label
   const selected = options.find(o => String(o.id) === String(value));
@@ -43,7 +64,10 @@ export function SearchableSelect({
   // Close on outside click
   useEffect(() => {
     const handler = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      const clickedTrigger = containerRef.current?.contains(e.target);
+      const clickedMenu = menuRef.current?.contains(e.target);
+
+      if (!clickedTrigger && !clickedMenu) {
         setIsOpen(false);
         setSearch('');
       }
@@ -52,12 +76,56 @@ export function SearchableSelect({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  // Keep auto-positioned menus inside the visible part of a scrollable modal/page.
+  useLayoutEffect(() => {
+    if (!isOpen || dropdownPlacement !== 'auto' || !containerRef.current) return undefined;
+
+    const scrollParent = findVerticalScrollParent(containerRef.current);
+    const updateMenuLayout = () => {
+      if (!containerRef.current) return;
+
+      const triggerRect = containerRef.current.getBoundingClientRect();
+      const boundaryRect = scrollParent?.getBoundingClientRect();
+      const boundaryTop = Math.max(0, boundaryRect?.top ?? 0);
+      const boundaryBottom = Math.min(window.innerHeight, boundaryRect?.bottom ?? window.innerHeight);
+      const spaceAbove = Math.max(0, triggerRect.top - boundaryTop - 8);
+      const spaceBelow = Math.max(0, boundaryBottom - triggerRect.bottom - 8);
+      const placement = spaceBelow >= DEFAULT_MENU_HEIGHT || spaceBelow >= spaceAbove
+        ? 'bottom'
+        : 'top';
+      const availableSpace = placement === 'bottom' ? spaceBelow : spaceAbove;
+      const maxHeight = Math.max(112, Math.min(DEFAULT_MENU_HEIGHT, Math.floor(availableSpace)));
+
+      setMenuLayout((current) => (
+        current.placement === placement && current.maxHeight === maxHeight
+          ? current
+          : { placement, maxHeight }
+      ));
+    };
+
+    updateMenuLayout();
+    scrollParent?.addEventListener('scroll', updateMenuLayout, { passive: true });
+    window.addEventListener('resize', updateMenuLayout);
+
+    return () => {
+      scrollParent?.removeEventListener('scroll', updateMenuLayout);
+      window.removeEventListener('resize', updateMenuLayout);
+    };
+  }, [dropdownPlacement, isOpen]);
+
   // Focus search when opened
   useEffect(() => {
     if (isOpen && inputRef.current) {
-      inputRef.current.focus();
+      inputRef.current.focus({ preventScroll: true });
     }
   }, [isOpen]);
+
+  const resolvedPlacement = dropdownPlacement === 'auto'
+    ? menuLayout.placement
+    : dropdownPlacement;
+  const optionListMaxHeight = dropdownPlacement === 'auto'
+    ? Math.max(48, menuLayout.maxHeight - SEARCH_AREA_HEIGHT)
+    : undefined;
 
   const handleSelect = (id) => {
     onChange(String(id));
@@ -84,7 +152,9 @@ export function SearchableSelect({
         aria-expanded={isOpen}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-left flex items-center justify-between gap-2 bg-white ${
+        className={`w-full px-4 py-2.5 border rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-left flex items-center justify-between gap-2 bg-white transition-[border-color,box-shadow] ${
+          isOpen ? 'border-red-400 ring-4 ring-red-50 shadow-sm' : 'border-slate-200'
+        } ${
           disabled ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer'
         }`}
       >
@@ -97,7 +167,7 @@ export function SearchableSelect({
               onClick={handleClear}
               className="p-0.5 hover:bg-slate-100 rounded"
             >
-              <X className="w-3.5 h-3.5 text-slate-400" />
+              <X className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
             </span>
           )}
           <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -106,7 +176,13 @@ export function SearchableSelect({
 
       {/* Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+        <div
+          ref={menuRef}
+          className={`absolute z-50 w-full bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden ${
+            resolvedPlacement === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+          }`}
+          style={dropdownPlacement === 'auto' ? { maxHeight: menuLayout.maxHeight } : undefined}
+        >
           {/* Search input */}
           <div className="p-2 border-b border-slate-100">
             <div className="relative">
@@ -116,6 +192,13 @@ export function SearchableSelect({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setIsOpen(false);
+                    setSearch('');
+                  }
+                }}
+                aria-label={`Cari ${placeholder}`}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
                 placeholder="Cari..."
               />
@@ -123,7 +206,12 @@ export function SearchableSelect({
           </div>
 
           {/* Options list */}
-          <div className="max-h-48 overflow-y-auto">
+          <div
+            role="listbox"
+            aria-label={placeholder}
+            className="max-h-48 overflow-y-auto overscroll-contain"
+            style={optionListMaxHeight ? { maxHeight: optionListMaxHeight } : undefined}
+          >
             {filtered.length === 0 ? (
               <div className="px-4 py-3 text-sm text-slate-400 text-center">
                 Tidak ditemukan
@@ -134,6 +222,8 @@ export function SearchableSelect({
                   key={option.id}
                   type="button"
                   onClick={() => handleSelect(option.id)}
+                  role="option"
+                  aria-selected={String(option.id) === String(value)}
                   className={`w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 transition-colors flex items-center justify-between ${
                     String(option.id) === String(value)
                       ? 'bg-red-50 text-red-700 font-medium'
