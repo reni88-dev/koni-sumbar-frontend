@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 import { Plus, X, CheckCircle2, Users, Sparkles } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { usePermission } from "../hooks/usePermission";
 import {
   getSafeApiMessage,
@@ -30,14 +31,20 @@ import {
 import api from "../api/axios";
 
 export function AthletesPage() {
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get("search")?.trim() || "";
   const { can } = usePermission();
   const canView = can("athletes.view");
   const canCreate = can("athletes.create");
   const canEdit = can("athletes.edit");
   const canDelete = can("athletes.delete");
+  const canViewSensitive = can("athletes.sensitive.read");
+  const canExport = canView && canViewSensitive;
+  const canCreateSensitive = canCreate && canViewSensitive;
+  const canEditSensitive = canEdit && canViewSensitive;
   // ── Filter state ─────────────────────────────────────────────────────────
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [filterCabor, setFilterCabor] = useState("");
   const [filterGender, setFilterGender] = useState("");
   const [filterOrganization, setFilterOrganization] = useState("");
@@ -171,13 +178,13 @@ export function AthletesPage() {
   // ── Handlers ──────────────────────────────────────────────────────────────
 
   const openCreateModal = () => {
-    if (!canCreate) return;
+    if (!canCreateSensitive) return;
     setSelectedAthlete(null);
     setIsFormModalOpen(true);
   };
 
   const openEditModal = async (athlete) => {
-    if (!canEdit) return;
+    if (!canEditSensitive) return;
     try {
       const response = await api.get(`/api/athletes/${athlete.id}`);
       setSelectedAthlete(response.data);
@@ -244,7 +251,7 @@ export function AthletesPage() {
   };
 
   const handleExport = async (type) => {
-    if (!canView) return;
+    if (!canExport) return;
     setIsExporting(true);
     try {
       const params = new URLSearchParams();
@@ -285,7 +292,7 @@ export function AthletesPage() {
   };
 
   const handleDownloadImportTemplate = async () => {
-    if (!canCreate) return;
+    if (!canCreateSensitive) return;
     setIsExporting(true);
     try {
       const response = await api.get("/api/athletes/import/template", {
@@ -312,12 +319,12 @@ export function AthletesPage() {
   };
 
   const handleImportClick = () => {
-    if (!canCreate) return;
+    if (!canCreateSensitive) return;
     importFileInputRef.current?.click();
   };
 
   const handleImportFile = async (event) => {
-    if (!canCreate) {
+    if (!canCreateSensitive) {
       event.target.value = "";
       return;
     }
@@ -412,7 +419,7 @@ export function AthletesPage() {
 
             {/* Action Buttons Group */}
             <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-              {canCreate && (
+              {canCreateSensitive && (
                 <input
                   ref={importFileInputRef}
                   type="file"
@@ -461,16 +468,19 @@ export function AthletesPage() {
                 }}
               />
 
-              <AthleteExportButton
-                isExporting={isExporting}
-                isImporting={isImporting}
-                canImport={canCreate}
-                onExport={handleExport}
-                onDownloadTemplate={handleDownloadImportTemplate}
-                onImport={handleImportClick}
-              />
+              {(canExport || canCreateSensitive) && (
+                <AthleteExportButton
+                  isExporting={isExporting}
+                  isImporting={isImporting}
+                  canExport={canExport}
+                  canImport={canCreateSensitive}
+                  onExport={handleExport}
+                  onDownloadTemplate={handleDownloadImportTemplate}
+                  onImport={handleImportClick}
+                />
+              )}
 
-              {canCreate && (
+              {canCreateSensitive && (
                 <button
                   type="button"
                   onClick={openCreateModal}
@@ -504,6 +514,7 @@ export function AthletesPage() {
             organizations={organizations}
             clusters={clusters}
             subClusters={subClusters}
+            canViewSensitive={canViewSensitive}
           />
         </div>
 
@@ -545,7 +556,7 @@ export function AthletesPage() {
           hasNextPage={hasNextPage}
           sentinelRef={sentinelRef}
           onView={openDetailModal}
-          onEdit={canEdit ? openEditModal : undefined}
+          onEdit={canEditSensitive ? openEditModal : undefined}
           onDelete={canDelete ? handleDeleteRequest : undefined}
         />
       </div>
@@ -659,7 +670,7 @@ export function AthletesPage() {
       </AnimatePresence>
 
       {/* Form Modal */}
-      {(selectedAthlete ? canEdit : canCreate) && (
+      {(selectedAthlete ? canEditSensitive : canCreateSensitive) && (
         <AthleteFormModal
           isOpen={isFormModalOpen}
           onClose={() => setIsFormModalOpen(false)}
@@ -674,6 +685,7 @@ export function AthletesPage() {
           isOpen={isDetailModalOpen}
           onClose={() => setIsDetailModalOpen(false)}
           athlete={selectedAthlete}
+          canViewSensitive={canViewSensitive}
         />
       )}
 

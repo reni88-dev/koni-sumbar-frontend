@@ -24,6 +24,8 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
+import { usePermission } from '../hooks/usePermission';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CoachFormModal } from '../components/CoachFormModal';
 import { CoachDetailModal } from '../components/CoachDetailModal';
@@ -35,8 +37,19 @@ import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import api from '../api/axios';
 
 export function CoachesPage() {
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchParams] = useSearchParams();
+  const initialSearch = searchParams.get('search')?.trim() || '';
+  const { can } = usePermission();
+  const canView = can('coaches.view');
+  const canCreate = can('coaches.create');
+  const canEdit = can('coaches.edit');
+  const canDelete = can('coaches.delete');
+  const canViewSensitive = can('coaches.sensitive.read');
+  const canCreateSensitive = canCreate && canViewSensitive;
+  const canEditSensitive = canEdit && canViewSensitive;
+
+  const [search, setSearch] = useState(initialSearch);
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [filterCabor, setFilterCabor] = useState('');
   const [filterActive, setFilterActive] = useState('');
   const [filterCluster, setFilterCluster] = useState('');
@@ -201,11 +214,13 @@ export function CoachesPage() {
   };
 
   const openCreateModal = () => {
+    if (!canCreateSensitive) return;
     setSelectedCoach(null);
     setIsFormModalOpen(true);
   };
 
   const openEditModal = async (coach) => {
+    if (!canEditSensitive) return;
     try {
       const response = await api.get(`/api/coaches/${coach.id}`);
       setSelectedCoach(response.data);
@@ -218,6 +233,7 @@ export function CoachesPage() {
   };
 
   const openDetailModal = async (coach) => {
+    if (!canView) return;
     try {
       const response = await api.get(`/api/coaches/${coach.id}`);
       setSelectedCoach(response.data);
@@ -240,6 +256,7 @@ export function CoachesPage() {
   };
 
   const handleDelete = async () => {
+    if (!canDelete || !coachToDelete) return;
     try {
       await deleteCoachMutation.mutateAsync(coachToDelete.id);
       setIsDeleteModalOpen(false);
@@ -250,6 +267,7 @@ export function CoachesPage() {
   };
 
   const handleDownloadImportTemplate = async () => {
+    if (!canCreateSensitive) return;
     setIsExporting(true);
     setIsDataMenuOpen(false);
     try {
@@ -273,11 +291,16 @@ export function CoachesPage() {
   };
 
   const handleImportClick = () => {
+    if (!canCreateSensitive) return;
     setIsDataMenuOpen(false);
     importFileInputRef.current?.click();
   };
 
   const handleImportFile = async (event) => {
+    if (!canCreateSensitive) {
+      event.target.value = '';
+      return;
+    }
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
@@ -363,7 +386,9 @@ export function CoachesPage() {
 
             {/* Action Buttons Group */}
             <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
-              <input
+              {canCreateSensitive && (
+                <>
+                  <input
                 ref={importFileInputRef}
                 type="file"
                 accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -448,15 +473,17 @@ export function CoachesPage() {
                 </AnimatePresence>
               </div>
 
-              <button
-                type="button"
-                onClick={openCreateModal}
-                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30 shrink-0 cursor-pointer"
-                title="Tambah data pelatih baru"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Tambah Pelatih</span>
-              </button>
+                  <button
+                    type="button"
+                    onClick={openCreateModal}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white rounded-xl text-sm font-semibold transition-all shadow-md shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/30 shrink-0 cursor-pointer"
+                    title="Tambah data pelatih baru"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Tambah Pelatih</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -468,7 +495,9 @@ export function CoachesPage() {
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Cari pelatih, NIK, atau spesialisasi..."
+                  placeholder={canViewSensitive
+                    ? 'Cari pelatih, NIK, atau spesialisasi...'
+                    : 'Cari pelatih atau spesialisasi...'}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all outline-none shadow-xs"
@@ -765,7 +794,9 @@ export function CoachesPage() {
                     <th className="text-left py-4 px-4 font-semibold text-slate-600">Cabor</th>
                     <th className="text-left py-4 px-4 font-semibold text-slate-600">Lisensi</th>
                     <th className="text-left py-4 px-4 font-semibold text-slate-600">Kluster</th>
-                    <th className="text-left py-4 px-4 font-semibold text-slate-600">Telepon</th>
+                    {canViewSensitive && (
+                      <th className="text-left py-4 px-4 font-semibold text-slate-600">Telepon</th>
+                    )}
                     <th className="text-center py-4 px-4 font-semibold text-slate-600">Status</th>
                     <th className="text-center py-4 px-4 font-semibold text-slate-600">Aksi</th>
                   </tr>
@@ -785,7 +816,9 @@ export function CoachesPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-slate-800">{coach.name}</p>
-                            <p className="text-xs text-slate-400">{coach.nik || 'NIK tidak tersedia'}</p>
+                            {canViewSensitive && (
+                              <p className="text-xs text-slate-400">{coach.nik || 'NIK tidak tersedia'}</p>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -810,9 +843,11 @@ export function CoachesPage() {
                           '-'
                         )}
                       </td>
-                      <td className="py-4 px-4 text-slate-600 text-sm">
-                        {coach.phone || '-'}
-                      </td>
+                      {canViewSensitive && (
+                        <td className="py-4 px-4 text-slate-600 text-sm">
+                          {coach.phone || '-'}
+                        </td>
+                      )}
                       <td className="py-4 px-4 text-center">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -826,33 +861,39 @@ export function CoachesPage() {
                       </td>
                       <td className="py-4 px-4 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          <button
-                            type="button"
-                            onClick={() => openDetailModal(coach)}
-                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Detail"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openEditModal(coach)}
-                            className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCoachToDelete(coach);
-                              setIsDeleteModalOpen(true);
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Hapus"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {canView && (
+                            <button
+                              type="button"
+                              onClick={() => openDetailModal(coach)}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Detail"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
+                          )}
+                          {canEditSensitive && (
+                            <button
+                              type="button"
+                              onClick={() => openEditModal(coach)}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCoachToDelete(coach);
+                                setIsDeleteModalOpen(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Hapus"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -879,19 +920,24 @@ export function CoachesPage() {
       </div>
 
       {/* Form Modal */}
-      <CoachFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => setIsFormModalOpen(false)}
-        coach={selectedCoach}
-        onSuccess={handleFormSuccess}
-      />
+      {(selectedCoach ? canEditSensitive : canCreateSensitive) && (
+        <CoachFormModal
+          isOpen={isFormModalOpen}
+          onClose={() => setIsFormModalOpen(false)}
+          coach={selectedCoach}
+          onSuccess={handleFormSuccess}
+        />
+      )}
 
       {/* Detail Modal */}
-      <CoachDetailModal
-        isOpen={isDetailModalOpen}
-        onClose={() => setIsDetailModalOpen(false)}
-        coach={selectedCoach}
-      />
+      {canView && (
+        <CoachDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => setIsDetailModalOpen(false)}
+          coach={selectedCoach}
+          canViewSensitive={canViewSensitive}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       <AnimatePresence>

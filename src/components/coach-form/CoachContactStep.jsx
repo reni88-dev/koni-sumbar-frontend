@@ -1,5 +1,6 @@
 import { CheckCircle2, Loader2, Phone, XCircle } from 'lucide-react';
 import { firstFieldError } from '../form-modal/formUtils';
+import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
 export function CoachContactStep({ form, validation }) {
@@ -22,6 +23,7 @@ export function CoachContactStep({ form, validation }) {
         </label>
         <div className="relative">
           <input
+            {...getFieldControlProps('phone', errors)}
             type="text"
             value={formData.phone}
             onChange={(e) => updateField('phone', e.target.value)}
@@ -39,7 +41,7 @@ export function CoachContactStep({ form, validation }) {
           </div>
         </div>
         {phoneMessage ? (
-          <p className={`text-xs mt-1 font-medium ${
+          <p id={errors.phone ? getFieldErrorId('phone') : undefined} className={`text-xs mt-1 font-medium ${
             phoneStatus === 'valid' ? 'text-emerald-700' :
             phoneStatus === 'invalid' ? 'text-red-500' :
             'text-slate-400'
@@ -56,6 +58,7 @@ export function CoachContactStep({ form, validation }) {
           Alamat Email
         </label>
         <input
+          {...getFieldControlProps('email', errors)}
           type="email"
           value={formData.email}
           onChange={(e) => updateField('email', e.target.value)}
@@ -65,7 +68,7 @@ export function CoachContactStep({ form, validation }) {
           placeholder="contoh@email.com"
         />
         {errors.email ? (
-          <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.email)}</p>
+          <p id={getFieldErrorId('email')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.email)}</p>
         ) : (
           <p className="text-slate-400 text-xs mt-1">Digunakan untuk akses akun portal dan laporan.</p>
         )}

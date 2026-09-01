@@ -17,6 +17,8 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
  * Props:
  *  - isExporting        {boolean}
  *  - isImporting        {boolean}
+ *  - canExport          {boolean}
+ *  - canImport          {boolean}
  *  - onExport           {(type: 'csv' | 'pdf') => void}
  *  - onDownloadTemplate {() => void}
  *  - onImport           {() => void}
@@ -24,6 +26,7 @@ import { motion as Motion, AnimatePresence } from "framer-motion";
 export function AthleteExportButton({
   isExporting = false,
   isImporting = false,
+  canExport = false,
   canImport = false,
   onExport,
   onDownloadTemplate,
@@ -64,6 +67,8 @@ export function AthleteExportButton({
 
   const isBusy = isExporting || isImporting;
 
+  if (!canExport && !canImport) return null;
+
   return (
     <div className="relative inline-block text-left" ref={menuRef}>
       <button
@@ -101,48 +106,52 @@ export function AthleteExportButton({
             transition={{ duration: 0.15 }}
             className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 overflow-hidden"
           >
-            {/* Header: Ekspor */}
-            <div className="px-3.5 py-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
-              Ekspor Data
-            </div>
+            {canExport && (
+              <>
+                {/* Header: Ekspor */}
+                <div className="px-3.5 py-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
+                  Ekspor Data
+                </div>
 
-            <button
-              type="button"
-              onClick={() => handleExportSelect("csv")}
-              disabled={isExporting}
-              className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
-            >
-              <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
-                <FileSpreadsheet className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800 group-hover:text-emerald-700">
-                  Ekspor Excel / CSV
-                </p>
-                <p className="text-xs text-slate-400">File spreadsheet (.csv)</p>
-              </div>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportSelect("csv")}
+                  disabled={isExporting}
+                  className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
+                >
+                  <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800 group-hover:text-emerald-700">
+                      Ekspor Excel / CSV
+                    </p>
+                    <p className="text-xs text-slate-400">File spreadsheet (.csv)</p>
+                  </div>
+                </button>
 
-            <button
-              type="button"
-              onClick={() => handleExportSelect("pdf")}
-              disabled={isExporting}
-              className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
-            >
-              <div className="p-2 rounded-lg bg-rose-50 text-rose-600 group-hover:bg-rose-100 transition-colors">
-                <FileText className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-slate-800 group-hover:text-rose-700">
-                  Ekspor Dokumen PDF
-                </p>
-                <p className="text-xs text-slate-400">Format dokumen (.pdf)</p>
-              </div>
-            </button>
+                <button
+                  type="button"
+                  onClick={() => handleExportSelect("pdf")}
+                  disabled={isExporting}
+                  className="w-full px-3.5 py-2 text-left flex items-center gap-3 hover:bg-slate-50 transition-colors group"
+                >
+                  <div className="p-2 rounded-lg bg-rose-50 text-rose-600 group-hover:bg-rose-100 transition-colors">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800 group-hover:text-rose-700">
+                      Ekspor Dokumen PDF
+                    </p>
+                    <p className="text-xs text-slate-400">Format dokumen (.pdf)</p>
+                  </div>
+                </button>
+              </>
+            )}
 
             {canImport && (
               <>
-                <div className="my-1.5 border-t border-slate-100" />
+                {canExport && <div className="my-1.5 border-t border-slate-100" />}
                 <div className="px-3.5 py-1.5 text-[11px] font-bold tracking-wider text-slate-400 uppercase">
                   Impor & Template
                 </div>

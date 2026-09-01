@@ -1,5 +1,6 @@
 import { User } from 'lucide-react';
 import { firstFieldError } from '../form-modal/formUtils';
+import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
 export function AthleteIdentitySection({ form, validation }) {
@@ -18,6 +19,7 @@ export function AthleteIdentitySection({ form, validation }) {
           Nama Lengkap <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('name', errors)}
           type="text"
           value={formData.name}
           onChange={e => updateField('name', e.target.value)}
@@ -26,7 +28,7 @@ export function AthleteIdentitySection({ form, validation }) {
           }`}
           placeholder="Masukkan nama lengkap sesuai KTP/KK"
         />
-        {errors.name && <p className="text-red-500 text-xs mt-1">{firstFieldError(errors.name)}</p>}
+        {errors.name && <p id={getFieldErrorId('name')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.name)}</p>}
       </div>
 
       <div>
@@ -34,6 +36,7 @@ export function AthleteIdentitySection({ form, validation }) {
           NIK (Nomor Induk Kependudukan) <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('nik', errors)}
           type="text"
           inputMode="numeric"
           value={formData.nik}
@@ -61,6 +64,7 @@ export function AthleteIdentitySection({ form, validation }) {
           Nomor Kartu Keluarga (No. KK) <span className="text-red-500">*</span>
         </label>
         <input
+          {...getFieldControlProps('no_kk', errors)}
           type="text"
           inputMode="numeric"
           value={formData.no_kk}
@@ -88,6 +92,7 @@ export function AthleteIdentitySection({ form, validation }) {
           Nomor Atlet Nasional (Opsional)
         </label>
         <input
+          {...getFieldControlProps('national_athlete_number', errors)}
           type="text"
           value={formData.national_athlete_number}
           onChange={e => updateField('national_athlete_number', e.target.value)}

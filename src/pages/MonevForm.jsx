@@ -113,10 +113,12 @@ export default function MonevForm() {
     return q.is_negative ? !answers[q.id] : answers[q.id];
   }).length;
   const totalItems = dynamicItems.length;
+  const requiresCoachScope = Boolean(user?.organization_id) && !['super_admin', 'admin', 'koni'].includes(user?.role?.name);
 
   const canProceed = (
     form.cabor_id && 
-    form.venue_id && 
+    form.venue_id &&
+    (!requiresCoachScope || form.coach_id) &&
     form.monitoring_date && 
     (!isAdminMonev || (form.monitor_latitude && form.monitor_longitude))
   );
@@ -186,6 +188,8 @@ export default function MonevForm() {
       setUploadingPhotos(true);
       try {
         const formData = new FormData();
+        formData.append('cabor_id', form.cabor_id);
+        if (form.coach_id) formData.append('coach_id', form.coach_id);
         photos.forEach(p => formData.append('photos', p.file));
         const uploadResp = await api.post('/api/monev/upload-photo', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
@@ -227,7 +231,9 @@ export default function MonevForm() {
       if (isEdit) await update(id, payload); 
       else await create(payload); 
       navigate('/monev'); 
-    } catch {}
+    } catch (submitError) {
+      console.error('Failed to submit Monev:', submitError);
+    }
   };
 
   if ((isEdit && loadingDetail) || loadingEvent) return <DashboardLayout title="Loading..."><div className="flex items-center justify-center h-64"><Loader2 className="w-8 h-8 text-red-600 animate-spin" /></div></DashboardLayout>;
@@ -288,8 +294,8 @@ export default function MonevForm() {
                 <SearchableSelect options={cabors} value={form.cabor_id} onChange={val => setForm(f => ({ ...f, cabor_id: val, coach_id: '' }))} placeholder="-- Pilih Cabor --" /></div>
               <div><label className="block text-sm font-medium text-slate-700 mb-1">Tempat Latihan <span className="text-red-500">*</span></label>
                 <SearchableSelect options={venues} value={form.venue_id} onChange={val => setForm(f => ({ ...f, venue_id: val }))} placeholder="-- Pilih Venue --" /></div>
-              <div><label className="block text-sm font-medium text-slate-700 mb-1">Pelatih</label>
-                <SearchableSelect options={coaches} value={form.coach_id} onChange={val => setForm(f => ({ ...f, coach_id: val }))} disabled={!form.cabor_id} placeholder="-- Pilih Pelatih (opsional) --" /></div>
+              <div><label className="block text-sm font-medium text-slate-700 mb-1">Pelatih {requiresCoachScope && <span className="text-red-500">*</span>}</label>
+                <SearchableSelect options={coaches} value={form.coach_id} onChange={val => setForm(f => ({ ...f, coach_id: val }))} disabled={!form.cabor_id} placeholder={requiresCoachScope ? '-- Pilih Pelatih --' : '-- Pilih Pelatih (opsional) --'} /></div>
               <div><label className="block text-sm font-medium text-slate-700 mb-1">Tanggal Monitoring <span className="text-red-500">*</span></label>
                 <input type="date" value={form.monitoring_date} onChange={e => setForm(f => ({ ...f, monitoring_date: e.target.value }))} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" required /></div>
               <div><label className="block text-sm font-medium text-slate-700 mb-1"><Clock className="w-4 h-4 inline mr-1" />Jam Mulai</label>

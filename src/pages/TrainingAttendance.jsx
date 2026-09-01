@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 // Parse Go time.Time serialized TIME field (e.g. "0000-01-01T07:30:00Z" or "07:30")
 function formatTime(t) {
@@ -16,6 +16,8 @@ import {
   CheckCircle2, Loader2, AlertCircle, Navigation
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { useAuth } from '../hooks/useAuth';
+import { usePermission } from '../hooks/usePermission';
 import {
   useTrainingSession, useCheckinTrainingSession, useCompleteTrainingSession,
   useSubmitAttendances, useUploadTrainingPhotos
@@ -27,15 +29,28 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 export function TrainingAttendancePage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { can, canAny } = usePermission();
+  const isAthlete = user?.role?.name === 'athlete';
+  const canManageAttendance = !isAthlete && can('training.attendance');
+  const canPrintAttendance = !isAthlete && canAny(['training.attendance', 'training.report']);
   const { data: session, isLoading, refetch } = useTrainingSession(id);
   const checkin = useCheckinTrainingSession();
   const complete = useCompleteTrainingSession();
   const submitAttendances = useSubmitAttendances();
   const uploadPhotos = useUploadTrainingPhotos();
 
-  const [attendanceData, setAttendanceData] = useState([]);
+  const [attendanceDraft, setAttendanceDraft] = useState({ sessionId: null, changes: {} });
   const [checkinLoading, setCheckinLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('attendance');
+
+  const attendanceChanges = attendanceDraft.sessionId === session?.id ? attendanceDraft.changes : {};
+  const attendanceData = (session?.attendances || []).map(a => ({
+    athlete_id: a.athlete_id,
+    athlete_name: a.athlete?.name || `Atlet #${a.athlete_id}`,
+    status: attendanceChanges[a.athlete_id]?.status ?? a.status,
+    notes: attendanceChanges[a.athlete_id]?.notes ?? a.notes ?? '',
+  }));
 
   // Alert modal state (replaces native alert)
   const [alertModal, setAlertModal] = useState({ open: false, type: 'error', title: '', message: '' });
@@ -46,16 +61,6 @@ export function TrainingAttendancePage() {
   const [confirmComplete, setConfirmComplete] = useState(false);
   const [completing, setCompleting] = useState(false);
 
-  useEffect(() => {
-    if (session?.attendances) {
-      setAttendanceData(session.attendances.map(a => ({
-        athlete_id: a.athlete_id,
-        athlete_name: a.athlete?.name || `Atlet #${a.athlete_id}`,
-        status: a.status,
-        notes: a.notes || '',
-      })));
-    }
-  }, [session]);
 
   const handleCheckin = async () => {
     setCheckinLoading(true);
@@ -87,9 +92,16 @@ export function TrainingAttendancePage() {
   };
 
   const updateAttendance = (athleteId, field, value) => {
-    setAttendanceData(prev => prev.map(a =>
-      a.athlete_id === athleteId ? { ...a, [field]: value } : a
-    ));
+    setAttendanceDraft(current => {
+      const changes = current.sessionId === session.id ? current.changes : {};
+      return {
+        sessionId: session.id,
+        changes: {
+          ...changes,
+          [athleteId]: { ...changes[athleteId], [field]: value },
+        },
+      };
+    });
   };
 
   const handleSaveAttendance = async () => {
@@ -98,7 +110,8 @@ export function TrainingAttendancePage() {
         sessionId: Number(id),
         attendances: attendanceData.map(a => ({ athlete_id: a.athlete_id, status: a.status, notes: a.notes })),
       });
-      refetch();
+      await refetch();
+      setAttendanceDraft({ sessionId: session.id, changes: {} });
       showAlert('success', 'Berhasil', 'Absensi berhasil disimpan!');
     } catch (err) {
       showAlert('error', 'Gagal', err.response?.data?.error || 'Gagal menyimpan absensi');
@@ -106,7 +119,13 @@ export function TrainingAttendancePage() {
   };
 
   const handleMarkAllPresent = () => {
-    setAttendanceData(prev => prev.map(a => ({ ...a, status: 'present' })));
+    setAttendanceDraft({
+      sessionId: session.id,
+      changes: Object.fromEntries(attendanceData.map(a => [
+        a.athlete_id,
+        { ...attendanceChanges[a.athlete_id], status: 'present' },
+      ])),
+    });
   };
 
   const handleUploadPhotos = async (formData) => {
@@ -154,20 +173,20 @@ export function TrainingAttendancePage() {
             </div>
           </div>
           <div className="flex gap-2">
-            {isScheduled && (
+            {canManageAttendance && isScheduled && (
               <button onClick={handleCheckin} disabled={checkinLoading}
                 className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors disabled:opacity-50">
                 {checkinLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
                 Check-in
               </button>
             )}
-            {isOngoing && (
+            {canManageAttendance && isOngoing && (
               <button onClick={() => setConfirmComplete(true)} disabled={completing}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50">
                 {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Selesaikan
               </button>
             )}
-            {isCompleted && attendanceData.length > 0 && (
+            {canPrintAttendance && isCompleted && attendanceData.length > 0 && (
               <PrintAttendanceReport session={session} attendanceData={attendanceData} />
             )}
           </div>
@@ -177,8 +196,8 @@ export function TrainingAttendancePage() {
         <div className={`p-4 rounded-xl flex items-center gap-3 ${
           isScheduled ? 'bg-blue-50 text-blue-700' : isOngoing ? 'bg-yellow-50 text-yellow-700' : 'bg-green-50 text-green-700'
         }`}>
-          {isScheduled && <><AlertCircle className="w-5 h-5" /><span className="font-medium">Terjadwal — Pelatih harus check-in di lokasi (radius 700m) untuk memulai</span></>}
-          {isOngoing && <><Clock className="w-5 h-5" /><span className="font-medium">Sedang berlangsung — Silakan absen atlet & upload foto</span></>}
+          {isScheduled && <><AlertCircle className="w-5 h-5" /><span className="font-medium">{canManageAttendance ? 'Terjadwal — Check-in di lokasi untuk memulai sesi' : 'Sesi latihan terjadwal'}</span></>}
+          {isOngoing && <><Clock className="w-5 h-5" /><span className="font-medium">{canManageAttendance ? 'Sedang berlangsung — Silakan kelola absensi dan dokumentasi' : 'Sesi latihan sedang berlangsung'}</span></>}
           {isCompleted && <><CheckCircle2 className="w-5 h-5" /><span className="font-medium">Sesi latihan telah selesai</span></>}
         </div>
 
@@ -202,6 +221,8 @@ export function TrainingAttendancePage() {
           <AttendanceTab
             attendanceData={attendanceData}
             isOngoing={isOngoing}
+            readOnly={!canManageAttendance}
+            personal={isAthlete}
             isCompleted={isCompleted}
             onUpdateAttendance={updateAttendance}
             onMarkAllPresent={handleMarkAllPresent}
@@ -215,34 +236,37 @@ export function TrainingAttendancePage() {
             session={session}
             isOngoing={isOngoing}
             isScheduled={isScheduled}
+            readOnly={!canManageAttendance}
             onUploadPhotos={handleUploadPhotos}
           />
         )}
       </div>
 
       {/* Confirm Complete Dialog */}
-      <ConfirmDialog
-        isOpen={confirmComplete}
-        onClose={() => setConfirmComplete(false)}
-        onConfirm={handleComplete}
-        title="Selesaikan Sesi Latihan?"
-        message="Apakah Anda yakin ingin menyelesaikan sesi latihan ini? Pastikan absensi dan foto sudah lengkap."
-        confirmText="Ya, Selesaikan"
-        isPending={completing}
-      />
+      {canManageAttendance && (
+        <ConfirmDialog
+          isOpen={confirmComplete}
+          onClose={() => setConfirmComplete(false)}
+          onConfirm={handleComplete}
+          title="Selesaikan Sesi Latihan?"
+          message="Apakah Anda yakin ingin menyelesaikan sesi latihan ini? Pastikan absensi dan foto sudah lengkap."
+          confirmText="Ya, Selesaikan"
+          isPending={completing}
+        />
+      )}
 
       {/* Alert Modal (replaces native alert) */}
       <AnimatePresence>
         {alertModal.open && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/50 backdrop-blur-sm"
               onClick={closeAlert}
             />
-            <motion.div
+            <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -268,7 +292,7 @@ export function TrainingAttendancePage() {
               >
                 OK
               </button>
-            </motion.div>
+            </Motion.div>
           </div>
         )}
       </AnimatePresence>

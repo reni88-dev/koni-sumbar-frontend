@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { Calendar, Clock, MapPin, Trash2 } from 'lucide-react';
 import { STATUS_LABELS } from './trainingConstants';
 import { ConfirmDialog } from '../ConfirmDialog';
@@ -17,7 +17,7 @@ function formatTime(t) {
   return t.substring(0, 5);
 }
 
-export function TrainingSessionCard({ session, onDelete, isDeleting }) {
+export function TrainingSessionCard({ session, onDelete, isDeleting, canDelete = false, showStats = false }) {
   const navigate = useNavigate();
   const statusInfo = STATUS_LABELS[session.status] || STATUS_LABELS.scheduled;
   const [showConfirm, setShowConfirm] = useState(false);
@@ -25,7 +25,7 @@ export function TrainingSessionCard({ session, onDelete, isDeleting }) {
 
   return (
     <>
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-white rounded-2xl border border-slate-200 p-5 hover:shadow-md transition-shadow cursor-pointer"
@@ -61,37 +61,43 @@ export function TrainingSessionCard({ session, onDelete, isDeleting }) {
             </div>
           </div>
           <div className="flex items-center gap-3 ml-4">
-            {session.stats && (
+            {showStats && session.stats && (
               <div className="text-center">
                 <div className="text-lg font-bold text-green-600">{session.stats.present}</div>
                 <div className="text-xs text-slate-400">/ {session.stats.total} hadir</div>
               </div>
             )}
-            <button
-              onClick={e => {
-                e.stopPropagation();
-                setShowConfirm(true);
-              }}
-              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {canDelete && (
+              <button
+                type="button"
+                aria-label={`Hapus sesi ${session.title}`}
+                onClick={e => {
+                  e.stopPropagation();
+                  setShowConfirm(true);
+                }}
+                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
 
-      <ConfirmDialog
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={() => {
-          onDelete(session.id);
-          setShowConfirm(false);
-        }}
-        title="Hapus Sesi Latihan"
-        message={<>Apakah Anda yakin ingin menghapus sesi latihan <strong>{session.title}</strong>?</>}
-        confirmText="Hapus"
-        isPending={isDeleting}
-      />
+      {canDelete && (
+        <ConfirmDialog
+          isOpen={showConfirm}
+          onClose={() => setShowConfirm(false)}
+          onConfirm={() => {
+            onDelete(session.id);
+            setShowConfirm(false);
+          }}
+          title="Hapus Sesi Latihan"
+          message={<>Apakah Anda yakin ingin menghapus sesi latihan <strong>{session.title}</strong>?</>}
+          confirmText="Hapus"
+          isPending={isDeleting}
+        />
+      )}
     </>
   );
 }

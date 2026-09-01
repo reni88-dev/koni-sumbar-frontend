@@ -8,6 +8,8 @@ const STORED_IDS = {
   village: '__stored_village__'
 };
 
+const MANUAL_VILLAGE_ID = '__manual_village__';
+
 function createStatus() {
   return {
     province: { loading: false, error: '' },
@@ -36,14 +38,14 @@ function resolveSelectedId(options, storedName, storedId) {
 }
 
 function isEmsifaId(value) {
-  return Boolean(value) && !String(value).startsWith('__stored_');
+  return Boolean(value) && !String(value).startsWith('__');
 }
 
 function findOptionName(options, id) {
   return options.find((option) => option.id === id)?.name || '';
 }
 
-export function useRegionCascade({ values, onChange }) {
+export function useRegionCascade({ values, onChange, allowManualVillage = false }) {
   const controllersRef = useRef({});
   const [provinces, setProvinces] = useState([]);
   const [cities, setCities] = useState([]);
@@ -148,11 +150,20 @@ export function useRegionCascade({ values, onChange }) {
   }, [districts, values.district]);
 
   useEffect(() => {
-    setSelected((previous) => ({
-      ...previous,
-      village: resolveSelectedId(villages, values.village, STORED_IDS.village)
-    }));
-  }, [values.village, villages]);
+    setSelected((previous) => {
+      if (allowManualVillage && previous.village === MANUAL_VILLAGE_ID && !values.village) {
+        return previous;
+      }
+      return {
+        ...previous,
+        village: resolveSelectedId(
+          villages,
+          values.village,
+          allowManualVillage ? MANUAL_VILLAGE_ID : STORED_IDS.village
+        )
+      };
+    });
+  }, [allowManualVillage, values.village, villages]);
 
   useEffect(() => {
     if (!isEmsifaId(selected.province)) {
@@ -227,8 +238,15 @@ export function useRegionCascade({ values, onChange }) {
   const changeVillage = useCallback((id) => {
     if (id === STORED_IDS.village) return;
     setSelected((previous) => ({ ...previous, village: id }));
+    if (allowManualVillage && id === MANUAL_VILLAGE_ID) {
+      onChange('village', '');
+      return;
+    }
     onChange('village', findOptionName(villages, id));
-  }, [onChange, villages]);
+  }, [allowManualVillage, onChange, villages]);
+  const changeManualVillage = useCallback((value) => {
+    onChange('village', value);
+  }, [onChange]);
 
   const retryCity = useCallback(() => {
     if (isEmsifaId(selected.province)) loadCities(selected.province);
@@ -281,8 +299,15 @@ export function useRegionCascade({ values, onChange }) {
       storedId: STORED_IDS.village,
       options: villages,
       status: status.village,
-      disabled: !isEmsifaId(selected.district) || status.village.loading || villages.length === 0,
+      disabled: !isEmsifaId(selected.district) ||
+        status.village.loading ||
+        (!allowManualVillage && villages.length === 0),
+      allowManual: allowManualVillage,
+      manual: selected.village === MANUAL_VILLAGE_ID,
+      manualId: MANUAL_VILLAGE_ID,
+      manualValue: values.village || '',
       onChange: changeVillage,
+      onManualChange: changeManualVillage,
       onRetry: retryVillage
     }
   };

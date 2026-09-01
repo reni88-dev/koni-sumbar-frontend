@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
+import { usePermission } from '../../hooks/usePermission';
 import { 
   useRoles, 
   usePermissionsGrouped, 
@@ -58,6 +59,8 @@ function RoleAccessBadge({ role }) {
 
 export function RolesPage() {
   const { user } = useAuth();
+  const { can } = usePermission();
+  const canManagePermissions = can('roles.permissions');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('list');
   
@@ -81,7 +84,7 @@ export function RolesPage() {
 
   // TanStack Query hooks
   const { data: roles = [], isLoading: loading } = useRoles();
-  const { data: permissions = {} } = usePermissionsGrouped();
+  const { data: permissions = {} } = usePermissionsGrouped({ enabled: canManagePermissions });
   const createRoleMutation = useCreateRole();
   const updateRoleMutation = useUpdateRole();
   const deleteRoleMutation = useDeleteRole();
@@ -114,6 +117,7 @@ export function RolesPage() {
   };
 
   const openPermissionEditor = (role) => {
+    if (!canManagePermissions) return;
     setEditingRole(role);
     setSelectedPermissions(role.permissions?.map(p => p.id) || []);
     setIsPermissionModalOpen(true);
@@ -138,6 +142,7 @@ export function RolesPage() {
   };
 
   const handlePermissionUpdate = async () => {
+    if (!canManagePermissions) return;
     try {
       await updatePermissionsMutation.mutateAsync({ 
         roleId: editingRole.id, 
@@ -337,14 +342,14 @@ export function RolesPage() {
                     <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">
                       All Access
                     </span>
-                  ) : (
+                  ) : canManagePermissions ? (
                     <button
                       onClick={() => openPermissionEditor(role)}
                       className="text-sm font-semibold text-red-600 hover:text-red-700 transition-colors"
                     >
                       Atur Permission
                     </button>
-                  )}
+                  ) : null}
                 </div>
               </Motion.div>
             ))
@@ -403,13 +408,17 @@ export function RolesPage() {
                       <td className="px-6 py-4 text-center">
                         {role.name === 'super_admin' ? (
                           <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2 py-1 rounded-full">All Access</span>
-                        ) : (
+                        ) : canManagePermissions ? (
                           <button
                             onClick={() => openPermissionEditor(role)}
                             className="text-sm font-semibold text-red-600 hover:text-red-700"
                           >
                             {role.permissions?.length || 0} Permission
                           </button>
+                        ) : (
+                          <span className="text-sm text-slate-500">
+                            {role.permissions?.length || 0} Permission
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -548,7 +557,7 @@ export function RolesPage() {
 
       {/* Permission Editor Modal */}
       <AnimatePresence>
-        {isPermissionModalOpen && (
+        {canManagePermissions && isPermissionModalOpen && (
           <>
             <Motion.div
               initial={{ opacity: 0 }}

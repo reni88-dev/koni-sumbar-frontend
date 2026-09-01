@@ -155,10 +155,10 @@ export default function MonevDetail() {
               <h4 className="font-semibold text-slate-700 mb-3">📷 Foto Dokumentasi</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {data.photos.map((path, i) => (
-                  <button key={i} type="button" onClick={() => setLightboxIndex(i)}
+                  <button key={path || i} type="button" onClick={() => setLightboxIndex(i)}
                     className="block aspect-square rounded-xl overflow-hidden border border-slate-200 hover:ring-2 hover:ring-red-400 transition-all group">
                     <ProtectedImage
-                      src={`/api/storage/${encodeURIComponent(path)}`}
+                      src={`/api/monev/submissions/${data.id}/photos/${i}`}
                       alt={`Foto ${i + 1}`}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
@@ -185,7 +185,7 @@ export default function MonevDetail() {
 
                 <div className="rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center" style={{ maxHeight: '80vh' }}>
                   <ProtectedImage
-                    src={`/api/storage/${encodeURIComponent(data.photos[lightboxIndex])}`}
+                    src={`/api/monev/submissions/${data.id}/photos/${lightboxIndex}`}
                     alt={`Foto ${lightboxIndex + 1}`}
                     className="max-h-[80vh] w-auto max-w-full object-contain"
                   />

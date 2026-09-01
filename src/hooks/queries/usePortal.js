@@ -39,6 +39,8 @@ export function useUpdatePortalProfile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: portalKeys.profile() });
       queryClient.invalidateQueries({ queryKey: portalKeys.dashboard() });
+      queryClient.invalidateQueries({ queryKey: portalKeys.events() });
+      queryClient.invalidateQueries({ queryKey: portalKeys.athletes() });
     },
   });
 }

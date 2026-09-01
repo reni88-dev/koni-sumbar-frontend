@@ -1,5 +1,6 @@
 import { formatDateForInput } from '../form-modal/formUtils';
 import { normalizeIndonesianMobile } from '../form-modal/phoneUtils';
+import { COACH_EMAIL_PATTERN, COACH_IDENTITY_PATTERN } from './coachProfileValidation';
 
 export const RELIGIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu', 'Lainnya'];
 export const GENDERS = [
@@ -7,8 +8,8 @@ export const GENDERS = [
   { value: 'female', label: 'Perempuan' }
 ];
 export const LICENSE_LEVELS = ['Nasional', 'Daerah', 'Internasional'];
-export const IDENTITY_PATTERN = /^[0-9]{16}$/;
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const IDENTITY_PATTERN = COACH_IDENTITY_PATTERN;
+export const EMAIL_PATTERN = COACH_EMAIL_PATTERN;
 
 export function createInitialCoachFormData() {
   return {
@@ -95,14 +96,22 @@ export function mapCoachToForm(coach) {
   };
 }
 
-export function buildCoachFormData(formData, achievementsList, files, normalizedPhone) {
+export function buildCoachFormData(
+  formData,
+  achievementsList,
+  files,
+  normalizedPhone,
+  { excludedFields = [], includeEmptyFields = false } = {}
+) {
   const data = new FormData();
+  const excluded = new Set(excludedFields);
   const submissionData = { ...formData, phone: normalizedPhone || '' };
   Object.entries(submissionData).forEach(([key, value]) => {
+    if (excluded.has(key)) return;
     if (key === 'is_active') {
       data.append(key, value ? 'true' : 'false');
-    } else if (value !== '' && value !== null && value !== undefined) {
-      data.append(key, value);
+    } else if (includeEmptyFields || (value !== '' && value !== null && value !== undefined)) {
+      data.append(key, value ?? '');
     }
   });
 

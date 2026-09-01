@@ -174,9 +174,10 @@ export function useUploadTrainingPhotos() {
 
 // ============ SCHEDULE HOOKS ============
 
-export function useTrainingSchedules({ page = 1, limit = 10, coachId, caborId } = {}) {
+export function useTrainingSchedules({ page = 1, limit = 10, coachId, caborId, enabled = true } = {}) {
   return useQuery({
     queryKey: trainingKeys.scheduleList({ page, limit, coachId, caborId }),
+    enabled,
     queryFn: async () => {
       const params = { page, limit };
       if (coachId) params.coach_id = coachId;

@@ -1,5 +1,11 @@
 import { formatDateForInput } from '../form-modal/formUtils';
 import { normalizeIndonesianMobile } from '../form-modal/phoneUtils';
+import {
+  ATHLETE_EMAIL_PATTERN,
+  ATHLETE_IDENTITY_PATTERN,
+  getAthleteAgeGroup,
+  isIdentityTypeValidForAge,
+} from './athleteProfileValidation';
 
 export const RELIGIONS = ['Islam', 'Kristen', 'Katolik', 'Hindu', 'Buddha', 'Konghucu'];
 export const MARITAL_STATUSES = [
@@ -8,8 +14,9 @@ export const MARITAL_STATUSES = [
   { value: 'divorced', label: 'Cerai' },
   { value: 'widowed', label: 'Duda/Janda' }
 ];
-export const IDENTITY_PATTERN = /^[0-9]{16}$/;
-export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const IDENTITY_PATTERN = ATHLETE_IDENTITY_PATTERN;
+export const EMAIL_PATTERN = ATHLETE_EMAIL_PATTERN;
+export { getAthleteAgeGroup, isIdentityTypeValidForAge };
 export const IDENTITY_DOCUMENT_LABELS = {
   ktp: 'KTP',
   family_card: 'Kartu Keluarga (KK)',
@@ -56,42 +63,6 @@ export function createInitialAthleteFormData() {
   };
 }
 
-function parseDateInput(value) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value || '');
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(year, month - 1, day);
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
-    return null;
-  }
-  return date;
-}
-
-export function getAthleteAgeGroup(birthDateValue, today = new Date()) {
-  const birthDate = parseDateInput(birthDateValue);
-  if (!birthDate) return null;
-  const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  if (birthDate > currentDate) return null;
-  const seventeenthBirthday = new Date(
-    birthDate.getFullYear() + 17,
-    birthDate.getMonth(),
-    birthDate.getDate()
-  );
-  return currentDate >= seventeenthBirthday ? 'adult' : 'minor';
-}
-
-export function isIdentityTypeValidForAge(documentType, ageGroup) {
-  return ageGroup === 'adult'
-    ? documentType === 'ktp'
-    : ageGroup === 'minor' && ['family_card', 'birth_certificate'].includes(documentType);
-}
-
 export function mapAthleteToForm(athlete) {
   const phoneValues = {
     phone: normalizeIndonesianMobile(athlete.phone) ?? athlete.phone ?? '',
@@ -100,11 +71,9 @@ export function mapAthleteToForm(athlete) {
   };
   const birthDate = formatDateForInput(athlete.birth_date);
   const ageGroup = getAthleteAgeGroup(birthDate);
-  const identityType = ageGroup === 'adult'
-    ? 'ktp'
-    : (['family_card', 'birth_certificate'].includes(athlete.identity_document_type)
-      ? athlete.identity_document_type
-      : '');
+  const identityType = isIdentityTypeValidForAge(athlete.identity_document_type, ageGroup)
+    ? athlete.identity_document_type
+    : '';
 
   return {
     formData: {
@@ -157,7 +126,6 @@ export function getDocumentValidationErrors({
   formData,
   athlete,
   identityDocumentFile,
-  bpjsDocumentFile,
   documentErrors
 }) {
   const validationErrors = {};
@@ -166,7 +134,6 @@ export function getDocumentValidationErrors({
   const canReuseStoredIdentity = Boolean(athlete?.identity_document) &&
     isIdentityTypeValidForAge(storedIdentityType, ageGroup) &&
     formData.identity_document_type === storedIdentityType;
-  const canReuseStoredBPJS = Boolean(athlete?.bpjs_document);
 
   if (!ageGroup) {
     validationErrors.birth_date = ['Tanggal lahir wajib valid dan tidak boleh di masa depan'];
@@ -179,9 +146,6 @@ export function getDocumentValidationErrors({
     validationErrors.identity_document = [athlete?.identity_document
       ? 'Dokumen identitas tersimpan tidak sesuai. Unggah dokumen pengganti.'
       : 'Dokumen identitas wajib diunggah'];
-  }
-  if (!bpjsDocumentFile && !canReuseStoredBPJS) {
-    validationErrors.bpjs_document = ['Dokumen BPJS wajib diunggah'];
   }
   if (documentErrors.identity) {
     validationErrors.identity_document = [documentErrors.identity];

@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
+import { getFieldErrorId } from '../form-validation/profileValidation';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { DOCUMENT_ACCEPT as CERTIFICATE_ACCEPT } from '../form-modal/mediaUtils';
@@ -18,8 +19,8 @@ export function CoachCertificateSection({ coach, files, validation, loading }) {
       icon={FileText}
       iconColor="text-blue-600"
       iconBg="bg-blue-50"
-      title="Dokumen Sertifikat Kepelatihan"
-      subtitle="Unggah bukti fisik sertifikat / lisensi resmi pelatih (Wajib)"
+      title="Dokumen Sertifikat Kepelatihan (Opsional)"
+      subtitle="Unggah bukti fisik sertifikat atau lisensi bila tersedia"
     >
       <div className="sm:col-span-2 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
@@ -42,7 +43,7 @@ export function CoachCertificateSection({ coach, files, validation, loading }) {
           )}
         </div>
 
-        <label className={`flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 border-dashed transition-all ${
+        <label data-field="certificate_document" tabIndex={-1} aria-invalid={Boolean(certificateError || errors.certificate_document) || undefined} aria-describedby={(certificateError || errors.certificate_document) ? getFieldErrorId('certificate_document') : undefined} className={`flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 border-dashed transition-all ${
           certificateProcessing || loading
             ? 'bg-slate-50 border-slate-200 text-slate-400 cursor-wait'
             : errors.certificate_document || certificateError
@@ -81,6 +82,7 @@ export function CoachCertificateSection({ coach, files, validation, loading }) {
           </div>
 
           <input
+            name="certificate_document"
             type="file"
             accept={CERTIFICATE_ACCEPT}
             onChange={handleCertificateChange}
@@ -90,7 +92,7 @@ export function CoachCertificateSection({ coach, files, validation, loading }) {
         </label>
 
         {(certificateError || errors.certificate_document) && (
-          <p className="text-xs text-red-500 font-medium flex items-center gap-1.5">
+          <p id={getFieldErrorId('certificate_document')} className="text-xs text-red-500 font-medium flex items-center gap-1.5">
             <AlertCircle className="w-3.5 h-3.5 shrink-0" />
             <span>{certificateError || firstFieldError(errors.certificate_document)}</span>
           </p>

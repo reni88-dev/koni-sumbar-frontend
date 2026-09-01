@@ -186,10 +186,10 @@ Pada halaman Data Role, field backend `access_enabled` yang belum ada diperlakuk
 
 Permission yang dipakai UI mencakup antara lain:
 
-- `athletes.view`, `coaches.view`, `coaching.view`;
+- `athletes.view`, `athletes.sensitive.read`, `coaches.view`, `coaches.sensitive.read`, `coaching.view`;
 - `training.view`, `training.report`;
 - `events.view`, `monev.view`, `monev.manage`, `forms.view`;
-- `users.view`, `roles.view`, `cabors.view`;
+- `users.view`, `roles.view`, `roles.permissions`, `cabors.view`;
 - `athlete_cluster_master.view`, `coach_cluster_master.view`;
 - `regions.view`, `organizations.view`, `education_levels.view`, `competition_classes.view`, `venues.view`;
 - `settings.view`;
@@ -197,7 +197,9 @@ Permission yang dipakai UI mencakup antara lain:
 
 `usePermission` menyediakan `can`, `canAny`, dan `canAll`. Beberapa page juga memakai role name langsung, misalnya `admin_monev`, `athlete`, dan `coach`.
 
-Pada halaman atlet, list/filter/detail/print/export memerlukan `athletes.view`; tambah/import/download template memerlukan `athletes.create`; edit memerlukan `athletes.edit`; hapus memerlukan `athletes.delete`. Aksi yang tidak dimiliki disembunyikan, callback mempunyai guard defensif, dan modal create/edit/delete tidak dirender lagi ketika permission terkait dicabut. Wildcard `*` tetap diterima.
+Pada halaman atlet, list dan detail data olahraga tetap memakai `athletes.view`, sedangkan ekspor PII, hint pencarian NIK, cetak profil penuh, field sensitif detail, serta form create/edit/import penuh juga memerlukan `athletes.sensitive.read` di samping permission aksi dasarnya. Hapus tetap memakai `athletes.delete`, dan print daftar non-PII tetap tersedia. Halaman pelatih menerapkan pola yang sama dengan `coaches.sensitive.read`, termasuk penyembunyian NIK/telepon tabel, nomor lisensi, dokumen, kontak, dan cetak profil. Wildcard `*` tetap diterima.
+
+Query `/api/master/roles/all` pada halaman User hanya aktif bila user memiliki `roles.view`; query katalog `/api/master/permissions` dan editor permission pada halaman Role hanya aktif bila user memiliki `roles.permissions`. Delapan role organisasi Pengprov, Pengkot, Komcab, dan Porprov mewajibkan pilihan organisasi pada form User.
 
 **Fakta keamanan penting:** permission frontend hanya mengatur visibilitas dan interaksi UI. Backend sibling tetap harus menegakkan permission, role, dan organization scope. `ProtectedRoute` memeriksa auth dan `must_reset_password`; `PermissionRoute` baru dipakai pada `/atlet` untuk read permission.
 
@@ -206,15 +208,16 @@ Pada halaman atlet, list/filter/detail/print/export memerlukan `athletes.view`; 
 ### Login dan Bootstrap
 
 1. Login page mengambil target kembali dari `location.state.from` lengkap dengan pathname, search, dan hash; default `/dashboard`.
-2. `AuthContext.login` mengirim `URLSearchParams` ke `/api/login` dengan content type form-urlencoded.
-3. Response diharapkan berisi `token` dan `user`; token tetap disimpan sebagai `localStorage['token']`.
-4. Login sukses membersihkan session-expired notice, account-block state, permission notice, dan seluruh QueryClient sebelum berpindah ke URL protected sebelumnya.
-5. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
-6. Bootstrap `/api/user` yang gagal karena network/5xx/`ACCESS_SERVICE_UNAVAILABLE` mempertahankan token dan menampilkan layar **Layanan Akses Tidak Tersedia** dengan tindakan **Coba Lagi** dan **Keluar**.
-7. `AUTH_REQUIRED`/`AUTH_SESSION_INVALID` pada protected request membersihkan user/token/cache dan menyimpan session-expired notice satu kali di session storage.
-8. `ROLE_ACCESS_DISABLED` dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape.
-9. `INSUFFICIENT_PERMISSION` tidak logout; event global menampilkan notice, me-refresh `/api/user` secara terdeduplikasi, lalu membersihkan cache setelah permission terbaru diterima.
-10. Login membedakan credential salah, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
+2. `AuthContext.login` membersihkan seluruh QueryClient tepat sebelum setiap request `POST /api/login`, termasuk percobaan yang akhirnya gagal; token dan browser storage tidak dihapus pada tahap ini.
+3. Request login mengirim `URLSearchParams` dengan content type form-urlencoded.
+4. Response diharapkan berisi `token` dan `user`; token tetap disimpan sebagai `localStorage['token']`.
+5. Login sukses membersihkan session-expired notice, account-block state, permission notice, dan access-unavailable state; kemudian menyimpan token dan user sebelum berpindah ke URL protected sebelumnya.
+6. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
+7. Bootstrap `/api/user` yang gagal karena network/5xx/`ACCESS_SERVICE_UNAVAILABLE` mempertahankan token dan menampilkan layar **Layanan Akses Tidak Tersedia** dengan tindakan **Coba Lagi** dan **Keluar**.
+8. `AUTH_REQUIRED`/`AUTH_SESSION_INVALID` pada protected request membersihkan user/token/cache dan menyimpan session-expired notice satu kali di session storage.
+9. `ROLE_ACCESS_DISABLED` dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape.
+10. `INSUFFICIENT_PERMISSION` tidak logout; event global menampilkan notice, me-refresh `/api/user` secara terdeduplikasi, lalu membersihkan cache setelah permission terbaru diterima.
+11. Login membedakan credential salah, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
 
 ### Axios Interceptor
 
@@ -392,6 +395,8 @@ Targeted ESLint untuk seluruh file JS/JSX yang disentuh berhasil tanpa output. F
 Seluruh issue full lint yang dilaporkan berada pada file lama di luar scope perubahan access hardening. Baseline mencakup unused variable/import, React Hooks dependency, `set-state-in-effect`, dan rule lain; jangan klaim full lint lulus dan jangan melakukan cleanup repository-wide dalam pekerjaan sempit.
 
 Pada **2026-08-25**, targeted ESLint untuk `App.jsx`, `PortalRoute.jsx`, `mediaUtils.js`, `usePortal.js`, `ActivityLogs.jsx`, `AthletePortal.jsx`, dan `CoachPortal.jsx` berhasil tanpa output. `npm run build` juga berhasil dengan warning chunk yang sama. Source sekarang membatasi direct route portal berdasarkan role, menunda query turunan sampai `profile.type` sesuai, menampilkan state provisioning untuk profile yang belum terhubung, menggunakan `event_key`, dan membedakan kejadian Error Log dari pola unik. Browser/runtime API belum dijalankan dari workspace ini.
+
+Pada **2026-08-25**, targeted ESLint untuk gating katalog dan UI sensitif atlet/pelatih berhasil tanpa output. `npm run build` juga berhasil: 2.672 module transformed, bundle JS utama `1,681.14 kB` minified/`423.24 kB` gzip, dengan warning chunk >500 kB yang tetap non-blocking. Browser flow dan runtime API tidak dijalankan dari workspace ini.
 
 ## Watchlist: Jangan Ikuti Asumsi Usang
 

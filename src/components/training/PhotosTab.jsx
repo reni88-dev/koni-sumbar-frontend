@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Camera, Upload, Loader2 } from 'lucide-react';
 import { ProtectedImage } from '../ProtectedImage';
 
-export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
+export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos, readOnly = false }) {
   const [photoFiles, setPhotoFiles] = useState([]);
   const [photoCaption, setPhotoCaption] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -17,7 +17,7 @@ export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
       await onUploadPhotos(formData);
       setPhotoFiles([]);
       setPhotoCaption('');
-    } catch (err) {
+    } catch {
       alert('Gagal upload foto');
     }
     setUploading(false);
@@ -25,7 +25,7 @@ export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
 
   return (
     <div className="space-y-4">
-      {(isOngoing || isScheduled) && (
+      {!readOnly && (isOngoing || isScheduled) && (
         <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
           <label className="block text-sm font-medium text-slate-700">Upload Foto Latihan</label>
           <input type="file" accept="image/*" multiple
@@ -48,7 +48,7 @@ export function PhotosTab({ session, isOngoing, isScheduled, onUploadPhotos }) {
           {session.photos.map(photo => (
             <div key={photo.id} className="relative group rounded-xl overflow-hidden border border-slate-200">
               <ProtectedImage
-                src={photo.photo_url.startsWith('http') ? photo.photo_url : `/api/storage/${photo.photo_url}`}
+                src={photo.photo_url}
                 alt={photo.caption || 'Foto latihan'}
                 className="w-full h-48 object-contain bg-slate-100"
               />

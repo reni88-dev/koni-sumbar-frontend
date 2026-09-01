@@ -37,6 +37,7 @@ export function AthleteFilters({
   organizations = [],
   clusters = [],
   subClusters = [],
+  canViewSensitive = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
@@ -77,7 +78,9 @@ export function AthleteFilters({
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Cari nama atlet, NIK, atau nomor nasional..."
+            placeholder={canViewSensitive
+              ? "Cari nama atlet, NIK, atau nomor nasional..."
+              : "Cari nama atlet atau nomor nasional..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-9 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all outline-none shadow-xs"

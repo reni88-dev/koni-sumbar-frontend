@@ -88,6 +88,8 @@ export function PrintUserList({ filterParams, filters }) {
         <th>Nama Pengguna</th>
         <th>Email</th>
         <th>Role</th>
+        <th>Lembaga / Wilayah</th>
+        <th>Cabor Penugasan</th>
         <th>Terakhir Login</th>
         <th>Tanggal Dibuat</th>
       </tr>
@@ -98,7 +100,9 @@ export function PrintUserList({ filterParams, filters }) {
         <td style="text-align:center;">${i + 1}</td>
         <td style="font-weight:500;">${u.name || '-'}</td>
         <td>${u.email || '-'}</td>
-        <td><span class="badge badge-role">${u.role?.name || '-'}</span></td>
+        <td><span class="badge badge-role">${u.role?.display_name || u.role?.name || '-'}</span></td>
+        <td>${u.organization?.name || '-'}</td>
+        <td>${u.cabor?.name || '-'}</td>
         <td>${formatDate(u.last_login_at)}</td>
         <td>${formatDate(u.created_at)}</td>
       </tr>`).join('')}

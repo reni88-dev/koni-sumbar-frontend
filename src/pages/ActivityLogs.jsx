@@ -26,6 +26,11 @@ import {
   CheckCircle,
   XCircle,
   LogIn,
+  Link,
+  Unlink,
+  ShieldCheck,
+  UserCheck,
+  ClipboardCheck,
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import {
@@ -42,27 +47,44 @@ import {
 
 const MotionDiv = motion.div;
 
-// Action badge colors
-const ACTION_COLORS = {
-  created: 'bg-green-100 text-green-700 border-green-200',
-  updated: 'bg-blue-100 text-blue-700 border-blue-200',
-  deleted: 'bg-red-100 text-red-700 border-red-200',
-  restored: 'bg-purple-100 text-purple-700 border-purple-200',
+// Shared presentation metadata for every activity action written by the backend
+const ACTION_METADATA = {
+  created: { label: 'Membuat', badgeClass: 'bg-green-100 text-green-700 border-green-200', icon: Plus },
+  updated: { label: 'Memperbarui', badgeClass: 'bg-blue-100 text-blue-700 border-blue-200', icon: Edit },
+  deleted: { label: 'Menghapus', badgeClass: 'bg-red-100 text-red-700 border-red-200', icon: Trash },
+  restored: { label: 'Memulihkan', badgeClass: 'bg-purple-100 text-purple-700 border-purple-200', icon: RotateCcw },
+  login: { label: 'Login', badgeClass: 'bg-sky-100 text-sky-700 border-sky-200', icon: LogIn },
+  registered: { label: 'Mendaftarkan', badgeClass: 'bg-teal-100 text-teal-700 border-teal-200', icon: Users },
+  updated_status: { label: 'Memperbarui Status', badgeClass: 'bg-indigo-100 text-indigo-700 border-indigo-200', icon: CheckCircle },
+  removed: { label: 'Mengeluarkan', badgeClass: 'bg-orange-100 text-orange-700 border-orange-200', icon: Trash2 },
+  linked_cabor: { label: 'Menautkan Cabor', badgeClass: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: Link },
+  unlinked_cabor: { label: 'Melepas Tautan Cabor', badgeClass: 'bg-amber-100 text-amber-700 border-amber-200', icon: Unlink },
+  synced_permissions: { label: 'Menyinkronkan Izin', badgeClass: 'bg-violet-100 text-violet-700 border-violet-200', icon: ShieldCheck },
+  assigned: { label: 'Menugaskan', badgeClass: 'bg-cyan-100 text-cyan-700 border-cyan-200', icon: UserCheck },
+  reviewed: { label: 'Meninjau', badgeClass: 'bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200', icon: ClipboardCheck },
 };
 
-const ACTION_ICONS = {
-  created: Plus,
-  updated: Edit,
-  deleted: Trash,
-  restored: RotateCcw,
+const UNKNOWN_ACTION_METADATA = {
+  badgeClass: 'bg-slate-100 text-slate-700 border-slate-200',
+  icon: Activity,
 };
 
-const ACTION_LABELS = {
-  created: 'Membuat',
-  updated: 'Memperbarui',
-  deleted: 'Menghapus',
-  restored: 'Memulihkan',
-};
+function getActionMetadata(action) {
+  if (ACTION_METADATA[action]) return ACTION_METADATA[action];
+
+  const normalizedAction = String(action || '').trim();
+  const label = normalizedAction
+    ? normalizedAction
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .split(' ')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ')
+    : 'Aktivitas';
+
+  return { ...UNKNOWN_ACTION_METADATA, label };
+}
 
 // Stats Card Component
 function StatsCard({ label, value, icon, color = 'blue' }) {
@@ -204,7 +226,8 @@ function DataDiffViewer({ oldValues, newValues, changedFields, resolveValue }) {
 
 // Activity Log Item Component
 function ActivityLogItem({ log, onViewDetail }) {
-  const ActionIcon = ACTION_ICONS[log.action] || Activity;
+  const actionMetadata = getActionMetadata(log.action);
+  const ActionIcon = actionMetadata.icon;
   const timeAgo = useMemo(() => {
     const date = new Date(log.created_at);
     const now = new Date();
@@ -233,9 +256,9 @@ function ActivityLogItem({ log, onViewDetail }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span className="font-semibold text-slate-800">{log.user_name || 'System'}</span>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${ACTION_COLORS[log.action]}`}>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${actionMetadata.badgeClass}`}>
               <ActionIcon className="w-3 h-3 inline mr-1" />
-              {ACTION_LABELS[log.action]}
+              {actionMetadata.label}
             </span>
             <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
               {log.model_name}
@@ -245,11 +268,11 @@ function ActivityLogItem({ log, onViewDetail }) {
           <p className="text-sm text-slate-600">
             {log.record_name ? (
               <>
-                {ACTION_LABELS[log.action]} <span className="font-medium">"{log.record_name}"</span>
+                {actionMetadata.label} <span className="font-medium">"{log.record_name}"</span>
               </>
             ) : (
               <>
-                {ACTION_LABELS[log.action]} record ID #{log.model_id}
+                {actionMetadata.label} record ID #{log.model_id}
               </>
             )}
           </p>
@@ -290,6 +313,9 @@ function ActivityLogItem({ log, onViewDetail }) {
 // Detail Modal Component
 function DetailModal({ log, onClose }) {
   if (!log) return null;
+
+  const actionMetadata = getActionMetadata(log.action);
+  const ActionIcon = actionMetadata.icon;
 
   return (
     <MotionDiv
@@ -336,8 +362,9 @@ function DetailModal({ log, onClose }) {
             </div>
             <div>
               <label className="text-xs text-slate-500 uppercase tracking-wide">Aksi</label>
-              <p className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium border ${ACTION_COLORS[log.action]}`}>
-                {ACTION_LABELS[log.action]}
+              <p className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${actionMetadata.badgeClass}`}>
+                <ActionIcon className="w-3 h-3" />
+                {actionMetadata.label}
               </p>
             </div>
             <div>
@@ -685,9 +712,9 @@ export function ActivityLogsPage() {
                 </select>
                 <select value={filters.action || ''} onChange={(e) => handleFilterChange('action', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg">
                   <option value="">Semua Aksi</option>
-                  <option value="created">Created</option>
-                  <option value="updated">Updated</option>
-                  <option value="deleted">Deleted</option>
+                  {Object.entries(ACTION_METADATA).map(([action, metadata]) => (
+                    <option key={action} value={action}>{metadata.label}</option>
+                  ))}
                 </select>
               </>
             )}

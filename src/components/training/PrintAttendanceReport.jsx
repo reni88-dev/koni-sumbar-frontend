@@ -54,10 +54,8 @@ export function PrintAttendanceReport({ session, attendanceData }) {
     try {
       // Pre-fetch all training photos as base64
       const photoPromises = (session.photos || []).map(async (photo) => {
-        const src = photo.photo_url.startsWith('http')
-          ? null // skip external URLs for now
-          : `/api/storage/${photo.photo_url}`;
-        const dataUrl = src ? await fetchImageAsBase64(src) : photo.photo_url;
+        const src = photo.photo_url;
+        const dataUrl = src ? await fetchImageAsBase64(src) : null;
         return { ...photo, dataUrl };
       });
 

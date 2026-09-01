@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { 
-  Menu, 
-  Bell, 
+  Menu,
   Search, 
   ChevronDown,
   User,
@@ -12,6 +11,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { AnnouncementBell } from './announcements/AnnouncementBell';
 
 export function DashboardLayout({ children, title, subtitle }) {
   const { user, logout } = useAuth();
@@ -61,10 +61,7 @@ export function DashboardLayout({ children, title, subtitle }) {
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2.5 hover:bg-slate-100 rounded-xl text-slate-500 transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            <AnnouncementBell />
             
             <div className="relative">
               <button 
@@ -88,7 +85,7 @@ export function DashboardLayout({ children, title, subtitle }) {
                       className="fixed inset-0 z-10" 
                       onClick={() => setIsProfileOpen(false)}
                     />
-                    <motion.div
+                    <Motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -122,7 +119,7 @@ export function DashboardLayout({ children, title, subtitle }) {
                             Keluar Aplikasi
                         </button>
                       </div>
-                    </motion.div>
+                    </Motion.div>
                   </>
                 )}
               </AnimatePresence>

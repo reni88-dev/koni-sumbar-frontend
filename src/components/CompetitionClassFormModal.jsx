@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, Plus, Trash2 } from 'lucide-react';
 import api from '../api/axios';
 
@@ -54,7 +54,8 @@ export function CompetitionClassFormModal({ isOpen, onClose, competitionClass, c
     e.preventDefault();
     
     // Validate
-    if (!selectedCabor) {
+    const caborID = Number(selectedCabor);
+    if (!Number.isInteger(caborID) || caborID <= 0) {
       setFormErrors({ cabor_id: ['Cabang olahraga wajib dipilih'] });
       return;
     }
@@ -72,28 +73,34 @@ export function CompetitionClassFormModal({ isOpen, onClose, competitionClass, c
       if (isEditMode) {
         // Edit mode: update single item
         await api.put(`/api/master/competition-classes/${competitionClass.id}`, {
-          cabor_id: selectedCabor,
-          name: items[0].name,
-          code: items[0].code,
-          description: items[0].description,
+          cabor_id: caborID,
+          name: items[0].name.trim(),
+          code: items[0].code.trim(),
+          description: items[0].description.trim(),
           is_active: items[0].is_active ?? true
         });
       } else {
         // Create mode: batch create with single request
         await api.post('/api/master/competition-classes/batch', {
-          cabor_id: selectedCabor,
+          cabor_id: caborID,
           items: validItems.map(item => ({
-            name: item.name,
-            code: item.code || null,
-            description: item.description || null
+            name: item.name.trim(),
+            code: item.code.trim() || null,
+            description: item.description.trim() || null
           }))
         });
       }
       onSuccess();
       onClose();
     } catch (error) {
-      if (error.response?.status === 422) {
-        setFormErrors(error.response.data.errors || {});
+      const status = error.response?.status;
+      if (status === 422 && error.response?.data?.errors) {
+        setFormErrors(error.response.data.errors);
+      } else {
+        const message = error.response?.data?.message
+          || error.response?.data?.error
+          || 'Gagal menyimpan kelas pertandingan';
+        setFormErrors({ general: [message] });
       }
     } finally {
       setLoading(false);
@@ -104,21 +111,21 @@ export function CompetitionClassFormModal({ isOpen, onClose, competitionClass, c
   const canAddMore = items.length < 20 && !isEditMode;
 
   // Get selected cabor name for display
-  const selectedCaborItem = cabors.find(c => c.id == selectedCabor);
+  const selectedCaborItem = cabors.find(c => Number(c.id) === Number(selectedCabor));
   const selectedCaborName = selectedCaborItem?.display_name || selectedCaborItem?.name || '';
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
         onClick={onClose}
       />
-      <motion.div
+      <Motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
@@ -144,6 +151,11 @@ export function CompetitionClassFormModal({ isOpen, onClose, competitionClass, c
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+            {formErrors.general && (
+              <div className="mx-6 mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {formErrors.general[0]}
+              </div>
+            )}
             {/* Cabor Selection */}
             <div className="p-6 border-b border-slate-100 flex-shrink-0">
               <label className="block text-sm font-medium text-slate-700 mb-1">Cabang Olahraga *</label>
@@ -279,7 +291,7 @@ export function CompetitionClassFormModal({ isOpen, onClose, competitionClass, c
             </div>
           </form>
         </div>
-      </motion.div>
+      </Motion.div>
     </AnimatePresence>
   );
 }

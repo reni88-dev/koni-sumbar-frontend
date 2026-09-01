@@ -9,6 +9,7 @@ import {
   useTrainingSchedules, useDeleteTrainingSchedule
 } from '../hooks/queries/useTraining';
 import { useAuth } from '../hooks/useAuth';
+import { usePermission } from '../hooks/usePermission';
 import api from '../api/axios';
 import {
   TrainingSessionCard, CreateTrainingModal,
@@ -17,6 +18,7 @@ import {
 
 export function TrainingSessionsPage() {
   const { user } = useAuth();
+  const { can, canAny } = usePermission();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -31,6 +33,11 @@ export function TrainingSessionsPage() {
   const [showSchedules, setShowSchedules] = useState(true);
 
   const isCoach = user?.role?.name === 'coach';
+  const isAthlete = user?.role?.name === 'athlete';
+  const canCreateTraining = !isAthlete && can('training.create');
+  const canEditTraining = !isAthlete && can('training.edit');
+  const canDeleteTraining = !isAthlete && can('training.delete');
+  const canViewAttendanceStats = !isAthlete && canAny(['training.attendance', 'training.report']);
 
   // For coach: filter by their own coach_id
   const [myCoachId, setMyCoachId] = useState(null);
@@ -50,7 +57,7 @@ export function TrainingSessionsPage() {
         }).catch(() => {});
       });
     }
-  }, [isCoach, user?.id]);
+  }, [isCoach, user?.id, user?.name]);
 
   const { data, isLoading } = useTrainingSessions({
     page, limit: 10, search,
@@ -58,15 +65,18 @@ export function TrainingSessionsPage() {
     coachId: isCoach ? myCoachId : undefined,
   });
 
-  const { data: schedulesData, isLoading: schedulesLoading } = useTrainingSchedules({
+  const { data: schedulesData } = useTrainingSchedules({
     page: 1, limit: 50,
     coachId: isCoach ? myCoachId : undefined,
+    enabled: !isAthlete,
   });
 
   const deleteSession = useDeleteTrainingSession();
   const deleteSchedule = useDeleteTrainingSchedule();
 
   useEffect(() => {
+    if (isAthlete) return;
+
     api.get('/api/cabors/all', { params: { level: 'discipline' } }).then(r => {
       const data = Array.isArray(r.data) ? r.data : r.data?.data || [];
       setCabors(data.map(c => ({ ...c, name: c.display_name || c.name })));
@@ -74,7 +84,7 @@ export function TrainingSessionsPage() {
     if (!isCoach) {
       api.get('/api/coaches', { params: { limit: 100 } }).then(r => setCoaches(r.data?.data || [])).catch(() => {});
     }
-  }, []);
+  }, [isAthlete, isCoach]);
 
   const sessions = data?.data || [];
   const total = data?.total || 0;
@@ -87,29 +97,39 @@ export function TrainingSessionsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Absensi Latihan</h1>
-            <p className="text-sm text-slate-500 mt-1">Kelola jadwal dan absensi latihan atlet</p>
+            <h1 className="text-2xl font-bold text-slate-800">
+              {isAthlete ? 'Jadwal Latihan Saya' : 'Absensi Latihan'}
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {isAthlete ? 'Lihat sesi latihan dan status kehadiran Anda' : 'Kelola jadwal dan absensi latihan atlet'}
+            </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => { setEditSchedule(null); setShowScheduleModal(true); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
-            >
-              <Repeat className="w-4 h-4" />
-              Jadwal Berulang
-            </button>
-            <button
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              Buat Latihan
-            </button>
-          </div>
+          {!isAthlete && (
+            <div className="flex gap-2">
+              {canCreateTraining && (
+                <button
+                  onClick={() => { setEditSchedule(null); setShowScheduleModal(true); }}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors"
+                >
+                  <Repeat className="w-4 h-4" />
+                  Jadwal Berulang
+                </button>
+              )}
+              {canCreateTraining && (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Buat Latihan
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Schedules Section */}
-        {schedules.length > 0 && (
+        {!isAthlete && schedules.length > 0 && (
           <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 overflow-hidden">
             <button
               onClick={() => setShowSchedules(s => !s)}
@@ -128,9 +148,9 @@ export function TrainingSessionsPage() {
                   <ScheduleCard
                     key={sc.id}
                     schedule={sc}
-                    onGenerate={(s) => setGenerateSchedule(s)}
-                    onEdit={(s) => { setEditSchedule(s); setShowScheduleModal(true); }}
-                    onDelete={(id) => deleteSchedule.mutate(id)}
+                    onGenerate={canCreateTraining ? (s) => setGenerateSchedule(s) : undefined}
+                    onEdit={canEditTraining ? (s) => { setEditSchedule(s); setShowScheduleModal(true); } : undefined}
+                    onDelete={canDeleteTraining ? (id) => deleteSchedule.mutate(id) : undefined}
                   />
                 ))}
               </div>
@@ -170,7 +190,7 @@ export function TrainingSessionsPage() {
         ) : sessions.length === 0 ? (
           <div className="text-center py-20 text-slate-400">
             <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Belum ada jadwal latihan</p>
+            <p>{isAthlete ? 'Belum ada sesi latihan yang terdaftar untuk Anda' : 'Belum ada jadwal latihan'}</p>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -178,7 +198,10 @@ export function TrainingSessionsPage() {
               <TrainingSessionCard
                 key={session.id}
                 session={session}
+                canDelete={canDeleteTraining}
+                showStats={canViewAttendanceStats}
                 onDelete={(id) => deleteSession.mutate(id)}
+                isDeleting={deleteSession.isPending}
               />
             ))}
           </div>
@@ -200,7 +223,7 @@ export function TrainingSessionsPage() {
 
       {/* Create Session Modal */}
       <AnimatePresence>
-        {showModal && (
+        {canCreateTraining && showModal && (
           <CreateTrainingModal
             onClose={() => setShowModal(false)}
             cabors={cabors}
@@ -213,7 +236,7 @@ export function TrainingSessionsPage() {
 
       {/* Create/Edit Schedule Modal */}
       <AnimatePresence>
-        {showScheduleModal && (
+        {!isAthlete && showScheduleModal && (
           <CreateScheduleModal
             onClose={() => { setShowScheduleModal(false); setEditSchedule(null); }}
             cabors={cabors}
@@ -227,7 +250,7 @@ export function TrainingSessionsPage() {
 
       {/* Generate Sessions Modal */}
       <AnimatePresence>
-        {generateSchedule && (
+        {canCreateTraining && generateSchedule && (
           <GenerateSessionsModal
             schedule={generateSchedule}
             onClose={() => setGenerateSchedule(null)}

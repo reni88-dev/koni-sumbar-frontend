@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   User, Calendar, FileText, Award, MapPin, Clock,
@@ -7,11 +7,19 @@ import {
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { ProtectedImage } from '../components/ProtectedImage';
+import { SuccessToast } from '../components/SuccessToast';
+import {
+  openAthleteProfilePrintWindow,
+  printAthleteProfile,
+} from '../components/athletes/athleteProfilePrint';
 import { AthleteCareerStep } from '../components/athlete-form/AthleteCareerStep';
 import { AthleteParentsStep } from '../components/athlete-form/AthleteParentsStep';
 import { AthletePersonalStep } from '../components/athlete-form/AthletePersonalStep';
 import { AthletePhysicalContactStep } from '../components/athlete-form/AthletePhysicalContactStep';
+import { ATHLETE_PROFILE_FIELDS } from '../components/athlete-form/athleteProfileValidation';
 import { useAthleteFormController } from '../components/athlete-form/useAthleteFormController';
+import { ProfileCompletionBanner } from '../components/form-validation/ProfileCompletionBanner';
+import { ValidationSummary } from '../components/form-validation/ValidationSummary';
 import {
   usePortalProfile,
   usePortalEvents,
@@ -53,33 +61,13 @@ function InfoItem({ label, value }) {
   );
 }
 
-function buildPrintHtml({ athlete, clusters, funds }) {
-  const rows = [
-    ['Nama', athlete?.name], ['NIK', athlete?.nik], ['No KK', athlete?.no_kk], ['Nomor Atlet Nasional', athlete?.national_athlete_number],
-    ['Cabang Olahraga', caborLabel(athlete?.cabor)], ['Kelas Pertandingan', athlete?.competition_class?.name], ['Organisasi', athlete?.organization?.name],
-    ['Tempat/Tanggal Lahir', `${textOrDash(athlete?.birth_place)} / ${formatDate(athlete?.birth_date)}`], ['Jenis Kelamin', GENDER_LABELS[athlete?.gender] || athlete?.gender],
-    ['Agama', athlete?.religion], ['Alamat', athlete?.address], ['Domisili', [athlete?.village, athlete?.district, athlete?.city, athlete?.province].filter(Boolean).join(', ')], ['Telepon', athlete?.phone], ['Email', athlete?.email],
-    ['Tinggi/Berat', `${athlete?.height || '-'} cm / ${athlete?.weight || '-'} kg`], ['Golongan Darah', athlete?.blood_type],
-    ['Pekerjaan', athlete?.occupation], ['Status Pernikahan', athlete?.marital_status], ['Hobi', athlete?.hobby],
-    ['Mulai Karir', athlete?.career_start_year], ['Riwayat Cedera/Penyakit', athlete?.injury_illness_history],
-    ['Ayah', `${textOrDash(athlete?.father_name)} (${textOrDash(athlete?.father_phone)})`],
-    ['Ibu', `${textOrDash(athlete?.mother_name)} (${textOrDash(athlete?.mother_phone)})`], ['Alamat Orang Tua/Wali', athlete?.parent_address],
-    ['Kluster Aktif', [athlete?.current_cluster_label, athlete?.current_sub_cluster_label].filter(Boolean).join(' - ')],
-  ];
-  return `<!doctype html><html><head><title>Profil Atlet</title><style>
-    body{font-family:Arial,sans-serif;color:#1e293b;margin:32px} h1{margin:0 0 4px} h2{margin-top:28px;border-bottom:1px solid #e2e8f0;padding-bottom:6px} table{width:100%;border-collapse:collapse;margin-top:12px} td,th{border:1px solid #e2e8f0;padding:8px;text-align:left;vertical-align:top} th{background:#f8fafc} .muted{color:#64748b} ul{margin:8px 0 0 18px}
-  </style></head><body><h1>Profil Atlet</h1><p class="muted">Dicetak dari Portal Atlet</p>
-  <h2>Data Profil</h2><table>${rows.map(([k, v]) => `<tr><th style="width:30%">${k}</th><td>${textOrDash(v)}</td></tr>`).join('')}</table>
-  <h2>Prestasi Terbaik</h2><ul>${(athlete?.top_achievements || []).map((a) => `<li>${a}</li>`).join('') || '<li>-</li>'}</ul>
-  <h2>Riwayat Kluster</h2><table><thead><tr><th>Kluster</th><th>Sub Kluster</th><th>Mulai</th><th>Selesai</th><th>Perubahan</th></tr></thead><tbody>${(clusters || []).map((c) => `<tr><td>${textOrDash(c.cluster_label)}</td><td>${textOrDash(c.sub_cluster_label)}</td><td>${formatDate(c.start_date)}</td><td>${c.end_date ? formatDate(c.end_date) : 'Aktif'}</td><td>${textOrDash(c.change_label)}</td></tr>`).join('') || '<tr><td colspan="5">Belum ada data</td></tr>'}</tbody></table>
-  <h2>Uang Pembinaan</h2><table><thead><tr><th>Tanggal</th><th>Bulan/Tahun</th><th>Nominal</th><th>Keterangan</th></tr></thead><tbody>${(funds || []).map((f) => `<tr><td>${formatDate(f.fund_date)}</td><td>${f.month}/${f.year}</td><td>${formatCurrency(f.amount)}</td><td>${textOrDash(f.description)}</td></tr>`).join('') || '<tr><td colspan="4">Belum ada data</td></tr>'}</tbody></table>
-  <script>window.onload=function(){window.print()}</script></body></html>`;
-}
-
 export function AthletePortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [successToast, setSuccessToast] = useState({ isOpen: false, message: '', version: 0 });
   const [fundYear, setFundYear] = useState(currentYear);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const printingRef = useRef(false);
 
   const {
     data: profile,
@@ -91,16 +79,30 @@ export function AthletePortal() {
   const { data: events, isLoading: eventsLoading } = usePortalEvents({ enabled: profileReady });
   const { data: submissions, isLoading: submissionsLoading } = usePortalSubmissions({ enabled: profileReady });
   const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard({ enabled: profileReady });
-  const { data: clustersData, isLoading: clustersLoading } = usePortalClusterHistories({ enabled: profileReady });
-  const { data: fundsData, isLoading: fundsLoading } = usePortalDevelopmentFunds(
+  const {
+    data: clustersData,
+    isLoading: clustersLoading,
+    isError: clustersError,
+  } = usePortalClusterHistories({ enabled: profileReady });
+  const {
+    data: fundsData,
+    isLoading: fundsLoading,
+    isError: fundsError,
+  } = usePortalDevelopmentFunds(
     { year: fundYear, perPage: 100 },
     { enabled: profileReady },
   );
-  const { data: educationLevels = [] } = useEducationLevelsAll();
+  const { data: educationLevels = [], isLoading: educationLevelsLoading } = useEducationLevelsAll();
 
   const athlete = useMemo(() => getAthlete(profile), [profile]);
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
+  const educationLevelName = athlete?.education_level?.name
+    || athlete?.education_level_name
+    || educationLevels.find((level) => String(level.id) === String(athlete?.education_level_id))?.name
+    || '-';
+  const isPrintDataLoading = clustersLoading || fundsLoading || educationLevelsLoading;
+  const isPrintBusy = isPrinting || isPrintDataLoading;
 
   const tabs = [
     { id: 'overview', label: 'Profil', icon: User },
@@ -110,16 +112,58 @@ export function AthletePortal() {
     { id: 'submissions', label: 'Form Submission', icon: FileText },
   ];
 
-  const handleEditStart = () => setIsEditing(true);
+  const handleSuccessToastClose = () => {
+    setSuccessToast((current) => ({ ...current, isOpen: false }));
+  };
+  const handleEditStart = () => {
+    handleSuccessToastClose();
+    setIsEditing(true);
+  };
+  const handleEditSuccess = () => {
+    setIsEditing(false);
+    setSuccessToast((current) => ({
+      isOpen: true,
+      message: 'Profil atlet berhasil diperbarui.',
+      version: current.version + 1,
+    }));
+  };
+  const handleCompleteProfile = () => {
+    setActiveTab('overview');
+    handleEditStart();
+  };
 
-  const handlePrint = () => {
-    const printWindow = window.open('', '_blank');
+  const handlePrint = async () => {
+    if (isPrintBusy || printingRef.current) return;
+
+    printingRef.current = true;
+    setIsPrinting(true);
+    const printWindow = openAthleteProfilePrintWindow();
+
     if (!printWindow) {
-      alert('Popup diblokir. Izinkan popup untuk mencetak profil.');
+      printingRef.current = false;
+      setIsPrinting(false);
       return;
     }
-    printWindow.document.write(buildPrintHtml({ athlete, clusters, funds }));
-    printWindow.document.close();
+
+    try {
+      await printAthleteProfile(printWindow, {
+        athlete,
+        educationLevelName,
+        histories: clusters,
+        funds,
+        fundsTotalAmount: fundsData?.total_amount,
+        clusterError: clustersError,
+        fundsError,
+        photoUrl: athlete?.photo ? '/api/portal/profile/photo' : null,
+      });
+    } catch (error) {
+      console.error('Print detail error:', error);
+      if (!printWindow.closed) printWindow.close();
+      window.alert('Gagal menyiapkan data cetak. Silakan coba lagi.');
+    } finally {
+      printingRef.current = false;
+      setIsPrinting(false);
+    }
   };
 
   if (profileLoading || (profileReady && dashboardLoading)) {
@@ -157,12 +201,26 @@ export function AthletePortal() {
   }
   return (
     <DashboardLayout title="Portal Atlet" subtitle={`Selamat datang, ${profile?.name || 'Atlet'}!`}>
+      <SuccessToast
+        key={successToast.version}
+        isOpen={successToast.isOpen}
+        message={successToast.message}
+        onClose={handleSuccessToastClose}
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard color="from-blue-500 to-blue-600" label="Total Event" value={dashboard?.total_events || 0} icon={Calendar} />
         <StatCard color="from-green-500 to-green-600" label="Event Mendatang" value={dashboard?.upcoming_events || 0} icon={Clock} delay={0.1} />
         <StatCard color="from-purple-500 to-purple-600" label="Form Terisi" value={dashboard?.total_submissions || 0} icon={FileText} delay={0.2} />
         <StatCard color="from-orange-500 to-red-500" label="Cabor" value={dashboard?.cabor_name || '-'} icon={Award} delay={0.3} small />
       </div>
+
+      {profile?.profile_complete === false && (
+        <ProfileCompletionBanner
+          missingFields={profile.missing_fields || []}
+          metadata={ATHLETE_PROFILE_FIELDS}
+          onComplete={handleCompleteProfile}
+        />
+      )}
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 mb-6 overflow-hidden">
         <div className="flex overflow-x-auto border-b border-slate-100">
@@ -183,8 +241,14 @@ export function AthletePortal() {
                   <p className="text-sm text-slate-500">Data lengkap atlet, kontak, pendidikan, dan keluarga.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
-                    <Printer className="w-4 h-4" /> Cetak Profil
+                  <button
+                    type="button"
+                    onClick={handlePrint}
+                    disabled={isPrintBusy}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isPrintBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                    Cetak Profil
                   </button>
                   {!isEditing && (
                     <button onClick={handleEditStart} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors">
@@ -200,7 +264,8 @@ export function AthletePortal() {
                 <AthleteProfileEditor
                   athlete={athlete}
                   onCancel={() => setIsEditing(false)}
-                  onSuccess={() => setIsEditing(false)}
+                  onSuccess={handleEditSuccess}
+                  missingFields={profile.missing_fields || []}
                 />
               )}
             </div>
@@ -272,7 +337,7 @@ function InfoGrid({ items }) {
   return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{items.map(([label, value]) => <InfoItem key={label} label={label} value={value} />)}</div>;
 }
 
-function AthleteProfileEditor({ athlete, onCancel, onSuccess }) {
+function AthleteProfileEditor({ athlete, onCancel, onSuccess, missingFields }) {
   const updateProfile = useUpdatePortalProfile();
   const controller = useAthleteFormController({
     isOpen: true,
@@ -281,8 +346,13 @@ function AthleteProfileEditor({ athlete, onCancel, onSuccess }) {
     mode: 'portal',
     submitRequest: updateProfile.mutateAsync,
   });
-  const { formContainerRef, form, lookups, files, validation, submission } = controller;
+  const { formContainerRef, validationSummaryRef, form, lookups, files, validation, submission } = controller;
   const isBusy = submission.loading || updateProfile.isPending || files.isAnyFileProcessing;
+  const { navigateToError } = validation;
+
+  useEffect(() => {
+    if (missingFields?.[0]) navigateToError(missingFields[0]);
+  }, [missingFields, navigateToError]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -291,7 +361,13 @@ function AthleteProfileEditor({ athlete, onCancel, onSuccess }) {
 
   return (
     <form ref={formContainerRef} onSubmit={handleSubmit} className="space-y-5" aria-busy={isBusy}>
-      {validation.errorMessage && (
+      <ValidationSummary
+        ref={validationSummaryRef}
+        errors={validation.errors}
+        metadata={validation.metadata}
+        onNavigate={validation.navigateToError}
+      />
+      {validation.errorMessage && Object.keys(validation.errors).length === 0 && (
         <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
           <div>

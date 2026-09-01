@@ -18,6 +18,9 @@ export function SearchableSelect({
   placeholder = 'Pilih...',
   disabled = false,
   className = '',
+  name,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -73,6 +76,12 @@ export function SearchableSelect({
       {/* Trigger button */}
       <button
         type="button"
+        name={name}
+        data-field={name}
+        aria-invalid={ariaInvalid}
+        aria-describedby={ariaDescribedBy}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
         disabled={disabled}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         className={`w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-left flex items-center justify-between gap-2 bg-white ${

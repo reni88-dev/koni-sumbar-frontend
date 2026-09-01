@@ -44,9 +44,13 @@ import { SettingsPage } from './pages/Settings';
 import { ComplaintsPage } from './pages/Complaints';
 import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
+import { DataSummaryPage } from './pages/DataSummary';
+import { DataDuplicatesPage } from './pages/DataDuplicates';
+import { SystemAnnouncementsPage } from './pages/SystemAnnouncements';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PortalRoute } from './components/PortalRoute';
 import { PermissionRoute } from './components/PermissionRoute';
+import { AnnouncementCenter } from './components/announcements/AnnouncementCenter';
 import { useAuth } from './hooks/useAuth';
 
 // Smart Dashboard that redirects based on user role
@@ -73,6 +77,7 @@ function App() {
   return (
     <>
     <VersionChecker />
+    <AnnouncementCenter />
     <Routes>
       {/* Public Routes */}
       <Route path="/login" element={<Login />} />
@@ -112,6 +117,27 @@ function App() {
         }
       />
 
+      {/* Data Analysis Routes */}
+      <Route
+        path="/data-summary"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="data_summary.view">
+              <DataSummaryPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/data-analysis/duplicates"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="data_duplicates.view">
+              <DataDuplicatesPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
       {/* Athletes Route */}
       <Route
         path="/atlet"
@@ -386,6 +412,16 @@ function App() {
         }
       />
 
+      <Route
+        path="/admin/announcements"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="announcements.view">
+              <SystemAnnouncementsPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
       {/* Activity Logs Route (Super Admin only - enforced on backend) */}
       <Route
         path="/activity-logs"
