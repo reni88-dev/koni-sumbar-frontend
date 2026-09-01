@@ -168,7 +168,7 @@ export function AthletePortal() {
 
   if (profileLoading || (profileReady && dashboardLoading)) {
     return (
-      <DashboardLayout title="Portal Atlet" subtitle="Loading...">
+      <DashboardLayout showAnnouncementBanner title="Portal Atlet" subtitle="Loading...">
         <div className="flex items-center justify-center h-64">
           <Loader2 className="w-8 h-8 animate-spin text-red-600" />
         </div>
@@ -179,7 +179,7 @@ export function AthletePortal() {
   if (profileError || !profileReady) {
     const isProvisioning = profileError?.response?.status === 404 || (!profileError && !profileReady);
     return (
-      <DashboardLayout title="Portal Atlet" subtitle="Status profil">
+      <DashboardLayout showAnnouncementBanner title="Portal Atlet" subtitle="Status profil">
         <div className="max-w-xl mx-auto mt-12 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
           <AlertCircle className="w-12 h-12 mx-auto mb-3 text-amber-600" />
           <h2 className="text-lg font-bold text-amber-900">
@@ -200,7 +200,7 @@ export function AthletePortal() {
     );
   }
   return (
-    <DashboardLayout title="Portal Atlet" subtitle={`Selamat datang, ${profile?.name || 'Atlet'}!`}>
+    <DashboardLayout showAnnouncementBanner title="Portal Atlet" subtitle={`Selamat datang, ${profile?.name || 'Atlet'}!`}>
       <SuccessToast
         key={successToast.version}
         isOpen={successToast.isOpen}

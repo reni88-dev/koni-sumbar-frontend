@@ -1,4 +1,4 @@
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { 
   Medal,
@@ -50,13 +50,14 @@ export function Dashboard() {
 
   return (
     <DashboardLayout 
+      showAnnouncementBanner
       title="Dashboard Overview" 
       subtitle="Selamat datang kembali, berikut adalah ringkasan data hari ini."
     >
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
         {stats.map((stat, index) => (
-          <motion.div
+          <Motion.div
             key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -77,9 +78,9 @@ export function Dashboard() {
             </div>
             <div>
               <h3 className="text-slate-500 text-sm font-medium mb-1">{stat.label}</h3>
-              <p className="text-2xl font-bold text-slate-800">{stat.value}</p>
+              <p className="text-2xl font-bold text-slate-800">{loading ? <Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-label="Memuat statistik" /> : stat.value}</p>
             </div>
-          </motion.div>
+          </Motion.div>
         ))}
       </div>
 
