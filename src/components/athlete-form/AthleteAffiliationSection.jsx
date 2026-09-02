@@ -26,6 +26,7 @@ export function AthleteAffiliationSection({ athlete, form, lookups, validation }
           value={formData.cabor_id}
           onChange={(val) => handleCaborChange(val)}
           placeholder="Cari & pilih cabang olahraga..."
+          dropdownPlacement="auto"
         />
         {errors.cabor_id && <p id={getFieldErrorId('cabor_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.cabor_id)}</p>}
       </div>
@@ -42,6 +43,7 @@ export function AthleteAffiliationSection({ athlete, form, lookups, validation }
             onChange={(val) => updateField('competition_class_id', val)}
             placeholder={formData.cabor_id ? 'Pilih Kelas Pertandingan' : 'Pilih Cabor terlebih dahulu'}
             disabled={!formData.cabor_id}
+            dropdownPlacement="auto"
           />
           {errors.competition_class_id && <p id={getFieldErrorId('competition_class_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.competition_class_id)}</p>}
         </div>
@@ -57,6 +59,7 @@ export function AthleteAffiliationSection({ athlete, form, lookups, validation }
           value={formData.organization_id}
           onChange={(val) => updateField('organization_id', val)}
           placeholder="Cari & pilih organisasi pengcab..."
+          dropdownPlacement="auto"
         />
         {errors.organization_id && <p id={getFieldErrorId('organization_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.organization_id)}</p>}
       </div>

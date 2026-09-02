@@ -19,7 +19,7 @@ export function AnnouncementModal({
   enforceAcknowledgement = true,
 }) {
   const navigate = useNavigate();
-  const required = Boolean(announcement?.requires_acknowledgement && enforceAcknowledgement);
+  const required = Boolean(announcement?.requires_acknowledgement && !announcement?.acknowledged_at && enforceAcknowledgement);
   const style = getSeverityStyle(announcement?.severity);
   const SeverityIcon = severityIcons[announcement?.severity] || Info;
 

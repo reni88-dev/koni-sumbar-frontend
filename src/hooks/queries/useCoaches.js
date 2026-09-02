@@ -12,15 +12,16 @@ export const coachKeys = {
 };
 
 // Fetch coaches with pagination and filters
-export function useCoaches({ page = 1, search = '', caborId = '', isActive = '', clusterId = '', subClusterId = '', clusterType = '', subClusterType = '', perPage = 10 } = {}) {
+export function useCoaches({ page = 1, search = '', caborId = '', organizationId = '', isActive = '', clusterId = '', subClusterId = '', clusterType = '', subClusterType = '', perPage = 10 } = {}) {
   return useQuery({
-    queryKey: coachKeys.list({ page, search, caborId, isActive, clusterId, subClusterId, clusterType, subClusterType, perPage }),
+    queryKey: coachKeys.list({ page, search, caborId, organizationId, isActive, clusterId, subClusterId, clusterType, subClusterType, perPage }),
     queryFn: async () => {
       const response = await api.get('/api/coaches', {
         params: { 
           page, 
           search: search || undefined, 
           cabor_id: caborId || undefined, 
+          organization_id: organizationId || undefined,
           cluster_id: clusterId || undefined,
           sub_cluster_id: subClusterId || undefined,
           cluster_type: clusterType || undefined,
@@ -38,6 +39,7 @@ export function useCoaches({ page = 1, search = '', caborId = '', isActive = '',
 export function useInfiniteCoaches({
   search = '',
   caborId = '',
+  organizationId = '',
   isActive = '',
   clusterId = '',
   subClusterId = '',
@@ -50,6 +52,7 @@ export function useInfiniteCoaches({
     queryKey: coachKeys.infiniteList({
       search,
       caborId,
+      organizationId,
       isActive,
       clusterId,
       subClusterId,
@@ -63,6 +66,7 @@ export function useInfiniteCoaches({
           page: pageParam,
           search: search || undefined,
           cabor_id: caborId || undefined,
+          organization_id: organizationId || undefined,
           cluster_id: clusterId || undefined,
           sub_cluster_id: subClusterId || undefined,
           cluster_type: clusterType || undefined,

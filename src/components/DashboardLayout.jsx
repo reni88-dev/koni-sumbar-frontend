@@ -11,9 +11,10 @@ import {
   LogOut
 } from 'lucide-react';
 import { Sidebar } from './Sidebar';
+import { AnnouncementBanner } from './announcements/AnnouncementBanner';
 import { AnnouncementBell } from './announcements/AnnouncementBell';
 
-export function DashboardLayout({ children, title, subtitle }) {
+export function DashboardLayout({ children, title, subtitle, showAnnouncementBanner = false }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -129,6 +130,8 @@ export function DashboardLayout({ children, title, subtitle }) {
 
         {/* Page Content */}
         <div id="main-scroll-container" className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto overflow-x-hidden">
+          {showAnnouncementBanner && <AnnouncementBanner />}
+
           {/* Page Header */}
           {(title || subtitle) && (
             <div className="mb-8">
