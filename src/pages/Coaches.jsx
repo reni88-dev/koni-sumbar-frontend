@@ -17,6 +17,7 @@ import {
   SlidersHorizontal,
   RotateCcw,
   Trophy,
+  Building2,
   Sparkles,
   GitBranch,
   ChevronDown,
@@ -32,6 +33,7 @@ import { CoachDetailModal } from '../components/CoachDetailModal';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { useInfiniteCoaches, useDeleteCoach, coachKeys } from '../hooks/queries/useCoaches';
 import { useCaborsAll } from '../hooks/queries/useCabors';
+import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
 import { useCoachClustersAll, useCoachSubClustersByCluster } from '../hooks/queries/useCoachClusterMaster';
 import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import api from '../api/axios';
@@ -51,6 +53,7 @@ export function CoachesPage() {
   const [search, setSearch] = useState(initialSearch);
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch);
   const [filterCabor, setFilterCabor] = useState('');
+  const [filterOrganization, setFilterOrganization] = useState('');
   const [filterActive, setFilterActive] = useState('');
   const [filterCluster, setFilterCluster] = useState('');
   const [filterSubCluster, setFilterSubCluster] = useState('');
@@ -78,6 +81,7 @@ export function CoachesPage() {
 
   // TanStack Query hooks
   const { data: cabors = [] } = useCaborsAll();
+  const { data: organizations = [] } = useOrganizationsAll();
   const { data: clusters = [] } = useCoachClustersAll();
   const { data: subClusters = [] } = useCoachSubClustersByCluster(filterCluster);
   const {
@@ -89,6 +93,7 @@ export function CoachesPage() {
   } = useInfiniteCoaches({
     search: debouncedSearch,
     caborId: filterCabor,
+    organizationId: filterOrganization,
     isActive: filterActive,
     clusterId: filterCluster,
     subClusterId: filterSubCluster
@@ -199,6 +204,7 @@ export function CoachesPage() {
   const handleResetAll = () => {
     setSearch('');
     setFilterCabor('');
+    setFilterOrganization('');
     setFilterActive('');
     setFilterCluster('');
     setFilterSubCluster('');
@@ -331,6 +337,7 @@ export function CoachesPage() {
 
   const activeFiltersCount = [
     Boolean(filterCabor),
+    Boolean(filterOrganization),
     Boolean(filterActive),
     Boolean(filterCluster),
     Boolean(filterSubCluster),
@@ -338,6 +345,9 @@ export function CoachesPage() {
 
   const hasActiveFilters = activeFiltersCount > 0 || Boolean(debouncedSearch);
   const selectedCabor = cabors.find((c) => String(c.id) === String(filterCabor));
+  const selectedOrganization = organizations.find((organization) =>
+    String(organization.id) === String(filterOrganization)
+  );
   const selectedCluster = clusters.find((c) => String(c.id) === String(filterCluster));
   const selectedSubCluster = subClusters.find((s) => String(s.id) === String(filterSubCluster));
 
@@ -570,7 +580,7 @@ export function CoachesPage() {
                   className="overflow-hidden"
                 >
                   <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
                       {/* 1. Cabor */}
                       <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
@@ -608,7 +618,27 @@ export function CoachesPage() {
                         </select>
                       </div>
 
-                      {/* 3. Kluster */}
+                      {/* 3. Organisasi */}
+                      <div className="space-y-1.5">
+                        <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                          <Building2 className="w-3.5 h-3.5 text-purple-500" />
+                          <span>Organisasi / Pengcab</span>
+                        </label>
+                        <select
+                          value={filterOrganization}
+                          onChange={(e) => setFilterOrganization(e.target.value)}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all cursor-pointer hover:border-slate-300"
+                        >
+                          <option value="">Semua Organisasi</option>
+                          {organizations.map((organization) => (
+                            <option key={organization.id} value={organization.id}>
+                              {organization.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* 4. Kluster */}
                       <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                           <Layers className="w-3.5 h-3.5 text-blue-500" />
@@ -628,7 +658,7 @@ export function CoachesPage() {
                         </select>
                       </div>
 
-                      {/* 4. Sub-Kluster */}
+                      {/* 5. Sub-Kluster */}
                       <div className="space-y-1.5">
                         <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                           <GitBranch className="w-3.5 h-3.5 text-teal-500" />
@@ -698,6 +728,19 @@ export function CoachesPage() {
                       type="button"
                       onClick={() => setFilterActive('')}
                       className="hover:text-emerald-950 p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                )}
+
+                {filterOrganization && selectedOrganization && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-800 border border-purple-200 rounded-lg font-medium">
+                    <span>Org: {selectedOrganization.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setFilterOrganization('')}
+                      className="hover:text-purple-950 p-0.5"
                     >
                       <X className="w-3 h-3" />
                     </button>
