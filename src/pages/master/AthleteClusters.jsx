@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Layers, Plus, Search, Edit2, Trash2, X, Loader2, ShieldCheck } from 'lucide-react';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, Layers, Plus, Search, Edit2, Trash2, X, Loader2, RefreshCw, ShieldCheck } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import {
   useAthleteClustersMaster,
@@ -12,8 +12,10 @@ import {
   useUpdateAthleteSubCluster,
   useDeleteAthleteSubCluster,
 } from '../../hooks/queries/useAthleteClusterMaster';
+import { getClusterErrorMessage } from '../../utils/clusterErrors';
 
 const emptyCluster = { code: '', name: '', description: '', is_development_cluster: false, is_active: true, sort_order: 0 };
+const EMPTY_LIST = [];
 const emptySubCluster = { cluster_id: '', code: '', name: '', description: '', is_active: true, sort_order: 0 };
 
 export function AthleteClustersPage() {
@@ -27,11 +29,12 @@ export function AthleteClustersPage() {
   const [subForm, setSubForm] = useState(emptySubCluster);
   const [error, setError] = useState('');
 
-  const { data: clustersData, isLoading: loadingClusters } = useAthleteClustersMaster({ search: debouncedSearch, perPage: 100 });
-  const clusters = clustersData?.data || [];
-  const { data: subClustersData, isLoading: loadingSubClusters } = useAthleteSubClusters({ clusterId: selectedClusterId, perPage: 100 });
-  const subClusters = subClustersData?.data || [];
-
+  const { data: clustersData, isLoading: loadingClusters, isError: clustersFailed, error: clustersError, refetch: refetchClusters, isFetching: fetchingClusters } = useAthleteClustersMaster({ search: debouncedSearch, perPage: 100 });
+  const clusters = clustersData?.data || EMPTY_LIST;
+  const selectedClusterExists = clusters.some((item) => String(item.id) === String(selectedClusterId));
+  const effectiveSelectedClusterId = selectedClusterExists ? String(selectedClusterId) : String(clusters[0]?.id || '');
+  const { data: subClustersData, isLoading: loadingSubClusters, isError: subClustersFailed, error: subClustersError, refetch: refetchSubClusters, isFetching: fetchingSubClusters } = useAthleteSubClusters({ clusterId: effectiveSelectedClusterId, perPage: 100 });
+  const subClusters = subClustersData?.data || EMPTY_LIST;
   const createCluster = useCreateAthleteClusterMaster();
   const updateCluster = useUpdateAthleteClusterMaster();
   const deleteCluster = useDeleteAthleteClusterMaster();
@@ -44,12 +47,6 @@ export function AthleteClustersPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  useEffect(() => {
-    if (!selectedClusterId && clusters.length) setSelectedClusterId(String(clusters[0].id));
-    if (selectedClusterId && clusters.length && !clusters.some((item) => String(item.id) === String(selectedClusterId))) {
-      setSelectedClusterId(String(clusters[0].id));
-    }
-  }, [clusters, selectedClusterId]);
 
   const openClusterModal = (mode, item = null) => {
     setError('');
@@ -73,7 +70,7 @@ export function AthleteClustersPage() {
       description: item.description || '',
       is_active: !!item.is_active,
       sort_order: item.sort_order || 0,
-    } : { ...emptySubCluster, cluster_id: selectedClusterId });
+    } : { ...emptySubCluster, cluster_id: effectiveSelectedClusterId });
     setSubModal({ open: true, mode, item });
   };
 
@@ -85,7 +82,7 @@ export function AthleteClustersPage() {
       else await updateCluster.mutateAsync({ id: clusterModal.item.id, data: clusterForm });
       setClusterModal({ open: false, mode: 'create', item: null });
     } catch (err) {
-      setError(err.response?.data?.error || 'Gagal menyimpan cluster');
+      setError(getClusterErrorMessage(err, 'Gagal menyimpan Kluster.'));
     }
   };
 
@@ -98,7 +95,7 @@ export function AthleteClustersPage() {
       else await updateSubCluster.mutateAsync({ id: subModal.item.id, data: payload });
       setSubModal({ open: false, mode: 'create', item: null });
     } catch (err) {
-      setError(err.response?.data?.error || 'Gagal menyimpan sub-cluster');
+      setError(getClusterErrorMessage(err, 'Gagal menyimpan sub-kluster.'));
     }
   };
 
@@ -109,32 +106,34 @@ export function AthleteClustersPage() {
       else await deleteSubCluster.mutateAsync(deleteTarget.item.id);
       setDeleteTarget(null);
     } catch (err) {
-      setError(err.response?.data?.error || 'Gagal menghapus data');
+      setError(getClusterErrorMessage(err, 'Gagal menghapus data Kluster.'));
     }
   };
 
-  const selectedCluster = clusters.find((item) => String(item.id) === String(selectedClusterId));
+  const selectedCluster = clusters.find((item) => String(item.id) === String(effectiveSelectedClusterId));
   const formLoading = createCluster.isPending || updateCluster.isPending || createSubCluster.isPending || updateSubCluster.isPending;
 
   return (
-    <DashboardLayout title="Master Cluster Atlet" subtitle="Kelola cluster utama dan sub-cluster atlet secara dinamis">
+    <DashboardLayout title="Master Kluster Atlet" subtitle="Kelola Kluster utama dan sub-kluster atlet secara dinamis">
       {error && <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-xl text-sm">{error}</div>}
+      {clustersFailed && <QueryLoadError message={getClusterErrorMessage(clustersError, 'Master Kluster belum dapat dimuat.')} loading={fetchingClusters} onRetry={refetchClusters} />}
+      {subClustersFailed && <QueryLoadError message={getClusterErrorMessage(subClustersError, 'Master sub-kluster belum dapat dimuat.')} loading={fetchingSubClusters} onRetry={refetchSubClusters} />}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div className="relative max-w-md">
           <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari cluster..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari Kluster..." className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
         </div>
         <button onClick={() => openClusterModal('create')} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors shadow-lg shadow-red-500/20">
-          <Plus className="w-5 h-5" /> Tambah Cluster
+          <Plus className="w-5 h-5" /> Tambah Kluster
         </button>
       </div>
 
       <div className="grid lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100 font-semibold text-slate-800">Cluster Utama</div>
+          <div className="p-4 border-b border-slate-100 font-semibold text-slate-800">Kluster Utama</div>
           <div className="divide-y divide-slate-100">
             {loadingClusters ? <div className="p-8 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div> : clusters.map((cluster) => (
-              <button key={cluster.id} onClick={() => setSelectedClusterId(String(cluster.id))} className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${String(selectedClusterId) === String(cluster.id) ? 'bg-red-50' : ''}`}>
+              <button key={cluster.id} onClick={() => setSelectedClusterId(String(cluster.id))} className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${String(effectiveSelectedClusterId) === String(cluster.id) ? 'bg-red-50' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold text-slate-800">{cluster.name}</p>
@@ -149,17 +148,17 @@ export function AthleteClustersPage() {
                 </div>
               </button>
             ))}
-            {!loadingClusters && clusters.length === 0 && <div className="p-8 text-center text-sm text-slate-500">Tidak ada cluster</div>}
+            {!loadingClusters && clusters.length === 0 && <div className="p-8 text-center text-sm text-slate-500">Tidak ada Kluster</div>}
           </div>
         </div>
 
         <div className="lg:col-span-3 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex items-center justify-between gap-3">
             <div>
-              <p className="font-semibold text-slate-800">Sub-Cluster</p>
-              <p className="text-xs text-slate-500">{selectedCluster?.name || 'Pilih cluster utama'}</p>
+              <p className="font-semibold text-slate-800">Sub-Kluster</p>
+              <p className="text-xs text-slate-500">{selectedCluster?.name || 'Pilih Kluster utama'}</p>
             </div>
-            <button disabled={!selectedClusterId} onClick={() => openSubModal('create')} className="inline-flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
+            <button disabled={!effectiveSelectedClusterId} onClick={() => openSubModal('create')} className="inline-flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-xl text-sm font-semibold hover:bg-red-700 disabled:opacity-50">
               <Plus className="w-4 h-4" /> Tambah Sub
             </button>
           </div>
@@ -174,7 +173,7 @@ export function AthleteClustersPage() {
                     <td className="px-6 py-4"><div className="flex justify-end gap-2"><button onClick={() => openSubModal('edit', item)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600"><Edit2 className="w-4 h-4" /></button><button onClick={() => setDeleteTarget({ type: 'sub', item })} className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600"><Trash2 className="w-4 h-4" /></button></div></td>
                   </tr>
                 ))}
-                {!loadingSubClusters && subClusters.length === 0 && <tr><td colSpan={3} className="px-6 py-10 text-center text-sm text-slate-500">Belum ada sub-cluster</td></tr>}
+                {!loadingSubClusters && subClusters.length === 0 && <tr><td colSpan={3} className="px-6 py-10 text-center text-sm text-slate-500">Belum ada sub-kluster</td></tr>}
               </tbody>
             </table>
           </div>
@@ -190,12 +189,12 @@ export function AthleteClustersPage() {
 
 function ClusterModal({ open, mode, form, setForm, onClose, onSubmit, loading }) {
   if (!open) return null;
-  return <Modal title={mode === 'create' ? 'Tambah Cluster Atlet' : 'Edit Cluster Atlet'} onClose={onClose}><form onSubmit={onSubmit} className="p-6 space-y-4"><TextInput label="Kode" value={form.code} onChange={(value) => setForm({ ...form, code: value })} required /><TextInput label="Nama" value={form.name} onChange={(value) => setForm({ ...form, name: value })} required /><TextArea label="Deskripsi" value={form.description} onChange={(value) => setForm({ ...form, description: value })} /><TextInput label="Urutan" type="number" value={form.sort_order} onChange={(value) => setForm({ ...form, sort_order: Number(value) || 0 })} /><CheckInput label="Termasuk Binaan KONI" checked={form.is_development_cluster} onChange={(value) => setForm({ ...form, is_development_cluster: value })} /><CheckInput label="Aktif" checked={form.is_active} onChange={(value) => setForm({ ...form, is_active: value })} /><ModalActions onClose={onClose} loading={loading} /></form></Modal>;
+  return <Modal title={mode === 'create' ? 'Tambah Kluster Atlet' : 'Edit Kluster Atlet'} onClose={onClose}><form onSubmit={onSubmit} className="p-6 space-y-4"><TextInput label="Kode" value={form.code} onChange={(value) => setForm({ ...form, code: value })} required /><TextInput label="Nama" value={form.name} onChange={(value) => setForm({ ...form, name: value })} required /><TextArea label="Deskripsi" value={form.description} onChange={(value) => setForm({ ...form, description: value })} /><TextInput label="Urutan" type="number" value={form.sort_order} onChange={(value) => setForm({ ...form, sort_order: Number(value) || 0 })} /><CheckInput label="Termasuk Binaan KONI" checked={form.is_development_cluster} onChange={(value) => setForm({ ...form, is_development_cluster: value })} /><CheckInput label="Aktif" checked={form.is_active} onChange={(value) => setForm({ ...form, is_active: value })} /><ModalActions onClose={onClose} loading={loading} /></form></Modal>;
 }
 
 function SubClusterModal({ open, mode, form, setForm, clusters, onClose, onSubmit, loading }) {
   if (!open) return null;
-  return <Modal title={mode === 'create' ? 'Tambah Sub-Cluster' : 'Edit Sub-Cluster'} onClose={onClose}><form onSubmit={onSubmit} className="p-6 space-y-4"><label className="block"><span className="block text-sm font-medium text-slate-700 mb-1">Cluster Parent</span><select value={form.cluster_id} onChange={(e) => setForm({ ...form, cluster_id: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" required>{clusters.map((cluster) => <option key={cluster.id} value={cluster.id}>{cluster.name}</option>)}</select></label><TextInput label="Kode" value={form.code} onChange={(value) => setForm({ ...form, code: value })} required /><TextInput label="Nama" value={form.name} onChange={(value) => setForm({ ...form, name: value })} required /><TextArea label="Deskripsi" value={form.description} onChange={(value) => setForm({ ...form, description: value })} /><TextInput label="Urutan" type="number" value={form.sort_order} onChange={(value) => setForm({ ...form, sort_order: Number(value) || 0 })} /><CheckInput label="Aktif" checked={form.is_active} onChange={(value) => setForm({ ...form, is_active: value })} /><ModalActions onClose={onClose} loading={loading} /></form></Modal>;
+  return <Modal title={mode === 'create' ? 'Tambah Sub-Kluster' : 'Edit Sub-Kluster'} onClose={onClose}><form onSubmit={onSubmit} className="p-6 space-y-4"><label className="block"><span className="block text-sm font-medium text-slate-700 mb-1">Kluster Induk</span><select value={form.cluster_id} onChange={(e) => setForm({ ...form, cluster_id: e.target.value })} className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" required>{clusters.map((cluster) => <option key={cluster.id} value={cluster.id}>{cluster.name}</option>)}</select></label><TextInput label="Kode" value={form.code} onChange={(value) => setForm({ ...form, code: value })} required /><TextInput label="Nama" value={form.name} onChange={(value) => setForm({ ...form, name: value })} required /><TextArea label="Deskripsi" value={form.description} onChange={(value) => setForm({ ...form, description: value })} /><TextInput label="Urutan" type="number" value={form.sort_order} onChange={(value) => setForm({ ...form, sort_order: Number(value) || 0 })} /><CheckInput label="Aktif" checked={form.is_active} onChange={(value) => setForm({ ...form, is_active: value })} /><ModalActions onClose={onClose} loading={loading} /></form></Modal>;
 }
 
 function DeleteModal({ target, onClose, onConfirm, loading }) {
@@ -204,7 +203,7 @@ function DeleteModal({ target, onClose, onConfirm, loading }) {
 }
 
 function Modal({ title, children, onClose }) {
-  return <AnimatePresence><motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50" onClick={onClose} /><motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}><div className="p-6 border-b border-slate-100 flex items-center justify-between"><h2 className="text-lg font-bold text-slate-800">{title}</h2><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-500" /></button></div>{children}</div></motion.div></AnimatePresence>;
+  return <AnimatePresence><Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50" onClick={onClose} /><Motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="bg-white rounded-2xl shadow-xl w-full max-w-md" onClick={(e) => e.stopPropagation()}><div className="p-6 border-b border-slate-100 flex items-center justify-between"><h2 className="text-lg font-bold text-slate-800">{title}</h2><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg"><X className="w-5 h-5 text-slate-500" /></button></div>{children}</div></Motion.div></AnimatePresence>;
 }
 
 function TextInput({ label, value, onChange, type = 'text', required = false }) {
@@ -221,4 +220,7 @@ function CheckInput({ label, checked, onChange }) {
 
 function ModalActions({ onClose, loading }) {
   return <div className="flex justify-end gap-3 pt-2"><button type="button" onClick={onClose} className="px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50">Batal</button><button type="submit" disabled={loading} className="px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-50 flex items-center gap-2">{loading && <Loader2 className="w-4 h-4 animate-spin" />} Simpan</button></div>;
+}
+function QueryLoadError({ message, loading, onRetry }) {
+  return <div className="mb-4 flex flex-col gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"><span className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{message}</span><button type="button" onClick={() => onRetry()} disabled={loading} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold hover:bg-red-100 disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />Coba Lagi</button></div>;
 }

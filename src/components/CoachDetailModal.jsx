@@ -529,7 +529,7 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
                 Riwayat Kluster
               </TabButton>
               <TabButton id="funds" activeTab={activeTab} onSelect={setActiveTab} icon={Wallet}>
-                Dana Pembinaan
+                Biaya Pembinaan
               </TabButton>
             </div>
 
@@ -670,8 +670,8 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
             {/* Tab 2: Riwayat Kluster */}
             {activeTab === 'clusters' && <CoachClusterHistoryTab coach={coach} />}
 
-            {/* Tab 3: Dana Pembinaan */}
-            {activeTab === 'funds' && <CoachDevelopmentFundsTab coach={coach} />}
+            {/* Tab 3: Biaya Pembinaan */}
+            {activeTab === 'funds' && <CoachDevelopmentFundsTab coach={coach} onOpenClusterHistory={() => setActiveTab('clusters')} />}
           </div>
         </div>
       </Motion.div>
