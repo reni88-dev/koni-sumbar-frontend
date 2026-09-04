@@ -47,6 +47,7 @@ import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
 import { DataSummaryPage } from './pages/DataSummary';
 import { DataDuplicatesPage } from './pages/DataDuplicates';
 import { SystemAnnouncementsPage } from './pages/SystemAnnouncements';
+import { EmailBroadcastsPage } from './pages/EmailBroadcasts';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { PortalRoute } from './components/PortalRoute';
 import { PermissionRoute } from './components/PermissionRoute';
@@ -418,6 +419,16 @@ function App() {
           <ProtectedRoute>
             <PermissionRoute permission="announcements.view">
               <SystemAnnouncementsPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/email-broadcasts"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="email_broadcasts.view">
+              <EmailBroadcastsPage />
             </PermissionRoute>
           </ProtectedRoute>
         }
