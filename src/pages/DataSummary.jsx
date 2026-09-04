@@ -1,9 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  BarChart3,
   Building2,
-  CheckCircle2,
   ChevronDown,
   Database,
   RefreshCw,
@@ -14,8 +12,21 @@ import {
   Users,
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { DateInput } from '../components/DateInput';
+import { SportContingentDistribution } from '../components/data-summary/SportContingentDistribution';
 import { PrintDataSummary } from '../components/data-summary/PrintDataSummary';
 import { useDataSummary } from '../hooks/queries/useDataAnalysis';
+import {
+  DEFAULT_TREND_PRESET,
+  TREND_GRANULARITY_DAILY,
+  TREND_PRESET_OPTIONS,
+  buildIntegerTrendScale,
+  buildTrendPreset,
+  formatTrendDateRange,
+  getJakartaToday,
+  getSampledTrendLabelIndexes,
+  validateTrendDateRange,
+} from '../utils/dataSummaryTrend';
 
 const DONUT_COLORS = ['#dc2626', '#2563eb', '#059669', '#d97706', '#7c3aed', '#0891b2', '#64748b'];
 
@@ -160,53 +171,273 @@ function HorizontalBars({ title, items = [], valueKey = 'count', collapsible = f
   );
 }
 
-function TrendChart({ items = [] }) {
+function trendValue(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function trendBucketKey(item, index) {
+  return String(item?.date || item?.month || item?.key || item?.label || index);
+}
+
+function trendBucketPeriod(item) {
+  return item?.label || item?.date || item?.month || '-';
+}
+
+function trendBucketDescription(item) {
+  const athletes = trendValue(item?.athletes);
+  const coaches = trendValue(item?.coaches);
+  return `Periode ${trendBucketPeriod(item)}. Atlet ${number(athletes)}. Pelatih ${number(coaches)}. Total ${number(athletes + coaches)}.`;
+}
+
+function TrendChart({ items = [], granularity = 'monthly' }) {
+  const [hoveredBucketKey, setHoveredBucketKey] = useState(null);
+  const [focusedBucketKey, setFocusedBucketKey] = useState(null);
+  const [selectedBucketKey, setSelectedBucketKey] = useState(null);
+  const [dismissedFocusKey, setDismissedFocusKey] = useState(null);
   const width = 800;
   const height = 240;
-  const padding = 28;
-  const maximum = Math.max(1, ...items.flatMap((item) => [Number(item.athletes || 0), Number(item.coaches || 0)]));
-  const x = (index) => items.length <= 1 ? width / 2 : padding + (index * (width - padding * 2)) / (items.length - 1);
-  const y = (value) => height - padding - (Number(value || 0) / maximum) * (height - padding * 2);
+  const plotLeft = 64;
+  const plotRight = width - 16;
+  const plotTop = 14;
+  const plotBottom = height - 16;
+  const plotWidth = plotRight - plotLeft;
+  const plotHeight = plotBottom - plotTop;
+  const unit = granularity === TREND_GRANULARITY_DAILY ? 'hari' : 'bulan';
+  const scale = buildIntegerTrendScale(
+    items.flatMap((item) => [trendValue(item?.athletes), trendValue(item?.coaches)]),
+  );
+  const x = (index) => plotLeft + ((index + 0.5) * plotWidth) / Math.max(items.length, 1);
+  const y = (value) => plotBottom - (trendValue(value) / scale.maximum) * plotHeight;
   const athletePoints = items.map((item, index) => `${x(index)},${y(item.athletes)}`).join(' ');
   const coachPoints = items.map((item, index) => `${x(index)},${y(item.coaches)}`).join(' ');
+  const visibleLabelIndexes = new Set(getSampledTrendLabelIndexes(items.length));
+  const activeBucketKey = hoveredBucketKey
+    || (focusedBucketKey !== dismissedFocusKey ? focusedBucketKey : null)
+    || selectedBucketKey;
+  const activeIndex = items.findIndex((item, index) => trendBucketKey(item, index) === activeBucketKey);
+  const activeItem = activeIndex >= 0 ? items[activeIndex] : null;
+  const activeX = activeItem ? x(activeIndex) : 0;
+  const activeY = activeItem ? Math.min(y(activeItem.athletes), y(activeItem.coaches)) : 0;
+  const activeDescription = activeItem ? trendBucketDescription(activeItem) : '';
+  const tooltipHorizontalTransform = activeX < width * 0.18
+    ? 'translateX(0)'
+    : activeX > width * 0.82
+      ? 'translateX(-100%)'
+      : 'translateX(-50%)';
+  const tooltipBelowPoint = activeY < plotTop + 112;
+  const chartMinimumWidth = Math.max(680, items.length * 48 + 96);
+  const plotLeftPercent = (plotLeft / width) * 100;
+  const plotRightPercent = ((width - plotRight) / width) * 100;
+  const plotTopPercent = (plotTop / height) * 100;
+  const plotBottomPercent = ((height - plotBottom) / height) * 100;
+
+  const handleBucketEscape = (event, bucketKey) => {
+    if (event.key !== 'Escape') return;
+    event.preventDefault();
+    setSelectedBucketKey(null);
+    setHoveredBucketKey(null);
+    setDismissedFocusKey(bucketKey);
+  };
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-bold text-slate-800">Tren Penambahan Data</h3>
-          <p className="text-sm text-slate-400">Jumlah record baru per bulan</p>
+          <p className="text-sm text-slate-400">Jumlah record baru per {unit}. Arahkan atau pilih periode untuk melihat nilainya.</p>
         </div>
         <div className="flex gap-4 text-xs font-semibold text-slate-500">
           <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-red-600" />Atlet</span>
           <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-blue-600" />Pelatih</span>
         </div>
       </div>
-      <div className="mt-5 overflow-x-auto">
-        <div className="min-w-[680px]">
-          <svg viewBox={`0 0 ${width} ${height}`} className="h-64 w-full" role="img" aria-label="Tren penambahan atlet dan pelatih">
-            {[0, 1, 2, 3, 4].map((line) => {
-              const lineY = padding + (line * (height - padding * 2)) / 4;
-              return <line key={line} x1={padding} x2={width - padding} y1={lineY} y2={lineY} stroke="#e2e8f0" strokeWidth="1" />;
+      <div className="mt-5 overflow-x-auto pb-1">
+        <div style={{ minWidth: `${chartMinimumWidth}px` }}>
+          <div className="relative h-64">
+            {scale.ticks.map((tick) => {
+              const tickTop = (y(tick) / height) * 100;
+              return (
+                <div key={tick} aria-hidden="true">
+                  <span
+                    className="pointer-events-none absolute -translate-y-1/2 pr-2 text-right text-[10px] font-medium tabular-nums text-slate-400"
+                    style={{ left: 0, top: `${tickTop}%`, width: `${plotLeftPercent}%` }}
+                  >
+                    {number(tick)}
+                  </span>
+                  <span
+                    className="pointer-events-none absolute border-t border-slate-200"
+                    style={{ left: `${plotLeftPercent}%`, right: `${plotRightPercent}%`, top: `${tickTop}%` }}
+                  />
+                </div>
+              );
             })}
-            {athletePoints && <polyline points={athletePoints} fill="none" stroke="#dc2626" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />}
-            {coachPoints && <polyline points={coachPoints} fill="none" stroke="#2563eb" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round" />}
+
+            <svg
+              viewBox={`0 0 ${width} ${height}`}
+              preserveAspectRatio="none"
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              role="img"
+              aria-label={`Tren penambahan atlet dan pelatih per ${unit}`}
+            >
+              {athletePoints && (
+                <polyline
+                  points={athletePoints}
+                  fill="none"
+                  stroke="#dc2626"
+                  strokeWidth="4"
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+              {coachPoints && (
+                <polyline
+                  points={coachPoints}
+                  fill="none"
+                  stroke="#2563eb"
+                  strokeWidth="4"
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+            </svg>
+
+            {activeItem && (
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute border-l border-dashed border-slate-400"
+                style={{
+                  left: `${(activeX / width) * 100}%`,
+                  top: `${plotTopPercent}%`,
+                  bottom: `${plotBottomPercent}%`,
+                }}
+              />
+            )}
+
+            {items.map((item, index) => {
+              const bucketKey = trendBucketKey(item, index);
+              const athleteValue = trendValue(item?.athletes);
+              const coachValue = trendValue(item?.coaches);
+              const athleteY = y(athleteValue);
+              const coachY = y(coachValue);
+              const isActive = bucketKey === activeBucketKey;
+              const isStacked = athleteValue === coachValue;
+              const athleteSize = isActive ? 14 : isStacked ? 10 : 8;
+              const coachSize = isActive ? (isStacked ? 8 : 14) : isStacked ? 5 : 8;
+
+              return (
+                <div key={bucketKey} aria-hidden="true">
+                  <span
+                    className="pointer-events-none absolute rounded-full border-2 border-white bg-red-600 shadow-sm transition-[width,height]"
+                    style={{
+                      left: `${(x(index) / width) * 100}%`,
+                      top: `${(athleteY / height) * 100}%`,
+                      width: `${athleteSize}px`,
+                      height: `${athleteSize}px`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  />
+                  <span
+                    className="pointer-events-none absolute rounded-full border border-white bg-blue-600 shadow-sm transition-[width,height]"
+                    style={{
+                      left: `${(x(index) / width) * 100}%`,
+                      top: `${(coachY / height) * 100}%`,
+                      width: `${coachSize}px`,
+                      height: `${coachSize}px`,
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  />
+                </div>
+              );
+            })}
+
+            <div
+              className="absolute z-10 grid"
+              style={{
+                left: `${plotLeftPercent}%`,
+                right: `${plotRightPercent}%`,
+                top: `${plotTopPercent}%`,
+                bottom: `${plotBottomPercent}%`,
+                gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))`,
+              }}
+            >
+              {items.map((item, index) => {
+                const bucketKey = trendBucketKey(item, index);
+                return (
+                  <button
+                    key={bucketKey}
+                    type="button"
+                    aria-label={trendBucketDescription(item)}
+                    aria-pressed={selectedBucketKey === bucketKey}
+                    onPointerEnter={(event) => {
+                      if (event.pointerType === 'touch') return;
+                      setHoveredBucketKey(bucketKey);
+                      setDismissedFocusKey(null);
+                    }}
+                    onPointerLeave={(event) => {
+                      if (event.pointerType !== 'touch') setHoveredBucketKey(null);
+                    }}
+                    onFocus={() => {
+                      setFocusedBucketKey(bucketKey);
+                      setDismissedFocusKey(null);
+                    }}
+                    onBlur={() => {
+                      setFocusedBucketKey(null);
+                      setDismissedFocusKey(null);
+                    }}
+                    onClick={() => {
+                      setSelectedBucketKey(bucketKey);
+                      setDismissedFocusKey(null);
+                    }}
+                    onKeyDown={(event) => handleBucketEscape(event, bucketKey)}
+                    className="min-w-11 touch-pan-x cursor-pointer rounded-sm bg-transparent outline-none focus-visible:bg-slate-900/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400"
+                  />
+                );
+              })}
+            </div>
+
+            {activeItem && (
+              <div
+                role="tooltip"
+                className="pointer-events-none absolute z-20 min-w-44 rounded-xl border border-slate-200 bg-slate-900 px-3 py-2.5 text-xs text-white shadow-xl"
+                style={{
+                  left: `${(activeX / width) * 100}%`,
+                  top: `${(activeY / height) * 100}%`,
+                  transform: `${tooltipHorizontalTransform} translateY(${tooltipBelowPoint ? '12px' : 'calc(-100% - 12px)'})`,
+                }}
+              >
+                <p className="font-semibold text-white">{trendBucketPeriod(activeItem)}</p>
+                <div className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 tabular-nums">
+                  <span className="text-slate-300">Atlet</span>
+                  <strong className="text-red-300">{number(trendValue(activeItem.athletes))}</strong>
+                  <span className="text-slate-300">Pelatih</span>
+                  <strong className="text-blue-300">{number(trendValue(activeItem.coaches))}</strong>
+                  <span className="border-t border-slate-700 pt-1 font-semibold">Total</span>
+                  <strong className="border-t border-slate-700 pt-1">{number(trendValue(activeItem.athletes) + trendValue(activeItem.coaches))}</strong>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div
+            className="grid pt-1"
+            style={{
+              marginLeft: `${plotLeftPercent}%`,
+              marginRight: `${plotRightPercent}%`,
+              gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))`,
+            }}
+          >
             {items.map((item, index) => (
-              <g key={item.month}>
-                <circle cx={x(index)} cy={y(item.athletes)} r="4" fill="#dc2626" />
-                <circle cx={x(index)} cy={y(item.coaches)} r="4" fill="#2563eb" />
-              </g>
-            ))}
-          </svg>
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(items.length, 1)}, minmax(0, 1fr))` }}>
-            {items.map((item, index) => (
-              <span key={item.month} className={`text-center text-[10px] text-slate-400 ${items.length > 12 && index % 2 === 1 ? 'opacity-0' : ''}`}>
-                {item.label}
+              <span key={trendBucketKey(item, index)} className="text-center text-[10px] text-slate-400">
+                {visibleLabelIndexes.has(index) ? trendBucketPeriod(item) : ''}
               </span>
             ))}
           </div>
         </div>
       </div>
+      <p className="sr-only" aria-live="polite" aria-atomic="true">{activeDescription}</p>
     </section>
   );
 }
@@ -332,8 +563,31 @@ export function DataSummaryPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [caborId, setCaborId] = useState('');
   const [status, setStatus] = useState('all');
-  const [periodMonths, setPeriodMonths] = useState(12);
-  const filters = useMemo(() => ({ organizationId, caborId, status, periodMonths }), [organizationId, caborId, status, periodMonths]);
+  const [trendState, setTrendState] = useState(() => {
+    const applied = buildTrendPreset(DEFAULT_TREND_PRESET);
+    return {
+      selectedPreset: DEFAULT_TREND_PRESET,
+      applied,
+      draftStartDate: applied.startDate,
+      draftEndDate: applied.endDate,
+    };
+  });
+  const todayJakarta = getJakartaToday();
+  const trendValidation = useMemo(() => validateTrendDateRange({
+    granularity: trendState.applied.granularity,
+    startDate: trendState.draftStartDate,
+    endDate: trendState.draftEndDate,
+    today: todayJakarta,
+  }), [todayJakarta, trendState.applied.granularity, trendState.draftEndDate, trendState.draftStartDate]);
+  const filters = useMemo(() => ({
+    organizationId,
+    caborId,
+    status,
+    trendGranularity: trendState.applied.granularity,
+    trendStartDate: trendState.applied.startDate,
+    trendEndDate: trendState.applied.endDate,
+    periodMonths: trendState.applied.periodMonths,
+  }), [caborId, organizationId, status, trendState.applied]);
   const query = useDataSummary(filters);
   const data = query.data;
   const athletes = data?.overview?.athletes || {};
@@ -341,18 +595,52 @@ export function DataSummaryPage() {
   const totalParentCabors = data?.overview?.total_parent_cabors || 0;
   const totalOrganizations = knownCategoryCount(data?.distributions?.organizations);
   const duplicate = data?.duplicate_summary || {};
+  const activeTrendGranularity = data?.filters?.trend_granularity || filters.trendGranularity;
+  const trendChartKey = `${filters.trendGranularity}:${filters.trendStartDate}:${filters.trendEndDate}`;
+  const customPresetValue = `custom-${trendState.applied.granularity}`;
+
+  const handleTrendPresetChange = (event) => {
+    const presetValue = event.target.value;
+    if (presetValue.startsWith('custom-')) return;
+    const applied = buildTrendPreset(presetValue);
+    setTrendState({
+      selectedPreset: presetValue,
+      applied,
+      draftStartDate: applied.startDate,
+      draftEndDate: applied.endDate,
+    });
+  };
+
+  const handleApplyTrendRange = () => {
+    if (!trendValidation.isValid || query.isFetching) return;
+    setTrendState((current) => {
+      const selectedPreset = `custom-${current.applied.granularity}`;
+      return {
+        ...current,
+        selectedPreset,
+        applied: {
+          ...current.applied,
+          preset: selectedPreset,
+          startDate: current.draftStartDate,
+          endDate: current.draftEndDate,
+          periodMonths: trendValidation.monthCount,
+          isCustom: true,
+        },
+      };
+    });
+  };
 
   return (
     <DashboardLayout
       title="Summary Data"
-      subtitle="Ringkasan agregat atlet, pelatih, kualitas data, tren, dan indikasi duplikat."
+      subtitle="Ringkasan agregat atlet, pelatih, distribusi cabor per kontingen, kualitas data, tren, dan indikasi duplikat."
     >
       <div className="space-y-6">
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-bold text-slate-800">Filter Laporan</h2>
-              <p className="mt-1 text-sm text-slate-400">Laporan cetak mengikuti scope akses dan filter aktif.</p>
+              <p className="mt-1 text-sm text-slate-400">Seluruh bagian laporan mengikuti scope akses dan filter Data Summary yang aktif.</p>
             </div>
             <PrintDataSummary
               data={data}
@@ -402,17 +690,71 @@ export function DataSummaryPage() {
               </select>
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold text-slate-500">Periode tren</span>
+              <span className="mb-1.5 block text-xs font-semibold text-slate-500">Granularitas dan periode tren</span>
               <select
-                value={periodMonths}
-                onChange={(event) => setPeriodMonths(Number(event.target.value))}
+                value={trendState.selectedPreset}
+                onChange={handleTrendPresetChange}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
               >
-                <option value={6}>6 bulan</option>
-                <option value={12}>12 bulan</option>
-                <option value={24}>24 bulan</option>
+                {TREND_PRESET_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+                {trendState.applied.isCustom && (
+                  <option value={customPresetValue}>
+                    {trendState.applied.granularity === TREND_GRANULARITY_DAILY ? 'Harian' : 'Bulanan'} — Rentang kustom
+                  </option>
+                )}
               </select>
             </label>
+          </div>
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-500">Tanggal mulai tren</span>
+                <DateInput
+                  value={trendState.draftStartDate}
+                  max={todayJakarta}
+                  onChange={(event) => setTrendState((current) => ({ ...current, draftStartDate: event.target.value }))}
+                  aria-invalid={!trendValidation.isValid}
+                  aria-describedby="trend-date-validation"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-semibold text-slate-500">Tanggal akhir tren</span>
+                <DateInput
+                  value={trendState.draftEndDate}
+                  max={todayJakarta}
+                  onChange={(event) => setTrendState((current) => ({ ...current, draftEndDate: event.target.value }))}
+                  aria-invalid={!trendValidation.isValid}
+                  aria-describedby="trend-date-validation"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={handleApplyTrendRange}
+                disabled={!trendValidation.isValid || query.isFetching}
+                aria-describedby="trend-date-validation"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+              >
+                {query.isFetching && <RefreshCw className="h-4 w-4 animate-spin" />}
+                {query.isFetching ? 'Memuat tren...' : 'Terapkan Rentang'}
+              </button>
+            </div>
+            <div id="trend-date-validation" className="mt-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
+              {trendValidation.isValid ? (
+                <p className="text-slate-500">
+                  {trendState.applied.granularity === TREND_GRANULARITY_DAILY
+                    ? `${trendValidation.dayCount} tanggal harian`
+                    : `${trendValidation.monthCount} bucket bulanan`}
+                  {' · '}{formatTrendDateRange(trendState.draftStartDate, trendState.draftEndDate)}
+                </p>
+              ) : (
+                <p role="alert" className="font-medium text-red-600">{trendValidation.error}</p>
+              )}
+              <p className="text-slate-400">Perubahan tanggal diterapkan setelah tombol ditekan.</p>
+            </div>
           </div>
         </section>
 
@@ -433,18 +775,24 @@ export function DataSummaryPage() {
             </button>
           </div>
         ) : (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <KpiCard label="Total atlet" value={number(athletes.total)} detail={`${number(athletes.active)} aktif · ${number(athletes.inactive)} tidak aktif`} icon={Users} tone="red" />
               <KpiCard label="Total pelatih" value={number(coaches.total)} detail={`${number(coaches.active)} aktif · ${number(coaches.inactive)} tidak aktif`} icon={UserCheck} tone="blue" />
               <KpiCard label="Total Cabor Induk" value={number(totalParentCabors)} detail="Mengikuti scope akses dan filter aktif" icon={Trophy} tone="amber" />
               <KpiCard label="Total Organisasi" value={number(totalOrganizations)} detail="Berdasarkan hasil filter saat ini" icon={Building2} tone="violet" />
               <KpiCard label="Akun terhubung" value={number((athletes.linked_users || 0) + (coaches.linked_users || 0))} detail={`Atlet ${number(athletes.linked_users)} · Pelatih ${number(coaches.linked_users)}`} icon={ShieldCheck} tone="emerald" />
               <KpiCard label="Rata-rata umur" value={`${athletes.average_age || 0} / ${coaches.average_age || 0}`} detail="Atlet / Pelatih (tahun)" icon={TrendingUp} tone="amber" />
-            </div>
+          </div>
+        )}
 
+        {!query.isLoading && !query.isError && (
+          <SportContingentDistribution data={data?.sport_contingent_distribution} />
+        )}
+
+        {!query.isLoading && !query.isError && (
+          <>
             <div className="grid gap-6 xl:grid-cols-2">
-              <TrendChart items={data?.trends} />
+              <TrendChart key={trendChartKey} items={data?.trends} granularity={activeTrendGranularity} />
               <DonutChart title="Gender Atlet" items={data?.distributions?.athlete_gender} />
               <DonutChart title="Gender Pelatih" items={data?.distributions?.coach_gender} />
               <HorizontalBars title="Kelompok Umur Atlet" items={data?.distributions?.athlete_age_groups} />
@@ -492,7 +840,7 @@ export function DataSummaryPage() {
             </section>
 
             <div className="flex items-center justify-between gap-3 text-xs text-slate-400">
-              <span>Summary hanya berisi agregat dan tidak mengirim identitas atau NIK individu.</span>
+              <span>SatuData hanya berisi agregat; distribusi cabor menampilkan nama kontingen tanpa NIK atau identitas individu.</span>
               {data?.generated_at && <span>Diperbarui {new Date(data.generated_at).toLocaleString('id-ID')}</span>}
             </div>
           </>
