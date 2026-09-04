@@ -535,7 +535,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
             {activeTab === 'clusters' && <AthleteClusterHistoryTab athlete={athlete} />}
 
             {/* Tab 3: Biaya Pembinaan */}
-            {activeTab === 'funds' && <AthleteDevelopmentFundsTab athlete={athlete} />}
+            {activeTab === 'funds' && <AthleteDevelopmentFundsTab athlete={athlete} onOpenClusterHistory={() => setActiveTab('clusters')} />}
           </div>
         </div>
       </Motion.div>

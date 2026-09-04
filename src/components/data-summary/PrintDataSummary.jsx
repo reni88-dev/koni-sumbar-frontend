@@ -1,5 +1,10 @@
 import { useRef, useState } from 'react';
 import { Loader2, Printer } from 'lucide-react';
+import {
+  TREND_GRANULARITY_DAILY,
+  formatTrendDateRange,
+  getSampledTrendLabelIndexes,
+} from '../../utils/dataSummaryTrend';
 
 const NUMBER_FORMATTER = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 });
 const DECIMAL_FORMATTER = new Intl.NumberFormat('id-ID', { maximumFractionDigits: 1 });
@@ -69,13 +74,16 @@ function buildFilterDetails(data, filters) {
   const organizationId = filters?.organizationId ?? data?.filters?.organization_id ?? '';
   const caborId = filters?.caborId ?? data?.filters?.cabor_id ?? '';
   const status = filters?.status || data?.filters?.status || 'all';
-  const periodMonths = filters?.periodMonths || data?.filters?.period_months || 12;
+  const granularity = data?.filters?.trend_granularity || filters?.trendGranularity || 'monthly';
+  const startDate = data?.filters?.trend_start_date || filters?.trendStartDate || '';
+  const endDate = data?.filters?.trend_end_date || filters?.trendEndDate || '';
 
   return [
     ['Organisasi', resolveOptionLabel(options.organizations, organizationId, 'Semua organisasi')],
     ['Cabang olahraga', resolveOptionLabel(options.cabors, caborId, 'Semua cabor')],
     ['Status data', statusLabels[status] || status],
-    ['Periode tren', `${formatNumber(periodMonths)} bulan`],
+    ['Granularitas tren', granularity === TREND_GRANULARITY_DAILY ? 'Harian' : 'Bulanan'],
+    ['Rentang tren', formatTrendDateRange(startDate, endDate)],
   ];
 }
 
@@ -131,7 +139,50 @@ function buildKpiGrid(data, totalOrganizations) {
   </div>`;
 }
 
-function buildTrendChart(items) {
+function buildSportContingentDistributionSection(distribution) {
+  const sports = asArray(distribution?.sports);
+  const threshold = toFiniteNumber(distribution?.threshold) || 10;
+  const rows = sports.length
+    ? sports.map((sport, index) => {
+        const federationCode = String(sport?.federation_code || '').trim();
+        const caborName = sport?.cabor_name || `Cabor #${sport?.cabor_id || '-'}`;
+        const displayName = federationCode ? `${caborName} (${federationCode})` : caborName;
+        const groupLabel = sport?.group === 'large' ? 'Cabor Besar' : 'Cabor Kecil';
+        const contingentNames = asArray(sport?.contingents)
+          .map((contingent) => `<div><span>${escapeHtml(contingent?.name || `Organisasi #${contingent?.organization_id || '-'}`)}</span><strong>${escapeHtml(formatNumber(contingent?.athlete_count))} atlet</strong></div>`)
+          .join('');
+        return `<tr>
+          <td class="number-cell">${escapeHtml(formatNumber(index + 1))}</td>
+          <td class="strong">${escapeHtml(displayName)}</td>
+          <td>${escapeHtml(groupLabel)}</td>
+          <td class="number-cell">${escapeHtml(formatNumber(sport?.contingent_count))}</td>
+          <td class="number-cell">${escapeHtml(formatNumber(sport?.athlete_count))}</td>
+          <td><div class="contingent-list">${contingentNames}</div></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="6" class="empty-cell">Tidak ada distribusi kontingen untuk scope dan filter aktif.</td></tr>';
+
+  return `<section class="report-section sport-contingent-section">
+    <div class="section-heading avoid-break">
+      <div>
+        <h3>Kelompok Cabor berdasarkan Kontingen</h3>
+        <p>Cabor Besar memiliki minimal ${escapeHtml(formatNumber(threshold))} kontingen kab/kota; Cabor Kecil memiliki maksimal ${escapeHtml(formatNumber(Math.max(0, threshold - 1)))} kontingen. Data mengikuti filter SatuData yang aktif.</p>
+      </div>
+    </div>
+    <div class="sport-contingent-kpi-grid">
+      <article class="kpi-card tone-emerald"><div class="kpi-label">Total Cabor Besar</div><div class="kpi-value">${escapeHtml(formatNumber(distribution?.large_count))}</div></article>
+      <article class="kpi-card tone-amber"><div class="kpi-label">Total Cabor Kecil</div><div class="kpi-value">${escapeHtml(formatNumber(distribution?.small_count))}</div></article>
+    </div>
+    <div class="table-section sport-contingent-table-section">
+      <table class="sport-contingent-table">
+        <thead><tr><th class="number-cell">No.</th><th>Cabang olahraga</th><th>Kelompok</th><th class="number-cell">Kontingen</th><th class="number-cell">Atlet</th><th>Rincian kontingen kab/kota</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </section>`;
+}
+
+function buildTrendChart(items, granularity) {
   const trends = asArray(items);
   if (!trends.length) return '<div class="empty-state">Belum ada data tren.</div>';
 
@@ -148,7 +199,8 @@ function buildTrendChart(items) {
   const y = (value) => top + plotHeight - (toFiniteNumber(value) / maximum) * plotHeight;
   const athletePoints = trends.map((item, index) => `${x(index).toFixed(2)},${y(item?.athletes).toFixed(2)}`).join(' ');
   const coachPoints = trends.map((item, index) => `${x(index).toFixed(2)},${y(item?.coaches).toFixed(2)}`).join(' ');
-  const labelStep = trends.length > 12 ? Math.ceil(trends.length / 12) : 1;
+  const visibleLabelIndexes = new Set(getSampledTrendLabelIndexes(trends.length));
+  const unit = granularity === TREND_GRANULARITY_DAILY ? 'hari' : 'bulan';
 
   const grid = Array.from({ length: 5 }, (_, index) => {
     const gridY = top + (index * plotHeight) / 4;
@@ -161,8 +213,8 @@ function buildTrendChart(items) {
     <circle cx="${x(index)}" cy="${y(item?.coaches)}" r="3.5" fill="#2563eb" />`).join('');
 
   const labels = trends.map((item, index) => {
-    if (index % labelStep !== 0 && index !== trends.length - 1) return '';
-    return `<text x="${x(index)}" y="${height - 18}" text-anchor="middle" class="axis-label">${escapeHtml(item?.label || item?.month || '-')}</text>`;
+    if (!visibleLabelIndexes.has(index)) return '';
+    return `<text x="${x(index)}" y="${height - 18}" text-anchor="middle" class="axis-label">${escapeHtml(item?.label || item?.date || item?.month || '-')}</text>`;
   }).join('');
 
   return `<div class="trend-figure avoid-break">
@@ -170,7 +222,7 @@ function buildTrendChart(items) {
       <span><i class="legend-dot athlete"></i>Atlet</span>
       <span><i class="legend-dot coach"></i>Pelatih</span>
     </div>
-    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik tren penambahan atlet dan pelatih">
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Grafik tren penambahan atlet dan pelatih per ${unit}">
       ${grid}
       <polyline points="${athletePoints}" fill="none" stroke="#dc2626" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
       <polyline points="${coachPoints}" fill="none" stroke="#2563eb" stroke-width="4" stroke-linejoin="round" stroke-linecap="round" />
@@ -180,25 +232,25 @@ function buildTrendChart(items) {
   </div>`;
 }
 
-function buildTrendTable(items) {
+function buildTrendTable(items, granularity) {
   const trends = asArray(items);
   const rows = trends.length
     ? trends.map((item) => `<tr>
-        <td>${escapeHtml(item?.label || item?.month || '-')}</td>
+        <td>${escapeHtml(item?.label || item?.date || item?.month || '-')}</td>
         <td class="number-cell">${escapeHtml(formatNumber(item?.athletes))}</td>
         <td class="number-cell">${escapeHtml(formatNumber(item?.coaches))}</td>
         <td class="number-cell strong">${escapeHtml(formatNumber(toFiniteNumber(item?.athletes) + toFiniteNumber(item?.coaches)))}</td>
       </tr>`).join('')
     : '<tr><td colspan="4" class="empty-cell">Belum ada data.</td></tr>';
+  const periodHeading = granularity === TREND_GRANULARITY_DAILY ? 'Tanggal' : 'Bulan';
 
   return `<div class="table-section">
     <table>
-      <thead><tr><th>Bulan</th><th class="number-cell">Atlet</th><th class="number-cell">Pelatih</th><th class="number-cell">Total</th></tr></thead>
+      <thead><tr><th>${periodHeading}</th><th class="number-cell">Atlet</th><th class="number-cell">Pelatih</th><th class="number-cell">Total</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
 }
-
 function buildHorizontalDistribution(title, items) {
   const distribution = asArray(items);
   const maximum = Math.max(1, ...distribution.map((item) => toFiniteNumber(item?.count)));
@@ -329,6 +381,8 @@ function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
   const filterDetails = buildFilterDetails(data, filters);
   const distributions = data?.distributions || {};
   const quality = data?.data_quality || {};
+  const trendGranularity = data?.filters?.trend_granularity || filters?.trendGranularity || 'monthly';
+  const trendUnit = trendGranularity === TREND_GRANULARITY_DAILY ? 'hari' : 'bulan';
 
   return `<!DOCTYPE html>
 <html lang="id">
@@ -356,6 +410,7 @@ function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
     .section-description, .section-heading p { margin-top: 2px; color: #64748b; font-size: 9px; }
     .avoid-break, .kpi-card, .bar-item, .duplicate-card { break-inside: avoid; page-break-inside: avoid; }
     .kpi-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 7px; margin-top: 15px; }
+    .sport-contingent-kpi-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 9px; }
     .kpi-card { min-width: 0; border: 1px solid #e2e8f0; border-top: 4px solid #64748b; border-radius: 8px; padding: 9px; background: #ffffff; }
     .kpi-label { color: #64748b; font-size: 8.5px; font-weight: 700; }
     .kpi-value { margin-top: 2px; color: #0f172a; font-size: 17px; font-weight: 800; overflow-wrap: anywhere; }
@@ -393,6 +448,19 @@ function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
     .number-cell { text-align: right; white-space: nowrap; }
     .strong { color: #0f172a; font-weight: 800; }
     .empty-cell, .empty-state { padding: 12px; color: #94a3b8; text-align: center; }
+    .muted { color: #94a3b8; }
+    .sport-contingent-table-section { margin-top: 9px; }
+    .sport-contingent-table { font-size: 8.5px; }
+    .sport-contingent-table td:first-child, .sport-contingent-table th:first-child { width: 5%; }
+    .sport-contingent-table td:nth-child(2), .sport-contingent-table th:nth-child(2) { width: 18%; }
+    .sport-contingent-table td:nth-child(3), .sport-contingent-table th:nth-child(3) { width: 11%; }
+    .sport-contingent-table td:nth-child(4), .sport-contingent-table th:nth-child(4) { width: 9%; }
+    .sport-contingent-table td:nth-child(5), .sport-contingent-table th:nth-child(5) { width: 8%; }
+    .sport-contingent-table td:nth-child(6), .sport-contingent-table th:nth-child(6) { width: 49%; }
+    .contingent-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 10px; }
+    .contingent-list div { display: flex; min-width: 0; justify-content: space-between; gap: 6px; border-bottom: 1px dotted #e2e8f0; padding-bottom: 2px; }
+    .contingent-list span { min-width: 0; overflow-wrap: anywhere; }
+    .contingent-list strong { flex: none; color: #475569; font-size: 8px; }
     .empty-state { margin-top: 7px; border: 1px dashed #cbd5e1; border-radius: 7px; background: #f8fafc; }
     .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .index-badge { flex: none; border-radius: 7px; padding: 6px 10px; color: #b91c1c; background: #fef2f2; font-size: 14px; font-weight: 800; }
@@ -406,7 +474,7 @@ function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
     @media print {
       body { margin: 0; }
       .report-section > h3, .quality-group h4, .section-heading { break-after: avoid; page-break-after: avoid; }
-      .trend-figure, .kpi-grid, .duplicate-grid { break-inside: avoid; page-break-inside: avoid; }
+      .trend-figure, .kpi-grid, .sport-contingent-kpi-grid, .duplicate-grid { break-inside: avoid; page-break-inside: avoid; }
     }
   </style>
 </head>
@@ -414,7 +482,7 @@ function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
   <header class="report-header">
     <div class="brand">KONI SUMATERA BARAT</div>
     <h1 class="report-title">LAPORAN DATA SUMMARY</h1>
-    <p class="report-subtitle">Ringkasan agregat atlet, pelatih, kualitas data, tren, distribusi, dan analisis duplikat.</p>
+    <p class="report-subtitle">Ringkasan agregat atlet, pelatih, distribusi cabor per kontingen, kualitas data, tren, distribusi, dan analisis duplikat.</p>
     <div class="meta-grid">
       ${filterDetails.map(([label, value]) => `<div class="meta-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
       <div class="meta-item"><span>Data dibuat</span><strong>${escapeHtml(formatDateTime(data?.generated_at))}</strong></div>
@@ -424,12 +492,13 @@ function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
   </header>
 
   ${buildKpiGrid(data, totalOrganizations)}
+  ${buildSportContingentDistributionSection(data?.sport_contingent_distribution)}
 
   <section class="report-section">
     <h3>Tren Penambahan Data</h3>
-    <p class="section-description">Jumlah record baru per bulan untuk periode yang dipilih.</p>
-    ${buildTrendChart(data?.trends)}
-    ${buildTrendTable(data?.trends)}
+    <p class="section-description">Jumlah record baru per ${trendUnit} untuk rentang yang dipilih.</p>
+    ${buildTrendChart(data?.trends, trendGranularity)}
+    ${buildTrendTable(data?.trends, trendGranularity)}
   </section>
 
   ${buildHorizontalDistribution('Distribusi Gender Atlet', distributions.athlete_gender)}
@@ -448,7 +517,7 @@ function buildPrintHtml({ data, filters, totalOrganizations, printedAt }) {
   ${buildDuplicateSummary(data?.duplicate_summary)}
 
   <footer class="report-footer">
-    Laporan ini hanya berisi data agregat sesuai scope akses pengguna dan tidak memuat identitas, NIK, atau data individu.
+    Laporan memuat agregat SatuData dan rincian kontingen kab/kota per cabor; laporan tidak memuat NIK atau identitas individu.
   </footer>
 </body>
 </html>`;
@@ -540,7 +609,7 @@ export function PrintDataSummary({
       disabled={isDisabled}
       aria-busy={isBusy}
       className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-      title="Cetak laporan data summary sesuai scope dan filter aktif"
+      title="Cetak laporan Data Summary dan distribusi cabor per kontingen"
     >
       {isBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
       {loading ? 'Menyiapkan...' : isFetching ? 'Memuat data...' : 'Cetak Laporan'}

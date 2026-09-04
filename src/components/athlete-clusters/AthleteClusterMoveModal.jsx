@@ -1,55 +1,48 @@
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, AlertTriangle, Loader2 } from 'lucide-react';
-import { useMoveAthleteCluster } from '../../hooks/queries/useAthleteClusters';
+import { useState } from 'react';
+import { AnimatePresence, motion as Motion } from 'framer-motion';
+import { AlertCircle, AlertTriangle, Loader2, RefreshCw, Upload, X } from 'lucide-react';
 import { useAthleteClustersAll, useAthleteSubClustersByCluster } from '../../hooks/queries/useAthleteClusterMaster';
-import { CHANGE_TYPES, DECREE_TYPES } from './athleteClusterConstants';
+import { useMoveAthleteCluster } from '../../hooks/queries/useAthleteClusters';
+import { getClusterErrorMessage } from '../../utils/clusterErrors';
 import { DateInput } from '../DateInput';
+import { CHANGE_TYPES, DECREE_TYPES } from './athleteClusterConstants';
+
+const initialForm = () => ({
+  cluster_id: '',
+  sub_cluster_id: '',
+  start_date: new Date(Date.now() + (7 * 60 * 60 * 1000)).toISOString().split('T')[0],
+  change_type: 'initial_assignment',
+  reason: '',
+  decree_number: '',
+  decree_date: '',
+  decree_title: '',
+  decree_type: 'assignment',
+  decree_description: '',
+});
+
+const allowedFileExtensions = ['.pdf', '.jpg', '.jpeg', '.png'];
+const EMPTY_LIST = [];
 
 export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
   const moveMutation = useMoveAthleteCluster();
-  const { data: clusters = [], isLoading: loadingClusters } = useAthleteClustersAll();
-  const [form, setForm] = useState({
-    cluster_id: '',
-    sub_cluster_id: '',
-    start_date: new Date().toISOString().split('T')[0],
-    change_type: 'initial_assignment',
-    reason: '',
-    decree_number: '',
-    decree_date: '',
-    decree_title: '',
-    decree_type: 'assignment',
-    decree_description: '',
-  });
+  const clustersQuery = useAthleteClustersAll();
+  const clusters = clustersQuery.data || EMPTY_LIST;
+  const [form, setForm] = useState(initialForm);
   const [file, setFile] = useState(null);
   const [error, setError] = useState('');
-
-  const selectedCluster = clusters.find((item) => String(item.id) === String(form.cluster_id));
-  const { data: subClusters = [], isLoading: loadingSubClusters } = useAthleteSubClustersByCluster(form.cluster_id);
-
-  useEffect(() => {
-    if (isOpen && clusters.length && !form.cluster_id) {
-      const currentCluster = clusters.find((item) => String(item.id) === String(athlete?.current_cluster_id));
-      const fallback = currentCluster || clusters[0];
-      setForm((current) => ({ ...current, cluster_id: String(fallback.id), sub_cluster_id: '' }));
-    }
-  }, [isOpen, clusters, form.cluster_id, athlete?.current_cluster_id]);
-
-  useEffect(() => {
-    if (!form.cluster_id) return;
-    if (!subClusters.length) {
-      setForm((current) => current.sub_cluster_id ? { ...current, sub_cluster_id: '' } : current);
-      return;
-    }
-    setForm((current) => {
-      if (subClusters.some((item) => String(item.id) === String(current.sub_cluster_id))) return current;
-      return { ...current, sub_cluster_id: String(subClusters[0].id) };
-    });
-  }, [form.cluster_id, subClusters]);
-
+  const defaultCluster = clusters.find((item) => String(item.id) === String(athlete?.current_cluster_id)) || clusters[0];
+  const effectiveClusterId = form.cluster_id || (defaultCluster ? String(defaultCluster.id) : '');
+  const selectedCluster = clusters.find((item) => String(item.id) === effectiveClusterId);
+  const subClustersQuery = useAthleteSubClustersByCluster(effectiveClusterId);
+  const subClusters = subClustersQuery.data || EMPTY_LIST;
+  const selectedSubClusterExists = subClusters.some((item) => String(item.id) === String(form.sub_cluster_id));
+  const effectiveSubClusterId = selectedCluster?.is_development_cluster
+    ? (selectedSubClusterExists ? String(form.sub_cluster_id) : String(subClusters[0]?.id || ''))
+    : '';
   if (!isOpen || !athlete) return null;
 
   const updateField = (field, value) => {
+    setError('');
     setForm((current) => {
       const next = { ...current, [field]: value };
       if (field === 'cluster_id') {
@@ -64,16 +57,34 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
     });
   };
 
+  const handleFileChange = (event) => {
+    const selectedFile = event.target.files?.[0] || null;
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
+    const extension = selectedFile.name.slice(selectedFile.name.lastIndexOf('.')).toLowerCase();
+    if (!allowedFileExtensions.includes(extension)) {
+      event.target.value = '';
+      setFile(null);
+      setError('File SK harus berupa PDF, JPG, JPEG, atau PNG.');
+      return;
+    }
+    setError('');
+    setFile(selectedFile);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (moveMutation.isPending) return;
     setError('');
-
-    if (!form.cluster_id) return setError('Kluster tujuan wajib dipilih.');
+    if (!effectiveClusterId) return setError('Kluster tujuan wajib dipilih.');
+    if (selectedCluster?.is_development_cluster && subClusters.length > 0 && !effectiveSubClusterId) return setError('Pilih sub-kluster untuk kluster Binaan ini.');
     if (!form.start_date) return setError('Tanggal mulai berlaku wajib diisi.');
     if ((form.change_type === 'removed' || form.change_type === 'demoted') && !form.reason.trim()) return setError('Alasan wajib diisi untuk perubahan ini.');
 
     const data = new FormData();
-    Object.entries(form).forEach(([key, value]) => {
+    Object.entries({ ...form, cluster_id: effectiveClusterId, sub_cluster_id: effectiveSubClusterId }).forEach(([key, value]) => {
       if (value !== '') data.append(key, value);
     });
     if (file) data.append('file', file);
@@ -81,118 +92,67 @@ export function AthleteClusterMoveModal({ isOpen, onClose, athlete }) {
     try {
       await moveMutation.mutateAsync({ athleteId: athlete.id, data });
       onClose();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Gagal mengubah kluster atlet.');
+    } catch (requestError) {
+      setError(getClusterErrorMessage(requestError, 'Gagal mengubah Kluster atlet.', {
+        permissionMessage: 'Anda tidak memiliki izin untuk mengelola Kluster.',
+      }));
     }
   };
 
+  const loadingMaster = clustersQuery.isLoading || subClustersQuery.isLoading;
+  const masterFailed = clustersQuery.isError || (Boolean(effectiveClusterId) && subClustersQuery.isError);
+
   return (
     <AnimatePresence>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60]" onClick={onClose} />
-      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[61] flex items-start justify-center p-4 pt-10 overflow-y-auto">
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl my-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">Ubah Kluster Atlet</h3>
-              <p className="text-sm text-slate-500">{athlete.name}</p>
-            </div>
-            <button type="button" onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-              <X className="w-5 h-5 text-slate-500" />
-            </button>
+      <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm" onClick={moveMutation.isPending ? undefined : onClose} />
+      <Motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[61] flex items-start justify-center overflow-y-auto p-4 pt-10">
+        <form onSubmit={handleSubmit} className="my-4 w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-xl" onClick={(event) => event.stopPropagation()}>
+          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+            <div><h3 className="text-lg font-bold text-slate-800">Ubah Kluster Atlet</h3><p className="text-sm text-slate-500">{athlete.name}</p></div>
+            <button type="button" onClick={onClose} disabled={moveMutation.isPending} className="rounded-lg p-2 transition-colors hover:bg-slate-100 disabled:opacity-50" aria-label="Tutup"><X className="h-5 w-5 text-slate-500" /></button>
           </div>
 
-          <div className="p-6 space-y-5 max-h-[calc(100vh-12rem)] overflow-y-auto">
-            {error && <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm">{error}</div>}
+          <div className="max-h-[calc(100vh-12rem)] space-y-5 overflow-y-auto p-6">
+            {error && <div className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</div>}
+            {clustersQuery.isError && <QueryError message={getClusterErrorMessage(clustersQuery.error, 'Master Kluster belum dapat dimuat.')} loading={clustersQuery.isFetching} onRetry={() => clustersQuery.refetch()} />}
+            {effectiveClusterId && subClustersQuery.isError && <QueryError message={getClusterErrorMessage(subClustersQuery.error, 'Master sub-kluster belum dapat dimuat.')} loading={subClustersQuery.isFetching} onRetry={() => subClustersQuery.refetch()} />}
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Kluster Tujuan</span>
-                <select value={form.cluster_id} onChange={(e) => updateField('cluster_id', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" disabled={loadingClusters}>
-                  <option value="">{loadingClusters ? 'Memuat cluster...' : 'Pilih cluster'}</option>
-                  {clusters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                </select>
-              </label>
-              {!!form.cluster_id && subClusters.length > 0 && (
-                <label className="space-y-1">
-                  <span className="text-sm font-medium text-slate-700">Sub-Kluster</span>
-                  <select value={form.sub_cluster_id} onChange={(e) => updateField('sub_cluster_id', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" disabled={loadingSubClusters}>
-                    <option value="">Tanpa sub-kluster</option>
-                    {subClusters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
-                  </select>
-                </label>
-              )}
-              {!!selectedCluster?.is_development_cluster && subClusters.length === 0 && (
-                <div className="md:col-span-2 p-3 bg-blue-50 text-blue-700 rounded-xl text-sm">
-                  Cluster ini termasuk binaan KONI dan tidak memiliki sub-kluster aktif. Sub-kluster akan dikosongkan.
-                </div>
-              )}
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Tanggal Mulai Berlaku</span>
-                <DateInput value={form.start_date} onChange={(e) => updateField('start_date', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
-              </label>
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Jenis Perubahan</span>
-                <select value={form.change_type} onChange={(e) => updateField('change_type', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none">
-                  {CHANGE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Select label="Kluster Tujuan" value={effectiveClusterId} onChange={(value) => updateField('cluster_id', value)} disabled={clustersQuery.isLoading || clustersQuery.isError} placeholder={clustersQuery.isLoading ? 'Memuat Kluster...' : 'Pilih Kluster'} options={clusters.map((item) => [item.id, item.name])} />
+              {!!effectiveClusterId && subClusters.length > 0 && <Select label="Sub-Kluster" value={effectiveSubClusterId} onChange={(value) => updateField('sub_cluster_id', value)} disabled={subClustersQuery.isLoading || subClustersQuery.isError} placeholder="Pilih sub-kluster" options={subClusters.map((item) => [item.id, item.name])} />}
+              {!!selectedCluster?.is_development_cluster && !subClustersQuery.isLoading && !subClustersQuery.isError && subClusters.length === 0 && <div className="rounded-xl bg-blue-50 p-3 text-sm text-blue-700 md:col-span-2">Kluster ini termasuk Binaan KONI dan tidak memiliki sub-kluster aktif. Sub-kluster akan dikosongkan.</div>}
+              <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Tanggal Mulai Berlaku</span><DateInput value={form.start_date} onChange={(event) => updateField('start_date', event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" /></label>
+              <Select label="Jenis Perubahan" value={form.change_type} onChange={(value) => updateField('change_type', value)} options={CHANGE_TYPES.map((item) => [item.value, item.label])} />
             </div>
 
-            <label className="space-y-1 block">
-              <span className="text-sm font-medium text-slate-700">Alasan</span>
-              <textarea value={form.reason} onChange={(e) => updateField('reason', e.target.value)} rows={3} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" placeholder="Alasan perubahan kluster" />
-            </label>
+            <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Alasan</span><textarea value={form.reason} onChange={(event) => updateField('reason', event.target.value)} rows={3} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" placeholder="Alasan perubahan Kluster" /></label>
+            <div className="flex gap-3 rounded-xl border border-amber-100 bg-amber-50 p-4"><AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" /><p className="text-sm text-amber-800">SK masih opsional. Isi nomor SK dan unggah file jika dokumen sudah tersedia.</p></div>
 
-            <div className="p-4 bg-amber-50 border border-amber-100 rounded-xl flex gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-              <p className="text-sm text-amber-800">SK masih opsional. Isi nomor SK dan unggah file jika dokumen sudah tersedia.</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Input label="Nomor SK" value={form.decree_number} onChange={(value) => updateField('decree_number', value)} />
+              <label className="space-y-1"><span className="text-sm font-medium text-slate-700">Tanggal SK</span><DateInput value={form.decree_date} onChange={(event) => updateField('decree_date', event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" /></label>
+              <Input label="Judul SK" value={form.decree_title} onChange={(value) => updateField('decree_title', value)} />
+              <Select label="Jenis SK" value={form.decree_type} onChange={(value) => updateField('decree_type', value)} options={DECREE_TYPES.map((item) => [item.value, item.label])} />
             </div>
-
-            <div className="grid md:grid-cols-2 gap-4">
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Nomor SK</span>
-                <input value={form.decree_number} onChange={(e) => updateField('decree_number', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
-              </label>
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Tanggal SK</span>
-                <DateInput value={form.decree_date} onChange={(e) => updateField('decree_date', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
-              </label>
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Judul SK</span>
-                <input value={form.decree_title} onChange={(e) => updateField('decree_title', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
-              </label>
-              <label className="space-y-1">
-                <span className="text-sm font-medium text-slate-700">Jenis SK</span>
-                <select value={form.decree_type} onChange={(e) => updateField('decree_type', e.target.value)} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none">
-                  {DECREE_TYPES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
-                </select>
-              </label>
-            </div>
-
-            <label className="space-y-1 block">
-              <span className="text-sm font-medium text-slate-700">Keterangan SK</span>
-              <textarea value={form.decree_description} onChange={(e) => updateField('decree_description', e.target.value)} rows={2} className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" />
-            </label>
-
-            <label className="flex items-center gap-3 p-4 border border-dashed border-slate-300 rounded-xl hover:bg-slate-50 cursor-pointer">
-              <Upload className="w-5 h-5 text-slate-500" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-slate-700">Upload File SK</p>
-                <p className="text-xs text-slate-500 truncate">{file?.name || 'PDF/JPG/PNG, maksimal mengikuti batas server'}</p>
-              </div>
-              <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-            </label>
+            <label className="block space-y-1"><span className="text-sm font-medium text-slate-700">Keterangan SK</span><textarea value={form.decree_description} onChange={(event) => updateField('decree_description', event.target.value)} rows={2} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" /></label>
+            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-slate-300 p-4 hover:bg-slate-50"><Upload className="h-5 w-5 text-slate-500" /><div className="min-w-0 flex-1"><p className="text-sm font-medium text-slate-700">Upload File SK</p><p className="truncate text-xs text-slate-500">{file?.name || 'PDF/JPG/JPEG/PNG'}</p></div><input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden" onChange={handleFileChange} /></label>
           </div>
 
-          <div className="flex justify-end gap-3 px-6 py-4 border-t border-slate-100">
-            <button type="button" onClick={onClose} className="px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors">Batal</button>
-            <button type="submit" disabled={moveMutation.isPending} className="px-4 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2">
-              {moveMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Simpan Perubahan
-            </button>
-          </div>
+          <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4"><button type="button" onClick={onClose} disabled={moveMutation.isPending} className="rounded-xl border border-slate-200 px-4 py-2.5 text-slate-600 hover:bg-slate-50 disabled:opacity-50">Batal</button><button type="submit" disabled={moveMutation.isPending || loadingMaster || masterFailed} className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50">{moveMutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}Simpan Perubahan</button></div>
         </form>
-      </motion.div>
+      </Motion.div>
     </AnimatePresence>
   );
+}
+
+function QueryError({ message, loading, onRetry }) {
+  return <div className="flex flex-col gap-3 rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between"><span className="flex items-start gap-2"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{message}</span><button type="button" onClick={onRetry} disabled={loading} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold hover:bg-red-100 disabled:opacity-50"><RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />Coba Lagi</button></div>;
+}
+
+function Input({ label, value, onChange }) {
+  return <label className="space-y-1"><span className="text-sm font-medium text-slate-700">{label}</span><input value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" /></label>;
+}
+
+function Select({ label, value, onChange, options, placeholder, disabled = false }) {
+  return <label className="space-y-1"><span className="text-sm font-medium text-slate-700">{label}</span><select value={value} onChange={(event) => onChange(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100" disabled={disabled}><option value="">{placeholder || 'Pilih'}</option>{options.map(([optionValue, optionLabel]) => <option key={optionValue} value={optionValue}>{optionLabel}</option>)}</select></label>;
 }

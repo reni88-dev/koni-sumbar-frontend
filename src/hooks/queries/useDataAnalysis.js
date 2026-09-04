@@ -94,6 +94,9 @@ export function useDataSummary(filters) {
           organization_id: filters.organizationId || undefined,
           cabor_id: filters.caborId || undefined,
           status: filters.status === 'all' ? undefined : filters.status,
+          trend_granularity: filters.trendGranularity,
+          trend_start_date: filters.trendStartDate,
+          trend_end_date: filters.trendEndDate,
           period_months: filters.periodMonths,
         },
       });

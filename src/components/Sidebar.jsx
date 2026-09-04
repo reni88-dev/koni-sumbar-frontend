@@ -27,6 +27,7 @@ import {
   Bot,
   Layers,
   MessageSquareWarning,
+  Mail,
   MailQuestion,
   ChartPie,
   ScanSearch,
@@ -231,6 +232,7 @@ function SidebarContent({ onNavigate }) {
 
   const systemItems = filterVisibleItems([
     { icon: Megaphone, label: 'Pengumuman Sistem', path: '/admin/announcements', permission: 'announcements.view' },
+    { icon: Mail, label: 'Pengiriman Email', path: '/admin/email-broadcasts', permission: 'email_broadcasts.view' },
     { icon: MailQuestion, label: 'Pemulihan Email', path: '/admin/pemulihan-email', permission: 'account_email_recovery.view', badge: recoverySummary?.pending_admin ?? 0 },
     ...(isSuperAdmin()
       ? [
