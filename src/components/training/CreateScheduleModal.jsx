@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { X, MapPin, Loader2, CheckCircle2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useCreateTrainingSchedule, useUpdateTrainingSchedule } from '../../hooks/queries/useTraining';
 import { SearchableSelect } from '../SearchableSelect';
+import { CoachSearchDropdown } from '../coach-athletes';
 import { useVenuesAll } from '../../hooks/queries/useVenues';
 
 // Red marker icon using inline SVG (matches CreateTrainingModal)
@@ -42,21 +43,33 @@ function MapRecenter({ center }) {
   return null;
 }
 
-export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoachId, editData }) {
+export function CreateScheduleModal({ onClose, cabors, isCoach, myCoachId, myCoachCaborId, editData }) {
   const isEdit = !!editData;
   const createSchedule = useCreateTrainingSchedule();
   const updateSchedule = useUpdateTrainingSchedule();
   const { data: venues = [] } = useVenuesAll();
-  const [venueMode, setVenueMode] = useState('select');
+  const [venueModeOverride, setVenueModeOverride] = useState(null);
   const [gettingLocation, setGettingLocation] = useState(false);
 
   // Default center: Padang, Sumatra Barat
   const defaultCenter = [-0.9471, 100.4172];
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => editData ? {
+    title: editData.title || '',
+    description: editData.description || '',
+    cabor_id: editData.cabor_id || '',
+    coach_id: editData.coach_id || '',
+    day_of_week: editData.day_of_week || [],
+    start_time: editData.start_time?.substring(0, 5) || '',
+    end_time: editData.end_time?.substring(0, 5) || '',
+    location_name: editData.location_name || '',
+    latitude: editData.latitude || 0,
+    longitude: editData.longitude || 0,
+    is_active: editData.is_active !== undefined ? editData.is_active : true,
+  } : {
     title: '',
     description: '',
-    cabor_id: '',
+    cabor_id: isCoach ? myCoachCaborId || '' : '',
     coach_id: isCoach ? myCoachId : '',
     day_of_week: [],
     start_time: '',
@@ -66,34 +79,20 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
     longitude: 0,
     is_active: true,
   });
+  const resolvedCoachId = isCoach ? form.coach_id || myCoachId || '' : form.coach_id;
+  const resolvedCaborId = isCoach ? form.cabor_id || myCoachCaborId || '' : form.cabor_id;
 
-  // Sync coach_id when myCoachId loads asynchronously (for coach users)
-  useEffect(() => {
-    if (isCoach && myCoachId && !form.coach_id) {
-      setForm(f => ({ ...f, coach_id: myCoachId }));
-    }
-  }, [isCoach, myCoachId]);
+  const handleCaborChange = (event) => {
+    const caborId = event.target.value;
+    setForm((current) => ({
+      ...current,
+      cabor_id: caborId,
+      coach_id: !isCoach && String(current.cabor_id) !== String(caborId)
+        ? ''
+        : current.coach_id,
+    }));
+  };
 
-  useEffect(() => {
-    if (editData) {
-      setForm({
-        title: editData.title || '',
-        description: editData.description || '',
-        cabor_id: editData.cabor_id || '',
-        coach_id: editData.coach_id || '',
-        day_of_week: editData.day_of_week || [],
-        start_time: editData.start_time?.substring(0, 5) || '',
-        end_time: editData.end_time?.substring(0, 5) || '',
-        location_name: editData.location_name || '',
-        latitude: editData.latitude || 0,
-        longitude: editData.longitude || 0,
-        is_active: editData.is_active !== undefined ? editData.is_active : true,
-      });
-      // Check if editData location matches a venue
-      const matchingVenue = venues.find(v => v.name === editData.location_name);
-      setVenueMode(matchingVenue ? 'select' : (editData.location_name ? 'manual' : 'select'));
-    }
-  }, [editData, venues]);
 
   const markerPosition = form.latitude && form.longitude
     ? [form.latitude, form.longitude]
@@ -104,14 +103,17 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
     { id: '__other__', name: '➕ Lainnya (input manual)' },
   ];
 
+  const matchingVenue = venues.find(v => v.name === form.location_name);
+  const venueMode = venueModeOverride || (form.location_name && !matchingVenue ? 'manual' : 'select');
+
   const handleVenueChange = (value) => {
     if (value === '__other__') {
-      setVenueMode('manual');
+      setVenueModeOverride('manual');
       setForm(f => ({ ...f, location_name: '', latitude: 0, longitude: 0 }));
     } else if (value) {
       const venue = venues.find(v => v.id === Number(value));
       if (venue) {
-        setVenueMode('select');
+        setVenueModeOverride('select');
         setForm(f => ({
           ...f,
           location_name: venue.name,
@@ -120,14 +122,14 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
         }));
       }
     } else {
-      setVenueMode('select');
+      setVenueModeOverride('select');
       setForm(f => ({ ...f, location_name: '', latitude: 0, longitude: 0 }));
     }
   };
 
   const selectedVenueId = venueMode === 'manual'
     ? '__other__'
-    : venues.find(v => v.name === form.location_name)?.id || '';
+    : matchingVenue?.id || '';
 
   const handleLocationSelect = (lat, lng) => {
     setForm(f => ({ ...f, latitude: lat, longitude: lng }));
@@ -157,8 +159,8 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
   const handleSubmit = async () => {
     const payload = {
       ...form,
-      cabor_id: Number(form.cabor_id),
-      coach_id: Number(form.coach_id),
+      cabor_id: Number(resolvedCaborId),
+      coach_id: Number(resolvedCoachId),
     };
     try {
       if (isEdit) {
@@ -173,14 +175,14 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
   };
 
   const isPending = createSchedule.isPending || updateSchedule.isPending;
-  const isValid = form.title && form.cabor_id && form.coach_id && form.day_of_week.length > 0 && form.location_name;
+  const isValid = form.title && resolvedCaborId && resolvedCoachId && form.day_of_week.length > 0 && form.location_name;
 
   return (
     <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+      <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
         className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50" />
       
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      <Motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
         
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
@@ -204,33 +206,35 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* Coach */}
-              {!isCoach && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Pelatih <span className="text-red-500">*</span></label>
-                  <select
-                    value={form.coach_id}
-                    onChange={e => setForm(f => ({ ...f, coach_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
-                  >
-                    <option value="">Pilih Pelatih</option>
-                    {coaches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              )}
-              {/* Cabor */}
-              <div className={isCoach ? "col-span-2" : ""}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Cabor must be selected first so the coach query is server-filtered. */}
+              <div className={isCoach ? 'sm:col-span-2' : ''}>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Cabor <span className="text-red-500">*</span></label>
                 <select
-                  value={form.cabor_id}
-                  onChange={e => setForm(f => ({ ...f, cabor_id: e.target.value }))}
+                  value={resolvedCaborId}
+                  onChange={handleCaborChange}
                   className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
                 >
                   <option value="">Pilih Cabor</option>
                   {cabors.map(c => <option key={c.id} value={c.id}>{c.display_name || c.name}</option>)}
                 </select>
               </div>
+              {!isCoach && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Pelatih <span className="text-red-500">*</span></label>
+                  <CoachSearchDropdown
+                    key={form.cabor_id || 'no-cabor'}
+                    value={form.coach_id}
+                    onChange={(coachId) => setForm(f => ({ ...f, coach_id: coachId }))}
+                    caborId={form.cabor_id}
+                    requireCabor
+                    disabled={!form.cabor_id}
+                  />
+                  {!form.cabor_id && (
+                    <p className="text-xs text-amber-600 mt-1">Pilih cabor terlebih dahulu untuk memuat pelatih.</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Days */}
@@ -389,7 +393,7 @@ export function CreateScheduleModal({ onClose, cabors, coaches, isCoach, myCoach
             </button>
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
     </>
   );
 }

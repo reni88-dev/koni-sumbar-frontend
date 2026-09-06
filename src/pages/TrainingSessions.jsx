@@ -24,7 +24,6 @@ export function TrainingSessionsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [cabors, setCabors] = useState([]);
-  const [coaches, setCoaches] = useState([]);
 
   // Schedule state
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -41,19 +40,24 @@ export function TrainingSessionsPage() {
 
   // For coach: filter by their own coach_id
   const [myCoachId, setMyCoachId] = useState(null);
+  const [myCoachCaborId, setMyCoachCaborId] = useState(null);
   useEffect(() => {
     if (isCoach && user?.id) {
       api.get('/api/portal/profile').then(res => {
         // Portal profile returns flat object: { type: "coach", id: 5, ... }
         if (res.data?.type === 'coach' && res.data?.id) {
           setMyCoachId(res.data.id);
+          setMyCoachCaborId(res.data.cabor_id || res.data.coach?.cabor_id || null);
         }
       }).catch(() => {
         // Fallback: search coaches by user name if portal profile fails
-        api.get('/api/coaches', { params: { limit: 100, search: user.name } }).then(r => {
+        api.get('/api/coaches', { params: { page: 1, per_page: 100, search: user.name, is_active: true } }).then(r => {
           const coaches = r.data?.data || [];
           const myCoach = coaches.find(c => c.user_id === user.id);
-          if (myCoach) setMyCoachId(myCoach.id);
+          if (myCoach) {
+            setMyCoachId(myCoach.id);
+            setMyCoachCaborId(myCoach.cabor_id || null);
+          }
         }).catch(() => {});
       });
     }
@@ -81,9 +85,7 @@ export function TrainingSessionsPage() {
       const data = Array.isArray(r.data) ? r.data : r.data?.data || [];
       setCabors(data.map(c => ({ ...c, name: c.display_name || c.name })));
     }).catch(() => {});
-    if (!isCoach) {
-      api.get('/api/coaches', { params: { limit: 100 } }).then(r => setCoaches(r.data?.data || [])).catch(() => {});
-    }
+
   }, [isAthlete, isCoach]);
 
   const sessions = data?.data || [];
@@ -227,9 +229,9 @@ export function TrainingSessionsPage() {
           <CreateTrainingModal
             onClose={() => setShowModal(false)}
             cabors={cabors}
-            coaches={coaches}
             isCoach={isCoach}
             myCoachId={myCoachId}
+            myCoachCaborId={myCoachCaborId}
           />
         )}
       </AnimatePresence>
@@ -238,11 +240,12 @@ export function TrainingSessionsPage() {
       <AnimatePresence>
         {!isAthlete && showScheduleModal && (
           <CreateScheduleModal
+            key={editSchedule?.id || 'create-schedule'}
             onClose={() => { setShowScheduleModal(false); setEditSchedule(null); }}
             cabors={cabors}
-            coaches={coaches}
             isCoach={isCoach}
             myCoachId={myCoachId}
+            myCoachCaborId={myCoachCaborId}
             editData={editSchedule}
           />
         )}

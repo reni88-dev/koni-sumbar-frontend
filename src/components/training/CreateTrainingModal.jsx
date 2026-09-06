@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { X, MapPin, Loader2, CheckCircle2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useCreateTrainingSession } from '../../hooks/queries/useTraining';
 import { SearchableSelect } from '../SearchableSelect';
+import { CoachSearchDropdown } from '../coach-athletes';
 import { useVenuesAll } from '../../hooks/queries/useVenues';
 
 // Red marker icon using inline SVG
@@ -44,7 +45,7 @@ function MapRecenter({ center }) {
   return null;
 }
 
-export function CreateTrainingModal({ onClose, cabors, coaches, isCoach, myCoachId }) {
+export function CreateTrainingModal({ onClose, cabors, isCoach, myCoachId, myCoachCaborId }) {
   const create = useCreateTrainingSession();
   const { data: venues = [] } = useVenuesAll();
   const [venueMode, setVenueMode] = useState('select'); // 'select' | 'manual'
@@ -52,16 +53,23 @@ export function CreateTrainingModal({ onClose, cabors, coaches, isCoach, myCoach
     title: '', description: '', training_date: '', start_time: '', end_time: '',
     location_name: '', latitude: 0, longitude: 0,
     coach_id: isCoach ? myCoachId : '',
-    cabor_id: '',
+    cabor_id: isCoach ? myCoachCaborId || '' : '',
   });
   const [gettingLocation, setGettingLocation] = useState(false);
+  const resolvedCoachId = isCoach ? form.coach_id || myCoachId || '' : form.coach_id;
+  const resolvedCaborId = isCoach ? form.cabor_id || myCoachCaborId || '' : form.cabor_id;
 
-  // Sync coach_id when myCoachId loads asynchronously (for coach users)
-  useEffect(() => {
-    if (isCoach && myCoachId && !form.coach_id) {
-      setForm(f => ({ ...f, coach_id: myCoachId }));
-    }
-  }, [isCoach, myCoachId]);
+
+  const handleCaborChange = (event) => {
+    const caborId = event.target.value;
+    setForm((current) => ({
+      ...current,
+      cabor_id: caborId,
+      coach_id: !isCoach && String(current.cabor_id) !== String(caborId)
+        ? ''
+        : current.coach_id,
+    }));
+  };
 
   // Default center: Padang, Sumatra Barat
   const defaultCenter = [-0.9471, 100.4172];
@@ -116,7 +124,7 @@ export function CreateTrainingModal({ onClose, cabors, coaches, isCoach, myCoach
   };
 
   const handleSubmit = async () => {
-    const data = { ...form, coach_id: Number(form.coach_id), cabor_id: Number(form.cabor_id) };
+    const data = { ...form, coach_id: Number(resolvedCoachId), cabor_id: Number(resolvedCaborId) };
     try {
       await create.mutateAsync(data);
       onClose();
@@ -125,13 +133,13 @@ export function CreateTrainingModal({ onClose, cabors, coaches, isCoach, myCoach
     }
   };
 
-  const isValid = form.title && form.training_date && form.location_name && form.latitude && form.longitude && form.coach_id && form.cabor_id;
+  const isValid = form.title && form.training_date && form.location_name && form.latitude && form.longitude && resolvedCoachId && resolvedCaborId;
 
   return (
     <>
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
+      <Motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose}
         className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50" />
-      <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      <Motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
         className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -145,25 +153,34 @@ export function CreateTrainingModal({ onClose, cabors, coaches, isCoach, myCoach
                 className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none" placeholder="Latihan rutin hari Senin" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {!isCoach && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Pelatih <span className="text-red-500">*</span></label>
-                  <select value={form.coach_id} onChange={e => setForm(f => ({ ...f, coach_id: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none">
-                    <option value="">Pilih Pelatih</option>
-                    {coaches.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-              )}
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={isCoach ? 'sm:col-span-2' : ''}>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Cabor <span className="text-red-500">*</span></label>
-                <select value={form.cabor_id} onChange={e => setForm(f => ({ ...f, cabor_id: e.target.value }))}
-                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none">
+                <select
+                  value={resolvedCaborId}
+                  onChange={handleCaborChange}
+                  className="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                >
                   <option value="">Pilih Cabor</option>
                   {cabors.map(c => <option key={c.id} value={c.id}>{c.display_name || c.name}</option>)}
                 </select>
               </div>
+              {!isCoach && (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Pelatih <span className="text-red-500">*</span></label>
+                  <CoachSearchDropdown
+                    key={form.cabor_id || 'no-cabor'}
+                    value={form.coach_id}
+                    onChange={(coachId) => setForm(f => ({ ...f, coach_id: coachId }))}
+                    caborId={form.cabor_id}
+                    requireCabor
+                    disabled={!form.cabor_id}
+                  />
+                  {!form.cabor_id && (
+                    <p className="text-xs text-amber-600 mt-1">Pilih cabor terlebih dahulu untuk memuat pelatih.</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -270,7 +287,7 @@ export function CreateTrainingModal({ onClose, cabors, coaches, isCoach, myCoach
             </button>
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
     </>
   );
 }
