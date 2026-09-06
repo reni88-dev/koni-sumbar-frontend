@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { coachAthleteKeys } from './useCoachAthletes';
 
 // Query keys
 export const coachKeys = {
@@ -141,8 +142,10 @@ export function useDeleteCoach() {
     mutationFn: async (id) => {
       await api.delete(`/api/coaches/${id}`);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: coachKeys.all });
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: coachKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: coachKeys.detail(id), exact: true });
+      queryClient.invalidateQueries({ queryKey: coachAthleteKeys.all });
     },
   });
 }

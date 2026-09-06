@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import { AlertCircle } from "lucide-react";
 import { toTitleCase } from "./athleteUtils";
 
@@ -12,6 +12,7 @@ import { toTitleCase } from "./athleteUtils";
  *  - onConfirm {()=>void}      - called when user clicks "Hapus"
  *  - onClose   {()=>void}      - called when user cancels or clicks backdrop
  *  - isPending {boolean}       - shows loading state on confirm button
+ *  - error     {string}        - backend error shown inline without closing the modal
  */
 export function AthleteDeleteModal({
   isOpen,
@@ -19,13 +20,14 @@ export function AthleteDeleteModal({
   onConfirm,
   onClose,
   isPending,
+  error,
 }) {
   return (
     <AnimatePresence>
       {isOpen && (
         <>
           {/* Backdrop */}
-          <motion.div
+          <Motion.div
             key="delete-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -35,7 +37,7 @@ export function AthleteDeleteModal({
           />
 
           {/* Dialog */}
-          <motion.div
+          <Motion.div
             key="delete-content"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -54,10 +56,17 @@ export function AthleteDeleteModal({
                 Hapus Atlet?
               </h3>
 
-              <p className="text-slate-500 text-sm mb-6">
+              <p className="text-slate-500 text-sm mb-4">
                 Anda yakin ingin menghapus atlet{" "}
                 <strong>{toTitleCase(athlete?.name)}</strong>?
               </p>
+
+              {error && (
+                <div role="alert" className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-left text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button
@@ -75,7 +84,7 @@ export function AthleteDeleteModal({
                 </button>
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         </>
       )}
     </AnimatePresence>

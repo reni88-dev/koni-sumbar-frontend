@@ -1,5 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { coachAthleteKeys } from './useCoachAthletes';
 
 // Query keys
 export const athleteKeys = {
@@ -112,10 +113,11 @@ export function useDeleteAthlete() {
     mutationFn: async (id) => {
       await api.delete(`/api/athletes/${id}`);
     },
-    onSuccess: () => {
-      // Invalidate all athlete queries — TanStack Query re-fetches all loaded
-      // infinite pages in-place without resetting scroll position
-      queryClient.invalidateQueries({ queryKey: athleteKeys.all });
+    onSuccess: (_data, id) => {
+      // Keep loaded list pages in place while refreshing all data affected by cleanup.
+      queryClient.invalidateQueries({ queryKey: athleteKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: athleteKeys.detail(id), exact: true });
+      queryClient.invalidateQueries({ queryKey: coachAthleteKeys.all });
     },
   });
 }
