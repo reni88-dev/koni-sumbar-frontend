@@ -37,6 +37,7 @@ import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
 import { useCoachClustersAll, useCoachSubClustersByCluster } from '../hooks/queries/useCoachClusterMaster';
 import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import api from '../api/axios';
+import { getSafeApiMessage } from '../lib/authAccess';
 
 export function CoachesPage() {
   const [searchParams] = useSearchParams();
@@ -66,6 +67,7 @@ export function CoachesPage() {
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [coachToDelete, setCoachToDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
 
   // Export / Import / UI state
   const [isExporting, setIsExporting] = useState(false);
@@ -261,14 +263,26 @@ export function CoachesPage() {
     queryClient.invalidateQueries({ queryKey: coachKeys.lists() });
   };
 
+  const openDeleteModal = (coach) => {
+    setDeleteError('');
+    setCoachToDelete(coach);
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteError('');
+    setIsDeleteModalOpen(false);
+    setCoachToDelete(null);
+  };
+
   const handleDelete = async () => {
     if (!canDelete || !coachToDelete) return;
+    setDeleteError('');
     try {
       await deleteCoachMutation.mutateAsync(coachToDelete.id);
-      setIsDeleteModalOpen(false);
-      setCoachToDelete(null);
+      closeDeleteModal();
     } catch (error) {
-      console.error('Failed to delete coach:', error);
+      setDeleteError(getSafeApiMessage(error, 'Gagal menghapus pelatih. Silakan coba lagi.'));
     }
   };
 
@@ -927,10 +941,7 @@ export function CoachesPage() {
                           {canDelete && (
                             <button
                               type="button"
-                              onClick={() => {
-                                setCoachToDelete(coach);
-                                setIsDeleteModalOpen(true);
-                              }}
+                              onClick={() => openDeleteModal(coach)}
                               className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               title="Hapus"
                             >
@@ -991,7 +1002,7 @@ export function CoachesPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/50"
-              onClick={() => setIsDeleteModalOpen(false)}
+              onClick={closeDeleteModal}
             />
             <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -1008,13 +1019,19 @@ export function CoachesPage() {
                   <p className="text-slate-500 text-sm">Tindakan ini tidak dapat dibatalkan</p>
                 </div>
               </div>
-              <p className="text-slate-600 mb-6">
+              <p className="text-slate-600 mb-4">
                 Apakah Anda yakin ingin menghapus pelatih <strong>{coachToDelete.name}</strong>?
               </p>
+              {deleteError && (
+                <div role="alert" className="mb-5 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{deleteError}</span>
+                </div>
+              )}
               <div className="flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setIsDeleteModalOpen(false)}
+                  onClick={closeDeleteModal}
                   className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg hover:bg-slate-50 transition-colors"
                 >
                   Batal

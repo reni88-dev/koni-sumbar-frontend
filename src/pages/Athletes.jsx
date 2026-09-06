@@ -58,6 +58,7 @@ export function AthletesPage() {
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [athleteToDelete, setAthleteToDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
 
   // ── Export / UI state ─────────────────────────────────────────────────────
   const [isExporting, setIsExporting] = useState(false);
@@ -230,23 +231,25 @@ export function AthletesPage() {
 
   const handleDeleteRequest = (athlete) => {
     if (!canDelete) return;
+    setDeleteError("");
     setAthleteToDelete(athlete);
     setIsDeleteModalOpen(true);
   };
 
+  const closeDeleteModal = () => {
+    setDeleteError("");
+    setIsDeleteModalOpen(false);
+    setAthleteToDelete(null);
+  };
+
   const handleDeleteConfirm = async () => {
     if (!canDelete || !athleteToDelete) return;
+    setDeleteError("");
     try {
       await deleteAthleteMutation.mutateAsync(athleteToDelete.id);
-      setIsDeleteModalOpen(false);
-      setAthleteToDelete(null);
+      closeDeleteModal();
     } catch (error) {
-      if (
-        isPermissionDeniedError(error) ||
-        isSessionInvalidError(error) ||
-        isAccountBlockedError(error)
-      ) return;
-      alert(getSafeApiMessage(error, "Gagal menghapus atlet. Silakan coba lagi."));
+      setDeleteError(getSafeApiMessage(error, "Gagal menghapus atlet. Silakan coba lagi."));
     }
   };
 
@@ -695,8 +698,9 @@ export function AthletesPage() {
           isOpen={isDeleteModalOpen}
           athlete={athleteToDelete}
           onConfirm={handleDeleteConfirm}
-          onClose={() => setIsDeleteModalOpen(false)}
+          onClose={closeDeleteModal}
           isPending={deleteAthleteMutation.isPending}
+          error={deleteError}
         />
       )}
     </DashboardLayout>
