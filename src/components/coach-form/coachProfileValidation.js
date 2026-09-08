@@ -19,6 +19,7 @@ export const COACH_PROFILE_FIELDS = [
   { name: 'identity_document', label: 'KTP Pelatih', step: 1, target: target('identity_document') },
   { name: 'bpjs_number', label: 'Nomor BPJS', step: 1, target: target('bpjs_number') },
   { name: 'bpjs_document', label: 'Dokumen BPJS', step: 1, target: target('bpjs_document') },
+  { name: 'bpjs_deferred_acknowledgement', label: 'Pernyataan Penundaan BPJS', step: 1, target: target('bpjs_deferred_acknowledgement') },
   { name: 'cabor_id', label: 'Cabang Olahraga', step: 1, target: target('cabor_id') },
   { name: 'organization_id', label: 'Organisasi/Pengcab', step: 1, target: target('organization_id') },
   { name: 'address', label: 'Alamat Domisili', step: 1, target: target('address') },
@@ -76,6 +77,12 @@ export function validateCoachProfile(formData, context = {}) {
   }
   if (context.documentErrors?.bpjs) {
     errors.bpjs_document = [context.documentErrors.bpjs];
+  }
+  if (context.bpjsNumberRequired && !text('bpjs_number')) {
+    add('bpjs_number', 'Nomor BPJS wajib diisi ketika dokumen BPJS tersedia');
+  }
+  if (context.bpjsDeferredAcknowledgementRequired && !context.bpjsDeferredAcknowledged) {
+    add('bpjs_deferred_acknowledgement', 'Pernyataan penundaan dokumen BPJS wajib dicentang');
   }
 
   if (text('birth_date') && !isValidOptionalDate(text('birth_date'))) {

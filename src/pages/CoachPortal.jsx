@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { BPJSDocumentReminderDialog } from '../components/BPJSDocumentReminderDialog';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { SuccessToast } from '../components/SuccessToast';
 import {
@@ -44,6 +45,7 @@ import {
   usePortalProfile,
   useUpdatePortalProfile,
 } from '../hooks/queries/usePortal';
+import { hasShownBPJSReminder, markBPJSReminderShown } from '../lib/bpjsReminderSession';
 
 const MotionDiv = motion.div;
 const currentYear = new Date().getFullYear();
@@ -95,6 +97,8 @@ function InfoItem({ label, value }) {
 export function CoachPortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [showBPJSReminder, setShowBPJSReminder] = useState(false);
+  const [focusBPJSUpload, setFocusBPJSUpload] = useState(false);
   const [successToast, setSuccessToast] = useState({ isOpen: false, message: '', version: 0 });
   const [fundYear, setFundYear] = useState(currentYear);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -125,6 +129,12 @@ export function CoachPortal() {
   );
 
   const coach = useMemo(() => getCoach(profile), [profile]);
+
+  useEffect(() => {
+    if (!profileReady || coach?.bpjs_document || hasShownBPJSReminder()) return;
+    markBPJSReminderShown();
+    setShowBPJSReminder(true);
+  }, [coach?.bpjs_document, profileReady]);
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
   const isPrintDataLoading = clustersLoading || fundsLoading;
@@ -175,6 +185,7 @@ export function CoachPortal() {
   };
   const handleEditStart = () => {
     handleSuccessToastClose();
+    setFocusBPJSUpload(false);
     setIsEditing(true);
   };
   const handleEditSuccess = () => {
@@ -185,6 +196,14 @@ export function CoachPortal() {
       version: current.version + 1,
     }));
   };
+  const handleBPJSReminderComplete = () => {
+    setShowBPJSReminder(false);
+    setActiveTab('overview');
+    setFocusBPJSUpload(true);
+    handleSuccessToastClose();
+    setIsEditing(true);
+  };
+
   const handleCompleteProfile = () => {
     setActiveTab('overview');
     handleEditStart();
@@ -230,6 +249,12 @@ export function CoachPortal() {
 
   return (
     <DashboardLayout showAnnouncementBanner title="Portal Pelatih" subtitle={`Selamat datang, ${coach?.name || 'Pelatih'}!`}>
+      <BPJSDocumentReminderDialog
+        open={showBPJSReminder}
+        subjectLabel="pelatih"
+        onCompleteNow={handleBPJSReminderComplete}
+        onLater={() => setShowBPJSReminder(false)}
+      />
       <SuccessToast
         key={successToast.version}
         isOpen={successToast.isOpen}
@@ -309,6 +334,7 @@ export function CoachPortal() {
                   onCancel={() => setIsEditing(false)}
                   onSuccess={handleEditSuccess}
                   missingFields={profile.missing_fields || []}
+                  focusBPJSUpload={focusBPJSUpload}
                 />
               )}
             </div>
@@ -464,7 +490,7 @@ function InfoGrid({ items }) {
   );
 }
 
-function CoachProfileEditor({ coach, onCancel, onSuccess, missingFields }) {
+function CoachProfileEditor({ coach, onCancel, onSuccess, missingFields, focusBPJSUpload }) {
   const updateProfile = useUpdatePortalProfile();
   const controller = useCoachFormController({
     isOpen: true,
@@ -478,8 +504,12 @@ function CoachProfileEditor({ coach, onCancel, onSuccess, missingFields }) {
   const { navigateToError } = validation;
 
   useEffect(() => {
+    if (focusBPJSUpload) {
+      navigateToError('bpjs_document');
+      return;
+    }
     if (missingFields?.[0]) navigateToError(missingFields[0]);
-  }, [missingFields, navigateToError]);
+  }, [focusBPJSUpload, missingFields, navigateToError]);
 
   const handleSubmit = (event) => {
     event.preventDefault();

@@ -1,6 +1,7 @@
 import { AlertCircle, CheckCircle2, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
 import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { firstFieldError } from '../form-modal/formUtils';
+import { BPJSDeferredAcknowledgement } from '../form-validation/BPJSDeferredAcknowledgement';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { DOCUMENT_ACCEPT } from '../form-modal/mediaUtils';
 
@@ -107,7 +108,7 @@ export function CoachDocumentsSection({
   showBPJSNumber = false,
 }) {
   const { data: formData, updateField } = form;
-  const { errors } = validation;
+  const { errors, bpjsNumberRequired } = validation;
   return (
     <FormSectionCard
       icon={FileText}
@@ -133,25 +134,27 @@ export function CoachDocumentsSection({
         field="bpjs_document"
         title="BPJS Kesehatan/Ketenagakerjaan"
         required={false}
-        hint="Opsional. Unggah kartu atau surat kepesertaan BPJS jika tersedia."
+        hint="Dokumen BPJS opsional. Jika dokumen dilampirkan atau sudah tersimpan, nomor BPJS wajib diisi."
         file={files.bpjsDocumentFile}
         stored={files.canReuseStoredBPJS}
         processing={files.documentProcessing.bpjs}
         error={files.documentErrors.bpjs}
         fieldError={errors.bpjs_document}
-        onChange={files.handleDocumentChange('bpjs')}
+        onChange={form.handleBPJSDocumentChange}
         opening={files.documentOpening.bpjs}
         onOpenStored={() => files.handleOpenStoredDocument('bpjs')}
       >
         {showBPJSNumber && (
           <div>
             <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Nomor BPJS
+              Nomor BPJS {bpjsNumberRequired && <span className="text-red-500">*</span>}
             </label>
             <input
               {...getFieldControlProps('bpjs_number', errors)}
               type="text"
               inputMode="numeric"
+              required={bpjsNumberRequired}
+              aria-required={bpjsNumberRequired}
               value={formData.bpjs_number}
               onChange={(event) => updateField('bpjs_number', event.target.value)}
               className={`w-full rounded-xl border bg-white px-3.5 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 ${
@@ -168,6 +171,7 @@ export function CoachDocumentsSection({
           </div>
         )}
       </DocumentUploadCard>
+      <BPJSDeferredAcknowledgement validation={validation} />
     </FormSectionCard>
   );
 }

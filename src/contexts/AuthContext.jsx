@@ -24,6 +24,7 @@ import {
   readStoredAccountBlock,
 } from '../lib/authAccess';
 import { AuthContext } from './auth-context';
+import { clearBPJSReminderSession } from '../lib/bpjsReminderSession';
 
 function getUnavailableMessage(error) {
   return getSafeApiMessage(error, ACCESS_SERVICE_UNAVAILABLE_MESSAGE);
@@ -45,6 +46,7 @@ export function AuthProvider({ children }) {
 
   const clearSession = useCallback(() => {
     localStorage.removeItem('token');
+    clearBPJSReminderSession();
     setUser(null);
     queryClient.clear();
   }, [queryClient]);
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
   const fetchUser = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
+      clearBPJSReminderSession();
       setUser(null);
       setAccessUnavailable(null);
       return null;
@@ -116,6 +119,7 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     queryClient.clear();
+    clearBPJSReminderSession();
 
     const response = await api.post('/api/login', new URLSearchParams({ email, password }), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -142,6 +146,7 @@ export function AuthProvider({ children }) {
   }, [clearSession]);
 
   const register = async (name, email, password, password_confirmation) => {
+    clearBPJSReminderSession();
     const response = await api.post('/api/register', {
       name,
       email,

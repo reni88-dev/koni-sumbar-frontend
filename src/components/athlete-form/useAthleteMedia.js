@@ -130,6 +130,10 @@ export function useAthleteMedia({ athlete, setErrors, setErrorMessage }) {
     }
   }, [setErrors]);
 
+  const setDocumentError = useCallback((kind, message) => {
+    setDocumentErrors((previous) => ({ ...previous, [kind]: message }));
+  }, []);
+
   return {
     photoFile,
     photoPreview,
@@ -139,6 +143,7 @@ export function useAthleteMedia({ athlete, setErrors, setErrorMessage }) {
     documentProcessing,
     documentErrors,
     isAnyFileProcessing: photoProcessing || documentProcessing.identity || documentProcessing.bpjs,
+    setDocumentError,
     reset,
     invalidateIdentityForAgeChange,
     handlePhotoChange,

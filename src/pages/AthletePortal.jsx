@@ -6,6 +6,7 @@ import {
   Layers, Wallet, Printer, GraduationCap, Users, HeartPulse
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
+import { BPJSDocumentReminderDialog } from '../components/BPJSDocumentReminderDialog';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { SuccessToast } from '../components/SuccessToast';
 import {
@@ -29,6 +30,7 @@ import {
   usePortalClusterHistories,
   usePortalDevelopmentFunds,
 } from '../hooks/queries/usePortal';
+import { hasShownBPJSReminder, markBPJSReminderShown } from '../lib/bpjsReminderSession';
 import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
 
 const MotionDiv = motion.div;
@@ -64,6 +66,8 @@ function InfoItem({ label, value }) {
 export function AthletePortal() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isEditing, setIsEditing] = useState(false);
+  const [showBPJSReminder, setShowBPJSReminder] = useState(false);
+  const [focusBPJSUpload, setFocusBPJSUpload] = useState(false);
   const [successToast, setSuccessToast] = useState({ isOpen: false, message: '', version: 0 });
   const [fundYear, setFundYear] = useState(currentYear);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -95,6 +99,12 @@ export function AthletePortal() {
   const { data: educationLevels = [], isLoading: educationLevelsLoading } = useEducationLevelsAll();
 
   const athlete = useMemo(() => getAthlete(profile), [profile]);
+
+  useEffect(() => {
+    if (!profileReady || athlete?.bpjs_document || hasShownBPJSReminder()) return;
+    markBPJSReminderShown();
+    setShowBPJSReminder(true);
+  }, [athlete?.bpjs_document, profileReady]);
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
   const educationLevelName = athlete?.education_level?.name
@@ -117,6 +127,7 @@ export function AthletePortal() {
   };
   const handleEditStart = () => {
     handleSuccessToastClose();
+    setFocusBPJSUpload(false);
     setIsEditing(true);
   };
   const handleEditSuccess = () => {
@@ -127,6 +138,14 @@ export function AthletePortal() {
       version: current.version + 1,
     }));
   };
+  const handleBPJSReminderComplete = () => {
+    setShowBPJSReminder(false);
+    setActiveTab('overview');
+    setFocusBPJSUpload(true);
+    handleSuccessToastClose();
+    setIsEditing(true);
+  };
+
   const handleCompleteProfile = () => {
     setActiveTab('overview');
     handleEditStart();
@@ -201,6 +220,12 @@ export function AthletePortal() {
   }
   return (
     <DashboardLayout showAnnouncementBanner title="Portal Atlet" subtitle={`Selamat datang, ${profile?.name || 'Atlet'}!`}>
+      <BPJSDocumentReminderDialog
+        open={showBPJSReminder}
+        subjectLabel="atlet"
+        onCompleteNow={handleBPJSReminderComplete}
+        onLater={() => setShowBPJSReminder(false)}
+      />
       <SuccessToast
         key={successToast.version}
         isOpen={successToast.isOpen}
@@ -266,6 +291,7 @@ export function AthletePortal() {
                   onCancel={() => setIsEditing(false)}
                   onSuccess={handleEditSuccess}
                   missingFields={profile.missing_fields || []}
+                  focusBPJSUpload={focusBPJSUpload}
                 />
               )}
             </div>
@@ -337,7 +363,7 @@ function InfoGrid({ items }) {
   return <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{items.map(([label, value]) => <InfoItem key={label} label={label} value={value} />)}</div>;
 }
 
-function AthleteProfileEditor({ athlete, onCancel, onSuccess, missingFields }) {
+function AthleteProfileEditor({ athlete, onCancel, onSuccess, missingFields, focusBPJSUpload }) {
   const updateProfile = useUpdatePortalProfile();
   const controller = useAthleteFormController({
     isOpen: true,
@@ -351,8 +377,12 @@ function AthleteProfileEditor({ athlete, onCancel, onSuccess, missingFields }) {
   const { navigateToError } = validation;
 
   useEffect(() => {
+    if (focusBPJSUpload) {
+      navigateToError('bpjs_document');
+      return;
+    }
     if (missingFields?.[0]) navigateToError(missingFields[0]);
-  }, [missingFields, navigateToError]);
+  }, [focusBPJSUpload, missingFields, navigateToError]);
 
   const handleSubmit = (event) => {
     event.preventDefault();
