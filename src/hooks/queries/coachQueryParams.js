@@ -1,28 +1,4 @@
-export function buildCoachListParams({
-  page = 1,
-  search = '',
-  caborId = '',
-  organizationId = '',
-  isActive = '',
-  clusterId = '',
-  subClusterId = '',
-  clusterType = '',
-  subClusterType = '',
-  perPage = 20,
-} = {}) {
-  return {
-    page,
-    search: search || undefined,
-    cabor_id: caborId || undefined,
-    organization_id: organizationId || undefined,
-    cluster_id: clusterId || undefined,
-    sub_cluster_id: subClusterId || undefined,
-    cluster_type: clusterType || undefined,
-    sub_cluster_type: subClusterType || undefined,
-    is_active: isActive !== '' ? isActive : undefined,
-    per_page: perPage,
-  };
-}
+export { buildCoachListParams } from './listQueryParams.js';
 
 export function getNextCoachPageParam(lastPage, fallbackPerPage = 20) {
   const currentPage = Number(lastPage?.page) || 1;

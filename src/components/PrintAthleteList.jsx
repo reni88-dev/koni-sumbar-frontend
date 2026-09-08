@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Printer, Loader2 } from 'lucide-react';
 import api from '../api/axios';
+import { buildAthleteListParams } from '../hooks/queries/listQueryParams';
 
 /**
  * PrintAthleteList — fetches ALL athletes (with current filters) and opens a print-friendly list.
@@ -15,6 +16,12 @@ export function PrintAthleteList({ filters, filterParams }) {
     false: 'Belum Punya',
     1: 'Sudah Punya',
     0: 'Belum Punya',
+  };
+  const activeStatusLabels = {
+    true: 'Aktif',
+    false: 'Tidak Aktif',
+    1: 'Aktif',
+    0: 'Tidak Aktif',
   };
 
   const hasFilterValue = (value) =>
@@ -67,16 +74,11 @@ export function PrintAthleteList({ filters, filterParams }) {
 </html>`);
       printWindow.document.close();
 
-      const baseParams = { per_page: 100 };
-      if (hasFilterValue(filterParams?.search)) baseParams.search = filterParams.search;
-      if (hasFilterValue(filterParams?.caborId)) baseParams.cabor_id = filterParams.caborId;
-      if (hasFilterValue(filterParams?.gender)) baseParams.gender = filterParams.gender;
-      if (hasFilterValue(filterParams?.organizationId)) baseParams.organization_id = filterParams.organizationId;
-      if (hasFilterValue(filterParams?.clusterId)) baseParams.cluster_id = filterParams.clusterId;
-      if (hasFilterValue(filterParams?.subClusterId)) baseParams.sub_cluster_id = filterParams.subClusterId;
-      if (hasFilterValue(filterParams?.hasNationalAthleteNumber)) {
-        baseParams.has_national_athlete_number = filterParams.hasNationalAthleteNumber;
-      }
+      const baseParams = buildAthleteListParams({
+        ...filterParams,
+        page: null,
+        perPage: 100,
+      });
 
       const firstResponse = await api.get('/api/athletes', {
         params: { ...baseParams, page: 1 },
@@ -113,6 +115,10 @@ export function PrintAthleteList({ filters, filterParams }) {
         filterDesc.push(
           `Nomor Atlet Nasional: ${nationalNumberLabels[nationalNumberValue] || nationalNumberValue}`,
         );
+      }
+      if (hasFilterValue(filterParams?.isActive)) {
+        const activeStatus = filterParams.isActive;
+        filterDesc.push(`Status: ${activeStatusLabels[activeStatus] || activeStatus}`);
       }
       if (filters?.search) filterDesc.push(`Pencarian: "${filters.search}"`);
 

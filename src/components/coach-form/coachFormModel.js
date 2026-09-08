@@ -28,6 +28,7 @@ export function createInitialCoachFormData() {
     village: '',
     phone: '',
     email: '',
+    bpjs_number: '',
     license_number: '',
     license_level: '',
     coaching_start_year: '',
@@ -85,6 +86,7 @@ export function mapCoachToForm(coach) {
       village: coach.village || '',
       phone: savedPhone,
       email: coach.email || '',
+      bpjs_number: coach.bpjs_number || '',
       license_number: coach.license_number || '',
       license_level: coach.license_level || '',
       coaching_start_year: coach.coaching_start_year?.toString() || '',
@@ -110,6 +112,8 @@ export function buildCoachFormData(
     if (excluded.has(key)) return;
     if (key === 'is_active') {
       data.append(key, value ? 'true' : 'false');
+    } else if (key === 'bpjs_number') {
+      data.append(key, value ?? '');
     } else if (includeEmptyFields || (value !== '' && value !== null && value !== undefined)) {
       data.append(key, value ?? '');
     }
@@ -127,7 +131,7 @@ export function buildCoachFormData(
 }
 
 export function getCoachErrorStep(errorFields) {
-  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'province', 'city', 'district', 'village', 'photo', 'identity_document', 'bpjs_document'];
+  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'province', 'city', 'district', 'village', 'photo', 'identity_document', 'bpjs_number', 'bpjs_document'];
   const step2Fields = ['phone', 'email'];
   if (errorFields.some((field) => step1Fields.includes(field))) return 1;
   if (errorFields.some((field) => step2Fields.includes(field))) return 2;

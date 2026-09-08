@@ -15,23 +15,23 @@ export const coachKeys = {
 
 // Fetch coaches with pagination and filters
 export function useCoaches({ page = 1, search = '', caborId = '', organizationId = '', isActive = '', clusterId = '', subClusterId = '', clusterType = '', subClusterType = '', perPage = 10 } = {}) {
+  const params = buildCoachListParams({
+    page,
+    search,
+    caborId,
+    organizationId,
+    isActive,
+    clusterId,
+    subClusterId,
+    clusterType,
+    subClusterType,
+    perPage,
+  });
+
   return useQuery({
-    queryKey: coachKeys.list({ page, search, caborId, organizationId, isActive, clusterId, subClusterId, clusterType, subClusterType, perPage }),
+    queryKey: coachKeys.list(params),
     queryFn: async () => {
-      const response = await api.get('/api/coaches', {
-        params: buildCoachListParams({
-          page,
-          search,
-          caborId,
-          organizationId,
-          isActive,
-          clusterId,
-          subClusterId,
-          clusterType,
-          subClusterType,
-          perPage,
-        }),
-      });
+      const response = await api.get('/api/coaches', { params });
       return response.data;
     },
   });
@@ -50,32 +50,24 @@ export function useInfiniteCoaches({
   perPage = 20,
   enabled = true,
 } = {}) {
+  const params = buildCoachListParams({
+    page: 1,
+    search,
+    caborId,
+    organizationId,
+    isActive,
+    clusterId,
+    subClusterId,
+    clusterType,
+    subClusterType,
+    perPage,
+  });
+
   return useInfiniteQuery({
-    queryKey: coachKeys.infiniteList({
-      search,
-      caborId,
-      organizationId,
-      isActive,
-      clusterId,
-      subClusterId,
-      clusterType,
-      subClusterType,
-      perPage,
-    }),
+    queryKey: coachKeys.infiniteList(params),
     queryFn: async ({ pageParam }) => {
       const response = await api.get('/api/coaches', {
-        params: buildCoachListParams({
-          page: pageParam,
-          search,
-          caborId,
-          organizationId,
-          isActive,
-          clusterId,
-          subClusterId,
-          clusterType,
-          subClusterType,
-          perPage,
-        }),
+        params: { ...params, page: pageParam },
       });
       return response.data;
     },
@@ -85,7 +77,6 @@ export function useInfiniteCoaches({
     enabled,
   });
 }
-
 // Fetch single coach
 export function useCoach(id) {
   return useQuery({

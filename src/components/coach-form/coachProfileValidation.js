@@ -17,6 +17,7 @@ export const COACH_PROFILE_FIELDS = [
   { name: 'gender', label: 'Jenis Kelamin', step: 1, target: target('gender') },
   { name: 'religion', label: 'Agama', step: 1, target: target('religion') },
   { name: 'identity_document', label: 'KTP Pelatih', step: 1, target: target('identity_document') },
+  { name: 'bpjs_number', label: 'Nomor BPJS', step: 1, target: target('bpjs_number') },
   { name: 'bpjs_document', label: 'Dokumen BPJS', step: 1, target: target('bpjs_document') },
   { name: 'cabor_id', label: 'Cabang Olahraga', step: 1, target: target('cabor_id') },
   { name: 'organization_id', label: 'Organisasi/Pengcab', step: 1, target: target('organization_id') },

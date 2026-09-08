@@ -57,6 +57,7 @@ export const ATHLETE_PROFILE_FIELDS = [
   { name: 'village', label: 'Kelurahan/Desa', step: 1, target: target('village') },
   { name: 'identity_document_type', label: 'Jenis Dokumen Identitas', step: 1, target: target('identity_document_type') },
   { name: 'identity_document', label: 'Dokumen Identitas', step: 1, target: target('identity_document') },
+  { name: 'bpjs_number', label: 'Nomor BPJS', step: 1, target: target('bpjs_number') },
   { name: 'bpjs_document', label: 'Dokumen BPJS', step: 1, target: target('bpjs_document') },
   { name: 'cabor_id', label: 'Cabang Olahraga', step: 1, target: target('cabor_id') },
   { name: 'organization_id', label: 'Organisasi/Pengcab', step: 1, target: target('organization_id') },

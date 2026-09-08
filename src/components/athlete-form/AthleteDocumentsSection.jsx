@@ -5,7 +5,13 @@ import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { DOCUMENT_ACCEPT } from '../form-modal/mediaUtils';
 import { IDENTITY_DOCUMENT_LABELS } from './athleteFormModel';
 
-export function AthleteDocumentsSection({ athlete, form, files, validation }) {
+export function AthleteDocumentsSection({
+  athlete,
+  form,
+  files,
+  validation,
+  showBPJSNumber = false,
+}) {
   const { data: formData, updateField } = form;
   const {
     identityDocumentFile,
@@ -137,6 +143,30 @@ export function AthleteDocumentsSection({ athlete, form, files, validation }) {
           </label>
           <span className="text-[10px] font-semibold text-slate-500">Kesehatan/Naker</span>
         </div>
+        {showBPJSNumber && (
+          <div>
+            <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Nomor BPJS
+            </label>
+            <input
+              {...getFieldControlProps('bpjs_number', errors)}
+              type="text"
+              inputMode="numeric"
+              value={formData.bpjs_number}
+              onChange={(event) => updateField('bpjs_number', event.target.value)}
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 ${
+                errors.bpjs_number ? 'border-red-400 bg-red-50' : 'border-slate-200'
+              }`}
+              placeholder="Masukkan nomor kepesertaan BPJS"
+              maxLength={30}
+            />
+            {errors.bpjs_number && (
+              <p id={getFieldErrorId('bpjs_number')} className="mt-1 text-xs text-red-500">
+                {firstFieldError(errors.bpjs_number)}
+              </p>
+            )}
+          </div>
+        )}
         <p className="text-xs text-slate-500">Opsional. Unggah scan kartu atau surat kepesertaan BPJS (PDF, JPG, PNG, WebP maks. 10 MB).</p>
         <label
           data-field="bpjs_document"

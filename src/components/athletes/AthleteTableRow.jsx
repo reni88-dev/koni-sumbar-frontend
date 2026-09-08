@@ -14,7 +14,13 @@ const genderLabels = { male: "Laki-laki", female: "Perempuan" };
  *  - onEdit   {(athlete)=>void}
  *  - onDelete {(athlete)=>void}
  */
-export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
+export function AthleteTableRow({
+  athlete,
+  onView,
+  onEdit,
+  onDelete,
+  canViewSensitive = false,
+}) {
   const initial = athlete.name?.charAt(0).toUpperCase() || "?";
   const caborName = athlete.cabor?.display_name || athlete.cabor?.name || "-";
 
@@ -97,6 +103,15 @@ export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
           {athlete.national_athlete_number || "-"}
         </span>
       </td>
+
+      {/* Nomor BPJS */}
+      {canViewSensitive && (
+        <td className="px-6 py-4">
+          <span className="font-mono text-sm text-slate-600 whitespace-nowrap">
+            {athlete.bpjs_number || "-"}
+          </span>
+        </td>
+      )}
 
       {/* Status */}
       <td className="px-6 py-4">

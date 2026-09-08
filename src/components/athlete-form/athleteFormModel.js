@@ -32,6 +32,7 @@ export function createInitialAthleteFormData() {
     name: '',
     nik: '',
     national_athlete_number: '',
+    bpjs_number: '',
     no_kk: '',
     birth_place: '',
     birth_date: '',
@@ -84,6 +85,7 @@ export function mapAthleteToForm(athlete) {
       name: athlete.name || '',
       nik: athlete.nik || '',
       national_athlete_number: athlete.national_athlete_number || '',
+      bpjs_number: athlete.bpjs_number || '',
       no_kk: athlete.no_kk || '',
       birth_place: athlete.birth_place || '',
       birth_date: birthDate,
@@ -166,6 +168,8 @@ export function buildAthleteFormData(submissionData, files, { excludedFields = [
       data.append(key, JSON.stringify(filtered.length > 0 ? filtered : []));
     } else if (key === 'is_active') {
       data.append(key, value ? '1' : '0');
+    } else if (key === 'bpjs_number') {
+      data.append(key, value ?? '');
     } else if (includeEmptyFields || (value !== '' && value !== null && value !== undefined)) {
       data.append(key, value ?? '');
     }
@@ -177,7 +181,7 @@ export function buildAthleteFormData(submissionData, files, { excludedFields = [
 }
 
 export function getAthleteErrorStep(errorFields) {
-  const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address', 'province', 'city', 'district', 'village', 'identity_document_type', 'identity_document', 'bpjs_document'];
+  const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address', 'province', 'city', 'district', 'village', 'identity_document_type', 'identity_document', 'bpjs_number', 'bpjs_document'];
   const step2Fields = ['height', 'weight', 'blood_type', 'education_level_id', 'occupation', 'marital_status', 'phone', 'email'];
   const step4Fields = ['father_name', 'mother_name', 'parent_address', 'father_phone', 'mother_phone'];
   if (errorFields.some((field) => step1Fields.includes(field))) return 1;

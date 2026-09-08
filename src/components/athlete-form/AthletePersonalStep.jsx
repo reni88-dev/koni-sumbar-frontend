@@ -4,7 +4,14 @@ import { AthleteBirthAddressSection } from './AthleteBirthAddressSection';
 import { AthleteDocumentsSection } from './AthleteDocumentsSection';
 import { AthleteIdentitySection } from './AthleteIdentitySection';
 
-export function AthletePersonalStep({ athlete, form, lookups, files, validation }) {
+export function AthletePersonalStep({
+  athlete,
+  form,
+  lookups,
+  files,
+  validation,
+  showBPJSNumber = false,
+}) {
   return (
     <div className="space-y-4">
       <ProfilePhotoField
@@ -21,6 +28,7 @@ export function AthletePersonalStep({ athlete, form, lookups, files, validation 
         form={form}
         files={files}
         validation={validation}
+        showBPJSNumber={showBPJSNumber}
       />
       <AthleteAffiliationSection athlete={athlete} form={form} lookups={lookups} validation={validation} />
     </div>

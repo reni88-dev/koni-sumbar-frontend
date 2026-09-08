@@ -11,6 +11,7 @@ import {
   GitBranch,
   Award,
   ChevronDown,
+  CheckCircle,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 
@@ -33,6 +34,8 @@ export function AthleteFilters({
   setFilterSubCluster,
   filterNationalNumber,
   setFilterNationalNumber,
+  filterActive,
+  setFilterActive,
   cabors = [],
   organizations = [],
   clusters = [],
@@ -49,6 +52,7 @@ export function AthleteFilters({
     Boolean(filterCluster),
     Boolean(filterSubCluster),
     Boolean(filterNationalNumber),
+    Boolean(filterActive),
   ].filter(Boolean).length;
 
   const hasAnyFilter = activeFiltersCount > 0 || Boolean(search);
@@ -61,6 +65,7 @@ export function AthleteFilters({
     setFilterCluster("");
     setFilterSubCluster("");
     setFilterNationalNumber("");
+    setFilterActive("");
   };
 
   // Helper labels for active pills
@@ -155,7 +160,7 @@ export function AthleteFilters({
             className="overflow-hidden"
           >
             <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
                 {/* 1. Cabang Olahraga */}
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
@@ -228,7 +233,10 @@ export function AthleteFilters({
                   <div className="relative">
                     <select
                       value={filterCluster}
-                      onChange={(e) => setFilterCluster(e.target.value)}
+                      onChange={(e) => {
+                        setFilterSubCluster("");
+                        setFilterCluster(e.target.value);
+                      }}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all cursor-pointer hover:border-slate-300"
                     >
                       <option value="">Semua Kluster</option>
@@ -285,6 +293,24 @@ export function AthleteFilters({
                       <option value="">Semua Status</option>
                       <option value="true">Sudah Punya</option>
                       <option value="false">Belum Punya</option>
+                    </select>
+                  </div>
+                </div>
+                {/* 7. Status Atlet */}
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Status Atlet</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={filterActive}
+                      onChange={(e) => setFilterActive(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all cursor-pointer hover:border-slate-300"
+                    >
+                      <option value="">Semua Status</option>
+                      <option value="true">Aktif</option>
+                      <option value="false">Tidak Aktif</option>
                     </select>
                   </div>
                 </div>
@@ -389,6 +415,18 @@ export function AthleteFilters({
                 type="button"
                 onClick={() => setFilterNationalNumber("")}
                 className="hover:text-rose-950 p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+          {filterActive && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-medium">
+              <span>Status: {filterActive === "true" ? "Aktif" : "Tidak Aktif"}</span>
+              <button
+                type="button"
+                onClick={() => setFilterActive("")}
+                className="hover:text-emerald-950 p-0.5"
               >
                 <X className="w-3 h-3" />
               </button>

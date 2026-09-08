@@ -29,6 +29,7 @@ import {
   useAthleteSubClustersByCluster,
 } from "../hooks/queries/useAthleteClusterMaster";
 import api from "../api/axios";
+import { buildAthleteListParams } from "../hooks/queries/listQueryParams";
 
 export function AthletesPage() {
   const [searchParams] = useSearchParams();
@@ -51,6 +52,7 @@ export function AthletesPage() {
   const [filterCluster, setFilterCluster] = useState("");
   const [filterSubCluster, setFilterSubCluster] = useState("");
   const [filterNationalNumber, setFilterNationalNumber] = useState("");
+  const [filterActive, setFilterActive] = useState("");
 
   // ── Modal state ───────────────────────────────────────────────────────────
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -77,6 +79,21 @@ export function AthletesPage() {
   const { data: clusters = [] } = useAthleteClustersAll();
   const { data: subClusters = [] } =
     useAthleteSubClustersByCluster(filterCluster);
+  const selectedCluster = clusters.find(
+    (cluster) => String(cluster.id) === String(filterCluster),
+  );
+  const athleteListFilters = {
+    search: debouncedSearch,
+    caborId: filterCabor,
+    gender: filterGender,
+    organizationId: filterOrganization,
+    clusterId: filterCluster,
+    clusterType: selectedCluster?.code === "non_development" ? "non_development" : "",
+    subClusterId: filterSubCluster,
+    subClusterType: "",
+    hasNationalAthleteNumber: filterNationalNumber,
+    isActive: filterActive,
+  };
 
   const {
     data,
@@ -84,15 +101,7 @@ export function AthletesPage() {
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
-  } = useInfiniteAthletes({
-    search: debouncedSearch,
-    caborId: filterCabor,
-    gender: filterGender,
-    organizationId: filterOrganization,
-    clusterId: filterCluster,
-    subClusterId: filterSubCluster,
-    hasNationalAthleteNumber: filterNationalNumber,
-  });
+  } = useInfiniteAthletes(athleteListFilters);
 
   const deleteAthleteMutation = useDeleteAthlete();
 
@@ -257,19 +266,16 @@ export function AthletesPage() {
     if (!canExport) return;
     setIsExporting(true);
     try {
-      const params = new URLSearchParams();
-      if (debouncedSearch) params.append("search", debouncedSearch);
-      if (filterCabor) params.append("cabor_id", filterCabor);
-      if (filterGender) params.append("gender", filterGender);
-      if (filterCluster) params.append("cluster_id", filterCluster);
-      if (filterSubCluster) params.append("sub_cluster_id", filterSubCluster);
-      if (filterNationalNumber)
-        params.append("has_national_athlete_number", filterNationalNumber);
+      const params = buildAthleteListParams({
+        ...athleteListFilters,
+        page: null,
+        perPage: null,
+      });
 
-      const response = await api.get(
-        `/api/athletes/export/${type}?${params.toString()}`,
-        { responseType: "blob" }
-      );
+      const response = await api.get(`/api/athletes/export/${type}`, {
+        params,
+        responseType: "blob",
+      });
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
@@ -371,7 +377,8 @@ export function AthletesPage() {
     filterOrganization ||
     filterCluster ||
     filterSubCluster ||
-    filterNationalNumber
+    filterNationalNumber ||
+    filterActive
   );
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -434,15 +441,7 @@ export function AthletesPage() {
 
               <PrintAthleteList
                 total={total}
-                filterParams={{
-                  search: debouncedSearch,
-                  caborId: filterCabor,
-                  gender: filterGender,
-                  organizationId: filterOrganization,
-                  clusterId: filterCluster,
-                  subClusterId: filterSubCluster,
-                  hasNationalAthleteNumber: filterNationalNumber,
-                }}
+                filterParams={athleteListFilters}
                 filters={{
                   cabor: filterCabor
                     ? (() => {
@@ -458,16 +457,14 @@ export function AthletesPage() {
                       (o) => String(o.id) === String(filterOrganization)
                     )?.name
                     : "",
-                  cluster: filterCluster
-                    ? clusters.find((c) => String(c.id) === String(filterCluster))
-                      ?.name
-                    : "",
+                  cluster: selectedCluster?.name || "",
                   subCluster: filterSubCluster
                     ? subClusters.find(
                       (c) => String(c.id) === String(filterSubCluster)
                     )?.name
                     : "",
                   search: debouncedSearch,
+                  status: filterActive,
                 }}
               />
 
@@ -513,6 +510,8 @@ export function AthletesPage() {
             setFilterSubCluster={setFilterSubCluster}
             filterNationalNumber={filterNationalNumber}
             setFilterNationalNumber={setFilterNationalNumber}
+            filterActive={filterActive}
+            setFilterActive={setFilterActive}
             cabors={cabors}
             organizations={organizations}
             clusters={clusters}
@@ -561,6 +560,7 @@ export function AthletesPage() {
           onView={openDetailModal}
           onEdit={canEditSensitive ? openEditModal : undefined}
           onDelete={canDelete ? handleDeleteRequest : undefined}
+          canViewSensitive={canViewSensitive}
         />
       </div>
 

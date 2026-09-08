@@ -77,6 +77,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           lookups={lookups}
           files={files}
           validation={validation}
+          showBPJSNumber
         />
       )}
       {navigation.step === 2 && (
