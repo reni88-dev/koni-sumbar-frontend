@@ -25,6 +25,7 @@ export function AthleteTable({
   onView,
   onEdit,
   onDelete,
+  onTransfer,
   canViewSensitive = false,
 }) {
   const thClass =
@@ -73,6 +74,7 @@ export function AthleteTable({
                   onView={onView}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onTransfer={onTransfer}
                   canViewSensitive={canViewSensitive}
                 />
               ))
@@ -81,7 +83,7 @@ export function AthleteTable({
         </table>
       </div>
 
-      {/* ── Infinite Scroll Sentinel ──────────────────────────────────────── */}
+      {/* â”€â”€ Infinite Scroll Sentinel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div ref={sentinelRef} className="px-6 py-4 flex justify-center">
         {isFetchingNextPage ? (
           <div className="flex items-center gap-2 text-slate-400 text-sm">

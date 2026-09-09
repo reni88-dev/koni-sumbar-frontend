@@ -20,6 +20,7 @@ import { AthleteFilters } from "../components/athletes/AthleteFilters";
 import { AthleteExportButton } from "../components/athletes/AthleteExportButton";
 import { AthleteTable } from "../components/athletes/AthleteTable";
 import { AthleteDeleteModal } from "../components/athletes/AthleteDeleteModal";
+import { AthleteTransferCreateModal } from "../components/athlete-transfers/AthleteTransferCreateModal";
 
 import { useInfiniteAthletes, useDeleteAthlete, athleteKeys } from "../hooks/queries/useAthletes";
 import { useCaborsAll } from "../hooks/queries/useCabors";
@@ -39,6 +40,7 @@ export function AthletesPage() {
   const canCreate = can("athletes.create");
   const canEdit = can("athletes.edit");
   const canDelete = can("athletes.delete");
+  const canTransfer = can("athlete_transfers.create");
   const canViewSensitive = can("athletes.sensitive.read");
   const canExport = canView && canViewSensitive;
   const canCreateSensitive = canCreate && canViewSensitive;
@@ -59,6 +61,7 @@ export function AthletesPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedAthlete, setSelectedAthlete] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [athleteToDelete, setAthleteToDelete] = useState(null);
   const [deleteError, setDeleteError] = useState("");
 
@@ -560,6 +563,7 @@ export function AthletesPage() {
           onView={openDetailModal}
           onEdit={canEditSensitive ? openEditModal : undefined}
           onDelete={canDelete ? handleDeleteRequest : undefined}
+          onTransfer={canTransfer ? (athlete) => { setSelectedAthlete(athlete); setIsTransferModalOpen(true); } : undefined}
           canViewSensitive={canViewSensitive}
         />
       </div>
@@ -689,6 +693,16 @@ export function AthletesPage() {
           onClose={() => setIsDetailModalOpen(false)}
           athlete={selectedAthlete}
           canViewSensitive={canViewSensitive}
+          onTransfer={canTransfer ? (athlete) => { setIsDetailModalOpen(false); setSelectedAthlete(athlete); setIsTransferModalOpen(true); } : undefined}
+        />
+      )}
+
+      {canTransfer && (
+        <AthleteTransferCreateModal
+          athlete={selectedAthlete}
+          isOpen={isTransferModalOpen}
+          onClose={() => setIsTransferModalOpen(false)}
+          onSuccess={() => setSuccessMessage("Pengajuan transfer berhasil dikirim.")}
         />
       )}
 

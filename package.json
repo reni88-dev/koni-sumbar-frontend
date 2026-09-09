@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node --test tests/coachQueryParams.test.js tests/bpjsNumberValidation.test.js",
+    "test": "node --test --test-concurrency=1 tests/coachQueryParams.test.js tests/bpjsNumberValidation.test.js tests/athleteTransfers.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

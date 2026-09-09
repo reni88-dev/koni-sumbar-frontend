@@ -20,12 +20,15 @@ import {
   ShieldCheck,
   Medal,
   Award,
-  FileText
+  FileText,
+  ArrowLeftRight
 } from 'lucide-react';
 import api from '../api/axios';
 import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
 import { ProtectedImage } from './ProtectedImage';
 import { AthleteClusterHistoryTab, AthleteDevelopmentFundsTab } from './athlete-clusters';
+import { AthleteTransferHistory } from './athlete-transfers/AthleteTransferHistory';
+import { usePermission } from '../hooks/usePermission';
 import {
   openAthleteProfilePrintWindow,
   printAthleteProfile,
@@ -104,11 +107,13 @@ function TabButton(props) {
   );
 }
 
-export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive = false }) {
+export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive = false, onTransfer }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
   const printingRef = useRef(false);
   const { data: educationLevels = [] } = useEducationLevelsAll();
+  const { can } = usePermission();
+  const canViewTransfers = can("athlete_transfers.view");
   if (!isOpen || !athlete) return null;
 
   const educationLevel = athlete.education_level?.name
@@ -210,6 +215,16 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
               </div>
 
               <div className="flex items-center gap-2">
+                {onTransfer && athlete.is_active && (
+                  <button
+                    type="button"
+                    onClick={() => onTransfer(athlete)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-1.5 text-xs font-semibold text-white border border-white/20 hover:bg-white/25"
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ajukan Transfer</span>
+                  </button>
+                )}
                 {canViewSensitive && (
                   <button
                     type="button"
@@ -409,6 +424,11 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
               <TabButton id="funds" activeTab={activeTab} onSelect={setActiveTab} icon={Wallet}>
                 Biaya Pembinaan
               </TabButton>
+              {canViewTransfers && (
+                <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={History}>
+                  Riwayat Transfer
+                </TabButton>
+              )}
             </div>
 
             {/* Tab 1: Profil Lengkap */}
@@ -536,6 +556,8 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
 
             {/* Tab 3: Biaya Pembinaan */}
             {activeTab === 'funds' && <AthleteDevelopmentFundsTab athlete={athlete} onOpenClusterHistory={() => setActiveTab('clusters')} />}
+
+            {activeTab === 'transfers' && canViewTransfers && <AthleteTransferHistory athleteId={athlete.id} />}
           </div>
         </div>
       </Motion.div>

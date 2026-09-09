@@ -59,8 +59,10 @@ export function AthleteAffiliationSection({ athlete, form, lookups, validation }
           value={formData.organization_id}
           onChange={(val) => updateField('organization_id', val)}
           placeholder="Cari & pilih organisasi pengcab..."
+          disabled={Boolean(athlete)}
           dropdownPlacement="auto"
         />
+        {athlete && <p className="mt-1 text-xs text-slate-500">Pemindahan organisasi hanya melalui fitur Transfer Atlet.</p>}
         {errors.organization_id && <p id={getFieldErrorId('organization_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.organization_id)}</p>}
       </div>
     </FormSectionCard>
