@@ -21,7 +21,8 @@ import {
   Medal,
   Award,
   FileText,
-  ArrowLeftRight
+  ArrowLeftRight,
+  History as HistoryIcon
 } from 'lucide-react';
 import api from '../api/axios';
 import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
@@ -425,7 +426,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                 Biaya Pembinaan
               </TabButton>
               {canViewTransfers && (
-                <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={History}>
+                <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={HistoryIcon}>
                   Riwayat Transfer
                 </TabButton>
               )}

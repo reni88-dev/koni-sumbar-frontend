@@ -38,6 +38,7 @@ export function CompetitionClassesPage() {
   const [selectedClass, setSelectedClass] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [classToDelete, setClassToDelete] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
 
   // TanStack Query hooks
   const { data: cabors = [] } = useCaborsAll();
@@ -88,14 +89,29 @@ export function CompetitionClassesPage() {
     refetch();
   };
 
+  const openDeleteModal = (item) => {
+    setClassToDelete(item);
+    setDeleteError('');
+    setIsDeleteModalOpen(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleteMutation.isPending) return;
+    setIsDeleteModalOpen(false);
+    setClassToDelete(null);
+    setDeleteError('');
+  };
+
   const handleDelete = async () => {
+    if (!classToDelete || deleteMutation.isPending) return;
+    setDeleteError('');
     try {
       await deleteMutation.mutateAsync(classToDelete.id);
       setIsDeleteModalOpen(false);
       setClassToDelete(null);
     } catch (error) {
-      console.error('Failed to delete competition class:', error);
-      alert(error.response?.data?.message || 'Gagal menghapus data');
+      const backendMessage = error?.response?.data?.message || error?.response?.data?.error;
+      setDeleteError(backendMessage || 'Kelas pertandingan belum dapat dihapus. Coba kembali.');
     }
   };
 
@@ -218,7 +234,7 @@ export function CompetitionClassesPage() {
                         )}
                         {canDelete && (
                           <button
-                            onClick={() => { setClassToDelete(item); setIsDeleteModalOpen(true); }}
+                            onClick={() => openDeleteModal(item)}
                             className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -356,7 +372,7 @@ export function CompetitionClassesPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
-              onClick={() => setIsDeleteModalOpen(false)}
+              onClick={closeDeleteModal}
             />
             <Motion.div
               initial={{ opacity: 0, scale: 0.95 }}
@@ -369,13 +385,22 @@ export function CompetitionClassesPage() {
                   <AlertCircle className="w-8 h-8 text-red-600" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-800 mb-2">Hapus Kelas?</h3>
-                <p className="text-slate-500 text-sm mb-6">
-                  Anda yakin ingin menghapus kelas <strong>{classToDelete?.name}</strong>?
+                <p className="text-slate-500 text-sm leading-6">
+                  Anda yakin ingin menghapus kelas <strong>{classToDelete?.name}</strong> secara permanen?
                 </p>
-                <div className="flex gap-3">
+                <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs leading-5 text-amber-800">
+                  Kelas yang pernah digunakan PORPROV tidak dapat dihapus. Edit atau nonaktifkan kelas sebagai gantinya agar riwayat tetap aman.
+                </p>
+                {deleteError && (
+                  <div role="alert" className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-left text-sm text-red-700">
+                    {deleteError}
+                  </div>
+                )}
+                <div className="mt-6 flex gap-3">
                   <button
-                    onClick={() => setIsDeleteModalOpen(false)}
-                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors"
+                    onClick={closeDeleteModal}
+                    disabled={deleteMutation.isPending}
+                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Batal
                   </button>
