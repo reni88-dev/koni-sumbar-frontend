@@ -54,7 +54,9 @@ export function AthletesPage() {
   const [filterCluster, setFilterCluster] = useState("");
   const [filterSubCluster, setFilterSubCluster] = useState("");
   const [filterNationalNumber, setFilterNationalNumber] = useState("");
+  const [filterBPJSDocument, setFilterBPJSDocument] = useState("");
   const [filterActive, setFilterActive] = useState("");
+  const effectiveBPJSDocumentFilter = canViewSensitive ? filterBPJSDocument : "";
 
   // ── Modal state ───────────────────────────────────────────────────────────
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -95,6 +97,7 @@ export function AthletesPage() {
     subClusterId: filterSubCluster,
     subClusterType: "",
     hasNationalAthleteNumber: filterNationalNumber,
+    hasBPJSDocument: effectiveBPJSDocumentFilter,
     isActive: filterActive,
   };
 
@@ -381,6 +384,7 @@ export function AthletesPage() {
     filterCluster ||
     filterSubCluster ||
     filterNationalNumber ||
+    effectiveBPJSDocumentFilter ||
     filterActive
   );
 
@@ -513,6 +517,8 @@ export function AthletesPage() {
             setFilterSubCluster={setFilterSubCluster}
             filterNationalNumber={filterNationalNumber}
             setFilterNationalNumber={setFilterNationalNumber}
+            filterBPJSDocument={filterBPJSDocument}
+            setFilterBPJSDocument={setFilterBPJSDocument}
             filterActive={filterActive}
             setFilterActive={setFilterActive}
             cabors={cabors}

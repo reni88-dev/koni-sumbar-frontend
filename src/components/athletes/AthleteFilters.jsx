@@ -12,6 +12,7 @@ import {
   Award,
   ChevronDown,
   CheckCircle,
+  FileCheck2,
 } from "lucide-react";
 import { motion as Motion, AnimatePresence } from "framer-motion";
 
@@ -34,6 +35,8 @@ export function AthleteFilters({
   setFilterSubCluster,
   filterNationalNumber,
   setFilterNationalNumber,
+  filterBPJSDocument,
+  setFilterBPJSDocument,
   filterActive,
   setFilterActive,
   cabors = [],
@@ -52,6 +55,7 @@ export function AthleteFilters({
     Boolean(filterCluster),
     Boolean(filterSubCluster),
     Boolean(filterNationalNumber),
+    Boolean(canViewSensitive && filterBPJSDocument),
     Boolean(filterActive),
   ].filter(Boolean).length;
 
@@ -65,6 +69,7 @@ export function AthleteFilters({
     setFilterCluster("");
     setFilterSubCluster("");
     setFilterNationalNumber("");
+    setFilterBPJSDocument("");
     setFilterActive("");
   };
 
@@ -160,7 +165,9 @@ export function AthleteFilters({
             className="overflow-hidden"
           >
             <div className="p-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-3">
+              <div
+                className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 ${canViewSensitive ? "2xl:grid-cols-8" : "2xl:grid-cols-7"}`}
+              >
                 {/* 1. Cabang Olahraga */}
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
@@ -296,7 +303,28 @@ export function AthleteFilters({
                     </select>
                   </div>
                 </div>
-                {/* 7. Status Atlet */}
+                {/* 7. Status Dokumen BPJS (sensitive) */}
+                {canViewSensitive && (
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                      <FileCheck2 className="w-3.5 h-3.5 text-cyan-600" />
+                      <span>Status Dokumen BPJS</span>
+                    </label>
+                    <div className="relative">
+                      <select
+                        value={filterBPJSDocument}
+                        onChange={(e) => setFilterBPJSDocument(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all cursor-pointer hover:border-slate-300"
+                      >
+                        <option value="">Semua Status</option>
+                        <option value="true">Sudah Punya</option>
+                        <option value="false">Belum Punya</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* 8. Status Atlet */}
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
@@ -420,6 +448,21 @@ export function AthleteFilters({
               </button>
             </span>
           )}
+          {canViewSensitive && filterBPJSDocument && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-50 text-cyan-800 border border-cyan-200 rounded-lg font-medium">
+              <span>
+                Dokumen BPJS: {filterBPJSDocument === "true" ? "Sudah Punya" : "Belum Punya"}
+              </span>
+              <button
+                type="button"
+                onClick={() => setFilterBPJSDocument("")}
+                className="hover:text-cyan-950 p-0.5"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          )}
+
           {filterActive && (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg font-medium">
               <span>Status: {filterActive === "true" ? "Aktif" : "Tidak Aktif"}</span>

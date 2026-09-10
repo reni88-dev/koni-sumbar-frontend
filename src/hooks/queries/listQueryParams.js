@@ -36,6 +36,7 @@ export function buildAthleteListParams({
   clusterType = '',
   subClusterType = '',
   hasNationalAthleteNumber = '',
+  hasBPJSDocument = '',
   isActive = '',
   perPage = 20,
 } = {}) {
@@ -47,6 +48,7 @@ export function buildAthleteListParams({
     organization_id: organizationId,
     ...buildClusterFilterParams({ clusterId, clusterType, subClusterId, subClusterType }),
     has_national_athlete_number: hasNationalAthleteNumber,
+    has_bpjs_document: hasBPJSDocument,
     is_active: isActive,
     per_page: perPage,
   });

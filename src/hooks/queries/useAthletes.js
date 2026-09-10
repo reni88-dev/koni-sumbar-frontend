@@ -24,13 +24,14 @@ export function useAthletes({
   clusterType = '',
   subClusterType = '',
   hasNationalAthleteNumber = '',
+  hasBPJSDocument = '',
   isActive = '',
   perPage = 10,
   enabled = true,
 } = {}) {
   const params = buildAthleteListParams({
     page, search, caborId, gender, organizationId, clusterId, subClusterId,
-    clusterType, subClusterType, hasNationalAthleteNumber, isActive, perPage,
+    clusterType, subClusterType, hasNationalAthleteNumber, hasBPJSDocument, isActive, perPage,
   });
 
   return useQuery({
@@ -54,12 +55,13 @@ export function useInfiniteAthletes({
   clusterType = '',
   subClusterType = '',
   hasNationalAthleteNumber = '',
+  hasBPJSDocument = '',
   isActive = '',
   perPage = 20,
 } = {}) {
   const params = buildAthleteListParams({
     page: 1, search, caborId, gender, organizationId, clusterId, subClusterId,
-    clusterType, subClusterType, hasNationalAthleteNumber, isActive, perPage,
+    clusterType, subClusterType, hasNationalAthleteNumber, hasBPJSDocument, isActive, perPage,
   });
 
   return useInfiniteQuery({

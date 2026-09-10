@@ -141,8 +141,9 @@ export const errorLogKeys = {
   all: ['errorLogs'],
   lists: () => [...errorLogKeys.all, 'list'],
   list: (filters) => [...errorLogKeys.lists(), filters],
-  stats: () => [...errorLogKeys.all, 'stats'],
+  stats: (filters) => [...errorLogKeys.all, 'stats', filters],
   detail: (id) => [...errorLogKeys.all, 'detail', id],
+  occurrences: (id, filters) => [...errorLogKeys.all, 'occurrences', id, filters],
 };
 
 /**
@@ -155,6 +156,7 @@ export const useErrorLogs = (filters = {}) => {
   if (filters.per_page) params.append('per_page', filters.per_page);
   if (filters.type) params.append('type', filters.type);
   if (filters.severity) params.append('severity', filters.severity);
+  if (filters.category) params.append('category', filters.category);
   if (filters.is_resolved !== undefined) params.append('is_resolved', filters.is_resolved);
   if (filters.date_from) params.append('date_from', filters.date_from);
   if (filters.date_to) params.append('date_to', filters.date_to);
@@ -174,15 +176,39 @@ export const useErrorLogs = (filters = {}) => {
 /**
  * Hook to fetch error log statistics
  */
-export const useErrorLogStats = () => {
+export const useErrorLogStats = (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.severity) params.append('severity', filters.severity);
+  if (filters.category) params.append('category', filters.category);
+  if (filters.is_resolved !== undefined) params.append('is_resolved', filters.is_resolved);
+  if (filters.date_from) params.append('date_from', filters.date_from);
+  if (filters.date_to) params.append('date_to', filters.date_to);
+  if (filters.search) params.append('search', filters.search);
+
   return useQuery({
-    queryKey: errorLogKeys.stats(),
+    queryKey: errorLogKeys.stats(filters),
     queryFn: async () => {
-      const { data } = await api.get('/api/error-logs/stats');
+      const { data } = await api.get(`/api/error-logs/stats?${params.toString()}`);
       return data;
     },
     staleTime: 0,
     refetchOnWindowFocus: true,
+  });
+};
+
+export const useErrorLogOccurrences = (id, filters = {}, enabled = true) => {
+  const params = new URLSearchParams();
+  if (filters.date_from) params.append('date_from', filters.date_from);
+  if (filters.date_to) params.append('date_to', filters.date_to);
+
+  return useQuery({
+    queryKey: errorLogKeys.occurrences(id, filters),
+    queryFn: async () => {
+      const { data } = await api.get(`/api/error-logs/${id}/occurrences?${params.toString()}`);
+      return data;
+    },
+    enabled: enabled && !!id,
+    staleTime: 30 * 1000,
   });
 };
 

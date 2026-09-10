@@ -8,6 +8,8 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   Calendar,
   User,
   Database,
@@ -41,6 +43,7 @@ import {
   exportActivityLogs,
   useErrorLogs,
   useErrorLogStats,
+  useErrorLogOccurrences,
   useResolveError,
   useUserActivity,
 } from '../hooks/queries/useActivityLogs';
@@ -451,7 +454,10 @@ const SEVERITY_LABELS = {
 };
 
 // Error Log Item Component
-function ErrorLogItem({ log, onResolve }) {
+function ErrorLogItem({ log, onResolve, filters }) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyFilters = { date_from: filters.date_from, date_to: filters.date_to };
+  const { data: history, isLoading: historyLoading, isError: historyError } = useErrorLogOccurrences(log.id, historyFilters, historyOpen);
   const lastSeenAt = log.last_seen_at || log.created_at;
   const firstSeenAt = log.first_seen_at || log.created_at;
   const timeAgo = useMemo(() => {
@@ -467,6 +473,14 @@ function ErrorLogItem({ log, onResolve }) {
   }, [lastSeenAt]);
   const firstSeenLabel = new Date(firstSeenAt).toLocaleString('id-ID');
   const lastSeenLabel = new Date(lastSeenAt).toLocaleString('id-ID');
+  const maxDailyCount = Math.max(1, ...(history?.data || []).map((item) => item.occurrence_count || 0));
+
+  let occurrenceLabel = `${(log.occurrence_count || 1).toLocaleString('id-ID')} kejadian`;
+  if (log.date_filter_applied) {
+    occurrenceLabel = log.date_filter_exact
+      ? `${(log.occurrence_count_in_range || 0).toLocaleString('id-ID')} kejadian dalam rentang`
+      : 'Terjadi dalam rentang (jumlah legacy tidak tersedia)';
+  }
 
   return (
     <MotionDiv
@@ -475,51 +489,41 @@ function ErrorLogItem({ log, onResolve }) {
       className={`bg-white rounded-xl p-4 border shadow-sm ${log.is_resolved ? 'border-green-200 bg-green-50/30' : 'border-slate-200 hover:border-slate-300'} transition-colors`}
     >
       <div className="flex items-start gap-4">
-        {/* Icon */}
         <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${log.is_resolved ? 'bg-green-100' : 'bg-red-100'}`}>
-          {log.is_resolved ? (
-            <CheckCircle className="w-5 h-5 text-green-600" />
-          ) : (
-            <AlertTriangle className="w-5 h-5 text-red-600" />
-          )}
+          {log.is_resolved ? <CheckCircle className="w-5 h-5 text-green-600" /> : <AlertTriangle className="w-5 h-5 text-red-600" />}
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span className="font-semibold text-slate-800">{log.title}</span>
             <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${SEVERITY_COLORS[log.severity]}`}>
               {SEVERITY_LABELS[log.severity]}
             </span>
-            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">
-              {(log.occurrence_count || 1).toLocaleString('id-ID')} kejadian
-            </span>
-            {log.is_resolved && (
-              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                Resolved
-              </span>
-            )}
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">{occurrenceLabel}</span>
+            {log.is_resolved && <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">Resolved</span>}
           </div>
-          
-          <p className="text-sm text-slate-600">{log.message}</p>
 
-          {/* Metadata */}
-          <p className="mt-2 text-xs text-slate-500">
-            Pertama {firstSeenLabel} - Terakhir {lastSeenLabel}
-          </p>
+          <p className="text-sm text-slate-600">{log.message}</p>
+          <p className="mt-2 text-xs text-slate-500">Pertama {firstSeenLabel} - Terakhir {lastSeenLabel}</p>
           <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
-            <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              {timeAgo}
-            </span>
+            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo}</span>
             <span>{log.user_name || 'Guest'}</span>
-            {log.url && (
-              <span className="truncate max-w-[150px]" title={log.url}>{log.url}</span>
-            )}
+            {log.url && <span className="truncate max-w-[150px]" title={log.url}>{log.url}</span>}
           </div>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            <span>Rate: 5m <strong>{(log.occurrences_last_5m || 0).toLocaleString('id-ID')}</strong> · 15m <strong>{(log.occurrences_last_15m || 0).toLocaleString('id-ID')}</strong> · 60m <strong>{(log.occurrences_last_60m || 0).toLocaleString('id-ID')}</strong></span>
+            {log.fingerprint && <span title={log.fingerprint}>Fingerprint: <code>{log.fingerprint.slice(0, 12)}…</code></span>}
+          </div>
+          <button
+            type="button"
+            onClick={() => setHistoryOpen((value) => !value)}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+          >
+            {historyOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            {historyOpen ? 'Tutup riwayat harian' : 'Lihat riwayat harian'}
+          </button>
         </div>
 
-        {/* Actions */}
         {!log.is_resolved && (
           <button
             onClick={() => onResolve(log.id)}
@@ -530,10 +534,36 @@ function ErrorLogItem({ log, onResolve }) {
           </button>
         )}
       </div>
+
+      {historyOpen && (
+        <div className="mt-4 ml-0 sm:ml-14 border-t border-slate-100 pt-4">
+          {historyLoading ? (
+            <p className="text-sm text-slate-500">Memuat riwayat harian...</p>
+          ) : historyError ? (
+            <p className="text-sm text-red-600">Riwayat harian gagal dimuat.</p>
+          ) : history?.data?.length ? (
+            <div className="space-y-2">
+              {history.data.map((item) => (
+                <div key={item.date} className="grid grid-cols-[92px_1fr_auto] items-center gap-3 text-xs">
+                  <span className="text-slate-500">{new Date(`${item.date}T00:00:00`).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}</span>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-full rounded-full bg-red-400" style={{ width: `${Math.max(4, (item.occurrence_count / maxDailyCount) * 100)}%` }} />
+                  </div>
+                  <span className="font-semibold text-slate-700">{item.occurrence_count.toLocaleString('id-ID')}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">Belum ada occurrence harian yang tercatat pada rentang ini.</p>
+          )}
+          <p className="mt-3 text-xs text-amber-700">
+            Riwayat harian hanya tersedia sejak {history?.tracking_started_at ? new Date(`${history.tracking_started_at}T00:00:00`).toLocaleDateString('id-ID') : 'fitur ini diaktifkan'}; total sebelum tanggal tersebut tidak direkonstruksi.
+          </p>
+        </div>
+      )}
     </MotionDiv>
   );
 }
-
 // Main Activity Logs Page with Tabs
 export function ActivityLogsPage() {
   const [activeTab, setActiveTab] = useState('activity'); // 'activity', 'error', or 'users'
@@ -550,7 +580,7 @@ export function ActivityLogsPage() {
 
   // Error Log Hooks
   const { data: errorData, isLoading: errorLoading } = useErrorLogs({ ...filters, page, per_page: 15 });
-  const { data: errorStats } = useErrorLogStats();
+  const { data: errorStats } = useErrorLogStats(filters);
   const resolveErrorMutation = useResolveError();
 
   // User Activity Hooks
@@ -673,14 +703,24 @@ export function ActivityLogsPage() {
         )}
 
         {activeTab === 'error' && errorStats && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatsCard label="Total Kejadian" value={(errorStats.total_occurrences ?? errorStats.total ?? 0).toLocaleString('id-ID')} icon={AlertTriangle} color="red" />
-            <StatsCard label="Pola Unik Aktif" value={(errorStats.unresolved_patterns ?? errorStats.unresolved ?? 0).toLocaleString('id-ID')} icon={XCircle} color="red" />
-            <StatsCard label="Pola Aktif Hari Ini" value={(errorStats.active_patterns_today ?? errorStats.today ?? 0).toLocaleString('id-ID')} icon={TrendingUp} color="purple" />
-            <StatsCard label="Kejadian Kritis" value={(errorStats.by_severity_occurrences?.critical ?? errorStats.by_severity?.critical ?? 0).toLocaleString('id-ID')} icon={AlertTriangle} color="purple" />
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatsCard label={errorStats.date_filter_applied ? 'Kejadian dalam Rentang' : 'Total Kejadian'} value={(errorStats.total_occurrences ?? 0).toLocaleString('id-ID')} icon={AlertTriangle} color="red" />
+              <StatsCard label="Pola Unik" value={(errorStats.total ?? 0).toLocaleString('id-ID')} icon={XCircle} color="red" />
+              <StatsCard label="Warning / Validasi" value={(errorStats.warning_occurrences ?? 0).toLocaleString('id-ID')} icon={ShieldCheck} color="purple" />
+              <StatsCard label="Server Error / Kritis" value={(errorStats.server_error_occurrences ?? 0).toLocaleString('id-ID')} icon={AlertTriangle} color="purple" />
+            </div>
+            <div className="bg-white rounded-xl border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              <span className="font-medium text-slate-700">Laju kejadian:</span>
+              <span className="text-slate-600">5 menit <strong>{(errorStats.recent_occurrences?.['5m'] ?? 0).toLocaleString('id-ID')}</strong></span>
+              <span className="text-slate-600">15 menit <strong>{(errorStats.recent_occurrences?.['15m'] ?? 0).toLocaleString('id-ID')}</strong></span>
+              <span className="text-slate-600">60 menit <strong>{(errorStats.recent_occurrences?.['60m'] ?? 0).toLocaleString('id-ID')}</strong></span>
+              {errorStats.date_filter_applied && errorStats.legacy_pattern_count > 0 && (
+                <span className="text-amber-700">{errorStats.legacy_pattern_count} pola legacy cocok via last seen; jumlah occurrence lama tidak dimasukkan.</span>
+              )}
+            </div>
           </div>
         )}
-
         {/* Filters */}
         <div className="bg-white rounded-xl border border-slate-200 p-4">
           <div className="flex items-center gap-4 flex-wrap">
@@ -721,6 +761,11 @@ export function ActivityLogsPage() {
 
             {activeTab === 'error' && (
               <>
+                <select value={filters.category || ''} onChange={(e) => handleFilterChange('category', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg">
+                  <option value="">Semua Kategori</option>
+                  <option value="warning">Warning / Validasi</option>
+                  <option value="server_error">Server Error / Kritis</option>
+                </select>
                 <select value={filters.severity || ''} onChange={(e) => handleFilterChange('severity', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg">
                   <option value="">Semua Severity</option>
                   <option value="critical">Kritis</option>
@@ -737,8 +782,8 @@ export function ActivityLogsPage() {
             )}
 
             {/* Date Range */}
-            <input type="date" value={filters.date_from || ''} onChange={(e) => handleFilterChange('date_from', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg" />
-            <input type="date" value={filters.date_to || ''} onChange={(e) => handleFilterChange('date_to', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <input type="date" max={filters.date_to || undefined} value={filters.date_from || ''} onChange={(e) => handleFilterChange('date_from', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg" />
+            <input type="date" min={filters.date_from || undefined} value={filters.date_to || ''} onChange={(e) => handleFilterChange('date_to', e.target.value)} className="px-4 py-2 border border-slate-200 rounded-lg" />
 
             {Object.keys(filters).length > 0 && (
               <button onClick={() => { setFilters({}); setPage(1); }} className="px-3 py-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg">
@@ -784,7 +829,7 @@ export function ActivityLogsPage() {
               </div>
             ) : (
               errorData?.data?.map((log) => (
-                <ErrorLogItem key={log.id} log={log} onResolve={handleResolveError} />
+                <ErrorLogItem key={log.id} log={log} onResolve={handleResolveError} filters={filters} />
               ))
             )}
           </div>

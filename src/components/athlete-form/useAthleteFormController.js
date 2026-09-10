@@ -279,9 +279,9 @@ export function useAthleteFormController({
       delete next.competition_class;
       return next;
     });
-    if (athlete) fetchCompetitionClasses(caborId);
-    else clearCompetitionClasses();
-  }, [athlete, clearCompetitionClasses, fetchCompetitionClasses]);
+    clearCompetitionClasses();
+    fetchCompetitionClasses(caborId);
+  }, [clearCompetitionClasses, fetchCompetitionClasses]);
 
   const handleBirthDateChange = useCallback((value) => {
     const previousAgeGroup = getAthleteAgeGroup(formData.birth_date) || lastValidAgeGroupRef.current;

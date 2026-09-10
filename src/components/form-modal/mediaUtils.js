@@ -10,13 +10,20 @@ const DOCUMENT_MIME_BY_EXTENSION = {
   webp: 'image/webp'
 };
 
+const ENCODED_IMAGE_EXTENSION_BY_MIME = {
+  'image/webp': '.webp',
+  'image/png': '.png',
+  'image/jpeg': '.jpg'
+};
+
 export function validateSourceFile(file, { allowPDF }) {
   if (file.size > MAX_SOURCE_FILE_SIZE) {
     throw new Error('Ukuran file sumber maksimal 10 MB.');
   }
   const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  const sourceMime = String(file.type || '').toLowerCase();
   const expectedMime = DOCUMENT_MIME_BY_EXTENSION[extension];
-  if (extension === 'heic' || extension === 'heif') {
+  if (extension === 'heic' || extension === 'heif' || sourceMime.startsWith('image/heic') || sourceMime.startsWith('image/heif')) {
     throw new Error('Format HEIC/HEIF belum didukung. Konversi file ke JPG, PNG, atau WebP terlebih dahulu.');
   }
   if (!expectedMime || (!allowPDF && extension === 'pdf')) {
@@ -24,13 +31,13 @@ export function validateSourceFile(file, { allowPDF }) {
       ? 'Format file harus PDF, JPG, PNG, atau WebP.'
       : 'Format file harus JPG, PNG, atau WebP.');
   }
-  if (file.type && file.type !== expectedMime) {
+  if (sourceMime && sourceMime !== expectedMime) {
     throw new Error('Ekstensi file tidak sesuai dengan tipe file.');
   }
   return { extension, expectedMime };
 }
 
-export function compressImageToWebP(file, { maxWidth, maxLongest }) {
+export function compressImageForUpload(file, { maxWidth, maxLongest }) {
   return new Promise((resolve, reject) => {
     const sourceUrl = URL.createObjectURL(file);
     const image = new Image();
@@ -56,9 +63,15 @@ export function compressImageToWebP(file, { maxWidth, maxLongest }) {
           reject(new Error('File gambar gagal diproses. Silakan pilih file lain.'));
           return;
         }
+        const mimeType = String(blob.type || '').toLowerCase();
+        const resultExtension = ENCODED_IMAGE_EXTENSION_BY_MIME[mimeType];
+        if (!resultExtension) {
+          reject(new Error('Format hasil kompresi gambar tidak didukung. Gunakan browser lain atau unggah file JPG, PNG, atau WebP.'));
+          return;
+        }
         const baseName = file.name.replace(/\.[^/.]+$/, '') || 'document';
-        resolve(new File([blob], `${baseName}.webp`, {
-          type: 'image/webp',
+        resolve(new File([blob], `${baseName}${resultExtension}`, {
+          type: mimeType,
           lastModified: Date.now()
         }));
       }, 'image/webp', 0.82);
@@ -69,4 +82,9 @@ export function compressImageToWebP(file, { maxWidth, maxLongest }) {
     };
     image.src = sourceUrl;
   });
+}
+
+export async function prepareDocumentForUpload(file, options) {
+  const { extension } = validateSourceFile(file, { allowPDF: true });
+  return extension === 'pdf' ? file : compressImageForUpload(file, options);
 }

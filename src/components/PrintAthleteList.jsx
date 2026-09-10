@@ -17,6 +17,12 @@ export function PrintAthleteList({ filters, filterParams }) {
     1: 'Sudah Punya',
     0: 'Belum Punya',
   };
+  const bpjsDocumentLabels = {
+    true: 'Sudah Punya',
+    false: 'Belum Punya',
+    1: 'Sudah Punya',
+    0: 'Belum Punya',
+  };
   const activeStatusLabels = {
     true: 'Aktif',
     false: 'Tidak Aktif',
@@ -114,6 +120,12 @@ export function PrintAthleteList({ filters, filterParams }) {
         const nationalNumberValue = filterParams.hasNationalAthleteNumber;
         filterDesc.push(
           `Nomor Atlet Nasional: ${nationalNumberLabels[nationalNumberValue] || nationalNumberValue}`,
+        );
+      }
+      if (hasFilterValue(filterParams?.hasBPJSDocument)) {
+        const bpjsDocumentValue = filterParams.hasBPJSDocument;
+        filterDesc.push(
+          `Dokumen BPJS: ${bpjsDocumentLabels[bpjsDocumentValue] || bpjsDocumentValue}`,
         );
       }
       if (hasFilterValue(filterParams?.isActive)) {

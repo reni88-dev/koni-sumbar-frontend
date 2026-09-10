@@ -75,6 +75,7 @@ test('athlete list canonical params contain every active filter used by the quer
     clusterId: 7,
     subClusterId: 12,
     hasNationalAthleteNumber: 'true',
+    hasBPJSDocument: 'true',
     isActive: 'false',
   });
 
@@ -87,6 +88,7 @@ test('athlete list canonical params contain every active filter used by the quer
     cluster_id: 7,
     sub_cluster_id: 12,
     has_national_athlete_number: 'true',
+    has_bpjs_document: 'true',
     is_active: 'false',
     per_page: 25,
   });
@@ -99,6 +101,13 @@ test('empty athlete filters are omitted while pagination remains explicit', () =
   });
 });
 
+test('athlete BPJS document canonical params preserve true and false and omit empty values', () => {
+  assert.equal(buildAthleteListParams({ hasBPJSDocument: 'true' }).has_bpjs_document, 'true');
+  assert.equal(buildAthleteListParams({ hasBPJSDocument: 'false' }).has_bpjs_document, 'false');
+  assert.equal(buildAthleteListParams({ hasBPJSDocument: false }).has_bpjs_document, false);
+  assert.equal(Object.hasOwn(buildAthleteListParams({ hasBPJSDocument: '' }), 'has_bpjs_document'), false);
+});
+
 test('athlete list, print, and export derive the same filter contract', () => {
   const filters = {
     search: 'Siti',
@@ -109,6 +118,7 @@ test('athlete list, print, and export derive the same filter contract', () => {
     clusterType: 'non_development',
     subClusterId: 99,
     hasNationalAthleteNumber: 'false',
+    hasBPJSDocument: 'false',
     isActive: 'true',
   };
   const listParams = buildAthleteListParams({ ...filters, page: 1, perPage: 20 });
