@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { buildUserActivityQueryParams } from './userActivityQueryParams';
 
 /**
  * Query keys for activity logs
@@ -238,21 +239,23 @@ export const useResolveError = () => {
  */
 export const userActivityKeys = {
   all: ['userActivity'],
-  list: () => [...userActivityKeys.all, 'list'],
+  list: (filters) => [...userActivityKeys.all, 'list', filters],
 };
 
 /**
  * Hook to fetch user activity / last login data
  */
-export const useUserActivity = (search) => {
+export const useUserActivity = (filters = {}, { enabled = true } = {}) => {
+  const queryParams = buildUserActivityQueryParams(filters);
+  const params = new URLSearchParams(queryParams);
+
   return useQuery({
-    queryKey: [...userActivityKeys.list(), search],
+    queryKey: userActivityKeys.list(queryParams),
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (search) params.append('search', search);
       const { data } = await api.get(`/api/users/activity-stats?${params.toString()}`);
       return data;
     },
+    enabled,
     staleTime: 0, // Real-time status is important
     refetchOnWindowFocus: true,
   });

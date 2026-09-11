@@ -584,7 +584,15 @@ export function ActivityLogsPage() {
   const resolveErrorMutation = useResolveError();
 
   // User Activity Hooks
-  const { data: userActivityData, isLoading: userActivityLoading } = useUserActivity(filters.search);
+  const { data: userActivityData, isLoading: userActivityLoading } = useUserActivity(
+    { search: filters.search, page, per_page: 15 },
+    { enabled: activeTab === 'users' },
+  );
+  const activePaginationData = activeTab === 'activity'
+    ? logsData
+    : activeTab === 'error'
+      ? errorData
+      : userActivityData;
 
   const handleFilterChange = (key, value) => {
     setFilters((prev) => ({ ...prev, [key]: value || undefined }));
@@ -844,7 +852,7 @@ export function ActivityLogsPage() {
                 <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
                 <p className="text-slate-500">Memuat data...</p>
               </div>
-            ) : userActivityData?.length === 0 ? (
+            ) : userActivityData?.data?.length === 0 ? (
               <div className="text-center py-12">
                 <Users className="w-12 h-12 text-slate-300 mx-auto mb-4" />
                 <p className="text-slate-500">Tidak ada user ditemukan</p>
@@ -862,7 +870,7 @@ export function ActivityLogsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {userActivityData?.map((user) => {
+                  {userActivityData?.data?.map((user) => {
                     // Format time ago
                     const formatTimeAgo = (dateStr) => {
                       if (!dateStr) return 'Belum pernah aktif';
@@ -940,17 +948,17 @@ export function ActivityLogsPage() {
         )}
 
         {/* Pagination */}
-        {((activeTab === 'activity' && logsData?.last_page > 1) || (activeTab === 'error' && errorData?.last_page > 1)) && (
+        {activePaginationData?.last_page > 1 && (
           <div className="flex items-center justify-between bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-sm text-slate-500">
-              Menampilkan {(activeTab === 'activity' ? logsData : errorData)?.from}-{(activeTab === 'activity' ? logsData : errorData)?.to} dari {(activeTab === 'activity' ? logsData : errorData)?.total} hasil
+              Menampilkan {activePaginationData.from}-{activePaginationData.to} dari {activePaginationData.total} hasil
             </p>
             <div className="flex items-center gap-2">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50">
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-4 py-2 text-sm font-medium">{page} / {(activeTab === 'activity' ? logsData : errorData)?.last_page}</span>
-              <button onClick={() => setPage((p) => Math.min((activeTab === 'activity' ? logsData : errorData)?.last_page, p + 1))} disabled={page === (activeTab === 'activity' ? logsData : errorData)?.last_page} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50">
+              <span className="px-4 py-2 text-sm font-medium">{activePaginationData.current_page ?? page} / {activePaginationData.last_page}</span>
+              <button onClick={() => setPage((p) => Math.min(activePaginationData.last_page, p + 1))} disabled={page >= activePaginationData.last_page} className="p-2 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
