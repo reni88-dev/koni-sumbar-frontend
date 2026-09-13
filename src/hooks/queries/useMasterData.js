@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { buildRolesAccessRequest } from '../../lib/roleAccess';
 
 // ==================== EDUCATION LEVELS ====================
 export const educationLevelKeys = {
@@ -156,10 +157,29 @@ export function useUpdateRolePermissions() {
 export function useSetRoleAccess() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ roleId, accessEnabled }) => {
+    mutationFn: async ({ roleId, accessEnabled, accessDisabledMessage = '' }) => {
       const response = await api.put(`/api/master/roles/${roleId}/access`, {
         access_enabled: accessEnabled,
+        access_disabled_message: accessDisabledMessage,
       });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    },
+  });
+}
+
+export function useSetRolesAccess() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ roleIds, accessEnabled, accessDisabledMessage = '' }) => {
+      const request = buildRolesAccessRequest({
+        roleIds,
+        accessEnabled,
+        accessDisabledMessage,
+      });
+      const response = await api.put(request.url, request.data);
       return response.data;
     },
     onSuccess: () => {

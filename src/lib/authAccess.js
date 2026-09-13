@@ -16,7 +16,7 @@ export const ACCOUNT_BLOCKED_STORAGE_KEY = 'auth:account-blocked';
 export const SESSION_EXPIRED_MESSAGE =
   'Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan.';
 export const ROLE_ACCESS_DISABLED_MESSAGE =
-  'Akses untuk role akun Anda sedang dinonaktifkan sementara. Silakan coba kembali nanti.';
+  'Akses untuk role akun Anda sedang dinonaktifkan. Hubungi administrator untuk informasi lebih lanjut.';
 export const ORGANIZATION_ASSIGNMENT_REQUIRED_MESSAGE =
   'Akun Anda belum terhubung ke organisasi. Hubungi administrator untuk menyelesaikan penugasan akun.';
 export const ACCESS_SERVICE_UNAVAILABLE_MESSAGE =
@@ -81,7 +81,13 @@ export function isAccessServiceUnavailableError(error) {
 
 export function getAccountBlock(errorOrDetail) {
   const code = errorOrDetail?.code || getAccessCode(errorOrDetail);
-  const apiMessage = errorOrDetail?.message || getSafeApiMessage(errorOrDetail);
+  const directMessage = !errorOrDetail?.response && typeof errorOrDetail?.message === 'string'
+    ? errorOrDetail.message.trim()
+    : '';
+  const apiMessage = getSafeApiMessage(
+    errorOrDetail,
+    directMessage && directMessage.length <= 500 ? directMessage : '',
+  );
 
   if (code === ACCESS_CODES.ORGANIZATION_ASSIGNMENT_REQUIRED) {
     return {
@@ -93,9 +99,16 @@ export function getAccountBlock(errorOrDetail) {
 
   return {
     code: ACCESS_CODES.ROLE_ACCESS_DISABLED,
-    title: 'Akses Dinonaktifkan Sementara',
+    title: 'Akses Role Dinonaktifkan',
     message: apiMessage || ROLE_ACCESS_DISABLED_MESSAGE,
   };
+}
+
+export function persistAccountBlock(errorOrDetail, storage) {
+  const block = getAccountBlock(errorOrDetail);
+  const targetStorage = storage || (typeof sessionStorage !== 'undefined' ? sessionStorage : null);
+  targetStorage?.setItem(ACCOUNT_BLOCKED_STORAGE_KEY, JSON.stringify(block));
+  return block;
 }
 
 export function readStoredAccountBlock() {

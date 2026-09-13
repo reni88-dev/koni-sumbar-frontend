@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, 
-  Search, 
-  Edit2, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Edit2,
+  Trash2,
   Shield,
   X,
   Loader2,
@@ -14,24 +14,31 @@ import {
   LayoutGrid,
   List,
   Power,
-  PowerOff
+  PowerOff,
+  MessageSquareText,
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermission } from '../../hooks/usePermission';
-import { 
-  useRoles, 
-  usePermissionsGrouped, 
-  useCreateRole, 
-  useUpdateRole, 
+import {
+  useRoles,
+  usePermissionsGrouped,
+  useCreateRole,
+  useUpdateRole,
   useDeleteRole,
   useUpdateRolePermissions,
-  useSetRoleAccess
+  useSetRoleAccess,
+  useSetRolesAccess,
 } from '../../hooks/queries/useMasterData';
-
-function isRoleAccessEnabled(role) {
-  return role.access_enabled !== false;
-}
+import {
+  ROLE_ACCESS_DISABLED_MESSAGE,
+  ROLE_ACCESS_MESSAGE_MAX_LENGTH,
+  filterRolesBySearch,
+  getRoleDisabledMessageLabel,
+  getSelectableRoles,
+  isRoleAccessEnabled,
+  pruneSelectedRoleIds,
+} from '../../lib/roleAccess';
 
 function RoleAccessBadge({ role }) {
   if (role.name === 'super_admin') {
@@ -57,22 +64,83 @@ function RoleAccessBadge({ role }) {
   );
 }
 
+function RoleAccessStatus({ role, align = 'center' }) {
+  const disabled = role.name !== 'super_admin' && !isRoleAccessEnabled(role);
+  const messageLabel = disabled ? getRoleDisabledMessageLabel(role) : '';
+
+  return (
+    <div className={align === 'left' ? 'text-left' : 'text-center'}>
+      <RoleAccessBadge role={role} />
+      {disabled && (
+        <p
+          className="mt-1 max-w-64 truncate text-xs text-slate-500"
+          title={messageLabel}
+        >
+          {messageLabel}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function RoleAccessActions({ role, pending, disabled, onToggle, onEditMessage }) {
+  const enabled = isRoleAccessEnabled(role);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onToggle(role)}
+        disabled={disabled}
+        className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          enabled
+            ? 'text-slate-500 hover:bg-red-50 hover:text-red-600'
+            : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'
+        }`}
+        title={enabled ? 'Nonaktifkan akses' : 'Aktifkan akses'}
+        aria-label={`${enabled ? 'Nonaktifkan' : 'Aktifkan'} akses ${role.display_name}`}
+      >
+        {pending ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : enabled ? (
+          <PowerOff className="w-4 h-4" />
+        ) : (
+          <Power className="w-4 h-4" />
+        )}
+      </button>
+      {!enabled && (
+        <button
+          type="button"
+          onClick={() => onEditMessage(role)}
+          disabled={disabled}
+          className="p-2 rounded-lg text-slate-500 transition-colors hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+          title="Ubah pesan penonaktifan"
+          aria-label={`Ubah pesan penonaktifan ${role.display_name}`}
+        >
+          <MessageSquareText className="w-4 h-4" />
+        </button>
+      )}
+    </>
+  );
+}
 export function RolesPage() {
   const { user } = useAuth();
   const { can } = usePermission();
   const canManagePermissions = can('roles.permissions');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState('list');
-  
+  const [selectedRoleIds, setSelectedRoleIds] = useState([]);
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState('create');
   const [selectedRole, setSelectedRole] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
-  const [roleAccessTarget, setRoleAccessTarget] = useState(null);
+  const [roleAccessDialog, setRoleAccessDialog] = useState(null);
+  const [roleAccessMessage, setRoleAccessMessage] = useState('');
   const [roleAccessError, setRoleAccessError] = useState('');
-  
+
   // Permission editor
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
@@ -90,13 +158,17 @@ export function RolesPage() {
   const deleteRoleMutation = useDeleteRole();
   const updatePermissionsMutation = useUpdateRolePermissions();
   const setRoleAccessMutation = useSetRoleAccess();
+  const setRolesAccessMutation = useSetRolesAccess();
   const isSuperAdmin = user?.role?.name === 'super_admin';
 
-  const filteredRoles = roles.filter(role => 
-    role.name.toLowerCase().includes(search.toLowerCase()) ||
-    role.display_name.toLowerCase().includes(search.toLowerCase())
-  );
-
+  const filteredRoles = filterRolesBySearch(roles, search);
+  const selectableVisibleRoles = getSelectableRoles(filteredRoles);
+  const selectedRoles = getSelectableRoles(roles).filter((role) => selectedRoleIds.includes(role.id));
+  const visibleSelectedCount = selectableVisibleRoles.filter((role) => selectedRoleIds.includes(role.id)).length;
+  const allVisibleSelected = selectableVisibleRoles.length > 0
+    && visibleSelectedCount === selectableVisibleRoles.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+  const accessMutationPending = setRoleAccessMutation.isPending || setRolesAccessMutation.isPending;
   const openCreateModal = () => {
     setModalMode('create');
     setFormData({ name: '', display_name: '', description: '' });
@@ -183,42 +255,109 @@ export function RolesPage() {
     }
   };
 
+  const handleSearchChange = (event) => {
+    const nextSearch = event.target.value;
+    setSearch(nextSearch);
+    setSelectedRoleIds((current) => pruneSelectedRoleIds(roles, nextSearch, current));
+  };
+
+  const toggleRoleSelection = (roleId) => {
+    if (accessMutationPending) return;
+    setSelectedRoleIds((current) => (
+      current.includes(roleId)
+        ? current.filter((selectedId) => selectedId !== roleId)
+        : [...current, roleId]
+    ));
+  };
+
+  const toggleAllVisibleRoleSelection = () => {
+    if (accessMutationPending || selectableVisibleRoles.length === 0) return;
+    const visibleIds = selectableVisibleRoles.map((role) => role.id);
+    setSelectedRoleIds((current) => {
+      if (visibleIds.every((roleId) => current.includes(roleId))) {
+        return current.filter((roleId) => !visibleIds.includes(roleId));
+      }
+      return [...new Set([...current, ...visibleIds])];
+    });
+  };
+
   const openRoleAccessDialog = (role) => {
+    const accessEnabled = !isRoleAccessEnabled(role);
     setRoleAccessError('');
-    setRoleAccessTarget(role);
+    setRoleAccessMessage(accessEnabled ? '' : (role.access_disabled_message || ''));
+    setRoleAccessDialog({ type: 'individual', role, accessEnabled, editMessage: false });
+  };
+
+  const openRoleMessageDialog = (role) => {
+    setRoleAccessError('');
+    setRoleAccessMessage(role.access_disabled_message || '');
+    setRoleAccessDialog({ type: 'individual', role, accessEnabled: false, editMessage: true });
+  };
+
+  const openBulkAccessDialog = (accessEnabled) => {
+    if (selectedRoles.length === 0) return;
+    setRoleAccessError('');
+    setRoleAccessMessage('');
+    setRoleAccessDialog({
+      type: 'bulk',
+      roleIds: selectedRoles.map((role) => role.id),
+      roleCount: selectedRoles.length,
+      accessEnabled,
+      editMessage: false,
+    });
   };
 
   const closeRoleAccessDialog = () => {
-    if (setRoleAccessMutation.isPending) return;
-    setRoleAccessTarget(null);
+    if (accessMutationPending) return;
+    setRoleAccessDialog(null);
+    setRoleAccessMessage('');
     setRoleAccessError('');
   };
 
   const handleRoleAccessChange = async () => {
-    if (!roleAccessTarget) return;
-
-    const accessEnabled = !isRoleAccessEnabled(roleAccessTarget);
+    if (!roleAccessDialog || accessMutationPending) return;
     setRoleAccessError('');
 
     try {
-      await setRoleAccessMutation.mutateAsync({
-        roleId: roleAccessTarget.id,
-        accessEnabled,
-      });
-      setRoleAccessTarget(null);
+      if (roleAccessDialog.type === 'bulk') {
+        await setRolesAccessMutation.mutateAsync({
+          roleIds: roleAccessDialog.roleIds,
+          accessEnabled: roleAccessDialog.accessEnabled,
+          accessDisabledMessage: roleAccessDialog.accessEnabled ? '' : roleAccessMessage,
+        });
+        setSelectedRoleIds([]);
+      } else {
+        await setRoleAccessMutation.mutateAsync({
+          roleId: roleAccessDialog.role.id,
+          accessEnabled: roleAccessDialog.accessEnabled,
+          accessDisabledMessage: roleAccessDialog.accessEnabled ? '' : roleAccessMessage,
+        });
+      }
+      setRoleAccessDialog(null);
+      setRoleAccessMessage('');
     } catch (error) {
       setRoleAccessError(
-        error.response?.data?.message ||
-          'Gagal memperbarui status akses role. Silakan coba lagi.',
+        error.response?.data?.message
+          || error.response?.data?.error
+          || 'Gagal memperbarui akses role. Silakan coba lagi.',
       );
     }
   };
 
   const formLoading = createRoleMutation.isPending || updateRoleMutation.isPending;
-  const targetWillBeEnabled = roleAccessTarget
-    ? !isRoleAccessEnabled(roleAccessTarget)
-    : false;
-
+  const accessDialogPending = roleAccessDialog?.type === 'bulk'
+    ? setRolesAccessMutation.isPending
+    : setRoleAccessMutation.isPending;
+  const targetWillBeEnabled = roleAccessDialog?.accessEnabled === true;
+  const showAccessMessageField = Boolean(roleAccessDialog && !targetWillBeEnabled);
+  const accessDialogRoleCount = roleAccessDialog?.type === 'bulk'
+    ? roleAccessDialog.roleCount
+    : 1;
+  const accessDialogTitle = roleAccessDialog?.editMessage
+    ? 'Ubah Pesan Penonaktifan?'
+    : `${targetWillBeEnabled ? 'Aktifkan' : 'Nonaktifkan'} Akses ${
+      roleAccessDialog?.type === 'bulk' ? `${accessDialogRoleCount} Role` : 'Role'
+    }?`;
   return (
     <DashboardLayout title="Data Role" subtitle="Kelola role dan hak akses pengguna">
       {/* Action Bar */}
@@ -229,7 +368,7 @@ export function RolesPage() {
             type="text"
             placeholder="Cari role..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={handleSearchChange}
             className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
           />
         </div>
@@ -260,6 +399,52 @@ export function RolesPage() {
         </div>
       </div>
 
+      {isSuperAdmin && (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+              <input
+                ref={(input) => {
+                  if (input) input.indeterminate = someVisibleSelected;
+                }}
+                type="checkbox"
+                checked={allVisibleSelected}
+                onChange={toggleAllVisibleRoleSelection}
+                disabled={accessMutationPending || selectableVisibleRoles.length === 0}
+                className="h-4 w-4 rounded border-slate-300 accent-red-600 disabled:cursor-not-allowed"
+              />
+              Pilih Semua Hasil
+            </label>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+              {selectedRoles.length} role terpilih
+            </span>
+            <span className="text-xs text-slate-500">
+              {selectableVisibleRoles.length} role dapat dipilih pada hasil ini
+            </span>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <button
+              type="button"
+              onClick={() => openBulkAccessDialog(true)}
+              disabled={selectedRoles.length === 0 || accessMutationPending}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Power className="h-4 w-4" />
+              Aktifkan Terpilih
+            </button>
+            <button
+              type="button"
+              onClick={() => openBulkAccessDialog(false)}
+              disabled={selectedRoles.length === 0 || accessMutationPending}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <PowerOff className="h-4 w-4" />
+              Nonaktifkan Terpilih
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Roles View */}
       {viewMode === 'grid' ? (
         /* Grid View */
@@ -278,45 +463,48 @@ export function RolesPage() {
                 key={role.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-md transition-shadow"
+                className={`rounded-2xl border bg-white p-6 shadow-sm transition-shadow hover:shadow-md ${selectedRoleIds.includes(role.id) ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-100'}`}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`p-3 rounded-xl ${
-                    role.name === 'super_admin' ? 'bg-purple-100' : 'bg-blue-100'
-                  }`}>
-                    <Shield className={`w-6 h-6 ${
-                      role.name === 'super_admin' ? 'text-purple-600' : 'text-blue-600'
-                    }`} />
+                  <div className="flex items-start gap-3">
+                    {isSuperAdmin && role.name !== 'super_admin' && (
+                      <input
+                        type="checkbox"
+                        checked={selectedRoleIds.includes(role.id)}
+                        onChange={() => toggleRoleSelection(role.id)}
+                        disabled={accessMutationPending}
+                        className="mt-1 h-4 w-4 rounded border-slate-300 accent-red-600 disabled:cursor-not-allowed"
+                        aria-label={`Pilih role ${role.display_name}`}
+                      />
+                    )}
+                    <div className={`p-3 rounded-xl ${
+                      role.name === 'super_admin' ? 'bg-purple-100' : 'bg-blue-100'
+                    }`}>
+                      <Shield className={`w-6 h-6 ${
+                        role.name === 'super_admin' ? 'text-purple-600' : 'text-blue-600'
+                      }`} />
+                    </div>
                   </div>
                   {role.name !== 'super_admin' && (
-                    <div className="flex gap-1">
+                    <div className="flex flex-wrap justify-end gap-1">
                       {isSuperAdmin && (
-                        <button
-                          onClick={() => openRoleAccessDialog(role)}
-                          disabled={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
-                          className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                            isRoleAccessEnabled(role)
-                              ? 'text-slate-500 hover:bg-red-50 hover:text-red-600'
-                              : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'
-                          }`}
-                          title={isRoleAccessEnabled(role) ? 'Nonaktifkan akses' : 'Aktifkan akses'}
-                        >
-                          {setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : isRoleAccessEnabled(role) ? (
-                            <PowerOff className="w-4 h-4" />
-                          ) : (
-                            <Power className="w-4 h-4" />
-                          )}
-                        </button>
+                        <RoleAccessActions
+                          role={role}
+                          pending={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
+                          disabled={accessMutationPending}
+                          onToggle={openRoleAccessDialog}
+                          onEditMessage={openRoleMessageDialog}
+                        />
                       )}
                       <button
+                        type="button"
                         onClick={() => openEditModal(role)}
                         className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => { setRoleToDelete(role); setIsDeleteModalOpen(true); }}
                         className="p-2 hover:bg-red-50 rounded-lg text-slate-500 hover:text-red-600 transition-colors"
                       >
@@ -325,11 +513,10 @@ export function RolesPage() {
                     </div>
                   )}
                 </div>
-                
                 <h3 className="font-bold text-slate-800 text-lg mb-1">{role.display_name}</h3>
                 <p className="text-sm text-slate-500 mb-3">{role.description || '-'}</p>
                 <div className="mb-4">
-                  <RoleAccessBadge role={role} />
+                  <RoleAccessStatus role={role} align="left" />
                 </div>
                 
                 <div className="flex items-center justify-between">
@@ -362,6 +549,9 @@ export function RolesPage() {
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
+                  {isSuperAdmin && (
+                    <th className="px-4 py-4 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">Pilih</th>
+                  )}
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Slug</th>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Deskripsi</th>
@@ -373,19 +563,36 @@ export function RolesPage() {
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
+                    <td colSpan={isSuperAdmin ? 7 : 6} className="px-6 py-12 text-center">
                       <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                     </td>
                   </tr>
                 ) : filteredRoles.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                    <td colSpan={isSuperAdmin ? 7 : 6} className="px-6 py-12 text-center text-slate-500">
                       Tidak ada data role
                     </td>
                   </tr>
                 ) : (
                   filteredRoles.map((role) => (
-                    <tr key={role.id} className="hover:bg-slate-50 transition-colors">
+                    <tr
+                      key={role.id}
+                      className={`transition-colors hover:bg-slate-50 ${selectedRoleIds.includes(role.id) ? 'bg-red-50/50' : ''}`}
+                    >
+                      {isSuperAdmin && (
+                        <td className="px-4 py-4 text-center">
+                          {role.name !== 'super_admin' && (
+                            <input
+                              type="checkbox"
+                              checked={selectedRoleIds.includes(role.id)}
+                              onChange={() => toggleRoleSelection(role.id)}
+                              disabled={accessMutationPending}
+                              className="h-4 w-4 rounded border-slate-300 accent-red-600 disabled:cursor-not-allowed"
+                              aria-label={`Pilih role ${role.display_name}`}
+                            />
+                          )}
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className={`p-2 rounded-lg ${
@@ -403,7 +610,7 @@ export function RolesPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate">{role.description || '-'}</td>
                       <td className="px-6 py-4 text-center">
-                        <RoleAccessBadge role={role} />
+                        <RoleAccessStatus role={role} />
                       </td>
                       <td className="px-6 py-4 text-center">
                         {role.name === 'super_admin' ? (
@@ -426,24 +633,13 @@ export function RolesPage() {
                           {role.name !== 'super_admin' && (
                             <>
                               {isSuperAdmin && (
-                                <button
-                                  onClick={() => openRoleAccessDialog(role)}
-                                  disabled={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
-                                  className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                                    isRoleAccessEnabled(role)
-                                      ? 'text-slate-500 hover:bg-red-50 hover:text-red-600'
-                                      : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'
-                                  }`}
-                                  title={isRoleAccessEnabled(role) ? 'Nonaktifkan akses' : 'Aktifkan akses'}
-                                >
-                                  {setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  ) : isRoleAccessEnabled(role) ? (
-                                    <PowerOff className="w-4 h-4" />
-                                  ) : (
-                                    <Power className="w-4 h-4" />
-                                  )}
-                                </button>
+                                <RoleAccessActions
+                                  role={role}
+                                  pending={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
+                                  disabled={accessMutationPending}
+                                  onToggle={openRoleAccessDialog}
+                                  onEditMessage={openRoleMessageDialog}
+                                />
                               )}
                               <button
                                 onClick={() => openEditModal(role)}
@@ -658,7 +854,7 @@ export function RolesPage() {
 
       {/* Role Access Confirmation Modal */}
       <AnimatePresence>
-        {roleAccessTarget && (
+        {roleAccessDialog && (
           <>
             <Motion.div
               initial={{ opacity: 0 }}
@@ -677,7 +873,7 @@ export function RolesPage() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="role-access-dialog-title"
-                className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+                className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
@@ -689,17 +885,55 @@ export function RolesPage() {
                     <PowerOff className="w-8 h-8 text-red-600" />
                   )}
                 </div>
-                <h3 id="role-access-dialog-title" className="text-lg font-bold text-slate-800 mb-2 text-center">
-                  {targetWillBeEnabled ? 'Aktifkan Akses Role?' : 'Nonaktifkan Akses Role?'}
+                <h3 id="role-access-dialog-title" className="mb-2 text-center text-lg font-bold text-slate-800">
+                  {accessDialogTitle}
                 </h3>
-                <p className="text-slate-500 text-sm text-center mb-3">
-                  Role <strong>{roleAccessTarget.display_name}</strong> akan {targetWillBeEnabled ? 'diaktifkan kembali' : 'dinonaktifkan sementara'}.
+                <p className="mb-3 text-center text-sm text-slate-500">
+                  {roleAccessDialog.type === 'bulk' ? (
+                    <>
+                      <strong>{accessDialogRoleCount} role terpilih</strong> akan{' '}
+                      {targetWillBeEnabled ? 'diaktifkan' : roleAccessDialog.editMessage ? 'diperbarui pesannya' : 'dinonaktifkan'}.
+                    </>
+                  ) : (
+                    <>
+                      Role <strong>{roleAccessDialog.role.display_name}</strong> akan{' '}
+                      {targetWillBeEnabled ? 'diaktifkan kembali' : roleAccessDialog.editMessage ? 'diperbarui pesannya' : 'dinonaktifkan'}.
+                    </>
+                  )}
                 </p>
-                <p className="text-slate-500 text-sm text-center mb-6">
-                  {targetWillBeEnabled
-                    ? 'Pengguna role ini dapat login kembali, tetapi sesi lama tetap harus login ulang.'
-                    : 'Pengguna tidak dapat login dan sesi aktif akan dihentikan pada permintaan API berikutnya.'}
+                <p className="mb-5 text-center text-sm text-slate-500">
+                  {roleAccessDialog.editMessage
+                    ? 'Pesan terbaru akan diterima pengguna role ini pada login atau permintaan API berikutnya.'
+                    : targetWillBeEnabled
+                      ? 'Pesan penonaktifan lama akan dihapus dan pengguna dapat mengakses sistem kembali.'
+                      : 'Pengguna tidak dapat login dan sesi aktif akan dihentikan pada permintaan API berikutnya.'}
                 </p>
+
+                {showAccessMessageField && (
+                  <div className="mb-5">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <label htmlFor="role-access-message" className="text-sm font-semibold text-slate-700">
+                        Pesan untuk pengguna (opsional)
+                      </label>
+                      <span className="text-xs text-slate-500">
+                        {roleAccessMessage.length}/{ROLE_ACCESS_MESSAGE_MAX_LENGTH}
+                      </span>
+                    </div>
+                    <textarea
+                      id="role-access-message"
+                      value={roleAccessMessage}
+                      onChange={(event) => setRoleAccessMessage(event.target.value)}
+                      maxLength={ROLE_ACCESS_MESSAGE_MAX_LENGTH}
+                      rows={4}
+                      disabled={accessDialogPending}
+                      placeholder="Contoh: Sistem sedang menjalani maintenance sampai pukul 18.00 WIB."
+                      className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                    />
+                    <div className="mt-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                      Jika dikosongkan, pengguna menerima pesan bawaan: “{ROLE_ACCESS_DISABLED_MESSAGE}”
+                    </div>
+                  </div>
+                )}
 
                 {roleAccessError && (
                   <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -708,27 +942,27 @@ export function RolesPage() {
                   </div>
                 )}
 
-                <div className="flex gap-3">
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={closeRoleAccessDialog}
-                    disabled={setRoleAccessMutation.isPending}
-                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    disabled={accessDialogPending}
+                    className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
                   >
                     Batal
                   </button>
                   <button
                     type="button"
                     onClick={handleRoleAccessChange}
-                    disabled={setRoleAccessMutation.isPending}
-                    className={`flex-1 px-4 py-2.5 text-white rounded-xl font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 ${
+                    disabled={accessDialogPending}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-white transition-colors disabled:opacity-50 ${
                       targetWillBeEnabled
                         ? 'bg-emerald-600 hover:bg-emerald-700'
                         : 'bg-red-600 hover:bg-red-700'
                     }`}
                   >
-                    {setRoleAccessMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                    {targetWillBeEnabled ? 'Aktifkan' : 'Nonaktifkan'}
+                    {accessDialogPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {roleAccessDialog.editMessage ? 'Simpan Pesan' : targetWillBeEnabled ? 'Aktifkan' : 'Nonaktifkan'}
                   </button>
                 </div>
               </div>
@@ -736,7 +970,6 @@ export function RolesPage() {
           </>
         )}
       </AnimatePresence>
-
       {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (

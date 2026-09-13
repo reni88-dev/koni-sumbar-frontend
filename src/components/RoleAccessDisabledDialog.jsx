@@ -6,7 +6,7 @@ export function RoleAccessDisabledDialog({ message, onReturnToLogin }) {
     <AccountBlockedDialog
       block={message ? {
         code: ACCESS_CODES.ROLE_ACCESS_DISABLED,
-        title: 'Akses Dinonaktifkan Sementara',
+        title: 'Akses Role Dinonaktifkan',
         message,
       } : null}
       onReturnToLogin={onReturnToLogin}

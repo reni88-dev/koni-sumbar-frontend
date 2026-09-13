@@ -14,13 +14,13 @@ import {
   PERMISSION_DENIED_EVENT,
   SESSION_EXPIRED_MESSAGE,
   SESSION_NOTICE_STORAGE_KEY,
-  getAccountBlock,
   getSafeApiMessage,
   isAccessServiceUnavailableError,
   isAccountBlockedError,
   isNetworkError,
   isServerError,
   isSessionInvalidError,
+  persistAccountBlock,
   readStoredAccountBlock,
 } from '../lib/authAccess';
 import { AuthContext } from './auth-context';
@@ -121,9 +121,20 @@ export function AuthProvider({ children }) {
     queryClient.clear();
     clearBPJSReminderSession();
 
-    const response = await api.post('/api/login', new URLSearchParams({ email, password }), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+    let response;
+    try {
+      response = await api.post('/api/login', new URLSearchParams({ email, password }), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+    } catch (error) {
+      if (isAccountBlockedError(error)) {
+        const block = persistAccountBlock(error);
+        setAccessUnavailable(null);
+        clearSession();
+        setAccountBlock(block);
+      }
+      throw error;
+    }
     const { token, user: userData } = response.data;
 
     clearAccountBlock();
@@ -177,11 +188,10 @@ export function AuthProvider({ children }) {
     };
 
     const handleAccountBlocked = (event) => {
-      const block = getAccountBlock(event.detail || {});
-      sessionStorage.setItem(ACCOUNT_BLOCKED_STORAGE_KEY, JSON.stringify(block));
+      const block = persistAccountBlock(event.detail || {});
       setAccessUnavailable(null);
       clearSession();
-      setAccountBlock((current) => current || block);
+      setAccountBlock(block);
     };
 
     const handlePermissionDenied = (event) => {
