@@ -24,6 +24,7 @@ export function useAthleteSubmission({
   onSuccess,
   mode = 'admin',
   submitRequest,
+  bpjsDeferredAcknowledged = false,
 }) {
   const [loading, setLoading] = useState(false);
   const submissionInFlightRef = useRef(false);
@@ -45,6 +46,7 @@ export function useAthleteSubmission({
       phone: normalizedPhone,
       father_phone: normalizedFatherPhone || '',
       mother_phone: normalizedMotherPhone || '',
+      bpjs_deferred_acknowledged: Boolean(bpjsDeferredAcknowledged),
     };
 
     submissionInFlightRef.current = true;
@@ -54,7 +56,7 @@ export function useAthleteSubmission({
 
     try {
       const data = buildAthleteFormData(submissionData, files, {
-        excludedFields: mode === 'portal' ? ['is_active'] : [],
+        excludedFields: mode === 'portal' ? ['is_active', 'bpjs_number', 'bpjs_deferred_acknowledged'] : [],
         includeEmptyFields: mode === 'portal',
       });
       if (submitRequest) {

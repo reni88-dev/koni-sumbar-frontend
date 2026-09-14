@@ -86,6 +86,12 @@ export function CoachesPage() {
   const { data: organizations = [] } = useOrganizationsAll();
   const { data: clusters = [] } = useCoachClustersAll();
   const { data: subClusters = [] } = useCoachSubClustersByCluster(filterCluster);
+  const selectedCluster = clusters.find((cluster) =>
+    String(cluster.id) === String(filterCluster)
+  );
+  const selectedClusterType = selectedCluster?.code === 'non_development'
+    ? 'non_development'
+    : '';
   const {
     data,
     isLoading: loading,
@@ -98,6 +104,7 @@ export function CoachesPage() {
     organizationId: filterOrganization,
     isActive: filterActive,
     clusterId: filterCluster,
+    clusterType: selectedClusterType,
     subClusterId: filterSubCluster
   });
 
@@ -362,7 +369,6 @@ export function CoachesPage() {
   const selectedOrganization = organizations.find((organization) =>
     String(organization.id) === String(filterOrganization)
   );
-  const selectedCluster = clusters.find((c) => String(c.id) === String(filterCluster));
   const selectedSubCluster = subClusters.find((s) => String(s.id) === String(filterSubCluster));
 
   return (
@@ -660,7 +666,10 @@ export function CoachesPage() {
                         </label>
                         <select
                           value={filterCluster}
-                          onChange={(e) => setFilterCluster(e.target.value)}
+                          onChange={(e) => {
+                            setFilterSubCluster('');
+                            setFilterCluster(e.target.value);
+                          }}
                           className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none transition-all cursor-pointer hover:border-slate-300"
                         >
                           <option value="">Semua Cluster</option>
@@ -844,7 +853,7 @@ export function CoachesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-[1020px]">
                 <thead className="bg-slate-50 border-b border-slate-100">
                   <tr>
                     <th className="text-left py-4 px-6 font-semibold text-slate-600">Pelatih</th>
@@ -852,7 +861,10 @@ export function CoachesPage() {
                     <th className="text-left py-4 px-4 font-semibold text-slate-600">Lisensi</th>
                     <th className="text-left py-4 px-4 font-semibold text-slate-600">Kluster</th>
                     {canViewSensitive && (
-                      <th className="text-left py-4 px-4 font-semibold text-slate-600">Telepon</th>
+                      <>
+                        <th className="text-left py-4 px-4 font-semibold text-slate-600">Telepon</th>
+                        <th className="text-left py-4 px-4 font-semibold text-slate-600">No. BPJS</th>
+                      </>
                     )}
                     <th className="text-center py-4 px-4 font-semibold text-slate-600">Status</th>
                     <th className="text-center py-4 px-4 font-semibold text-slate-600">Aksi</th>
@@ -901,9 +913,14 @@ export function CoachesPage() {
                         )}
                       </td>
                       {canViewSensitive && (
-                        <td className="py-4 px-4 text-slate-600 text-sm">
-                          {coach.phone || '-'}
-                        </td>
+                        <>
+                          <td className="py-4 px-4 text-slate-600 text-sm">
+                            {coach.phone || '-'}
+                          </td>
+                          <td className="py-4 px-4 font-mono text-slate-600 text-sm whitespace-nowrap">
+                            {coach.bpjs_number || '-'}
+                          </td>
+                        </>
                       )}
                       <td className="py-4 px-4 text-center">
                         <span

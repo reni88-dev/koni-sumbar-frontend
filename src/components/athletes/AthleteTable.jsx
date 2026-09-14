@@ -25,6 +25,8 @@ export function AthleteTable({
   onView,
   onEdit,
   onDelete,
+  onTransfer,
+  canViewSensitive = false,
 }) {
   const thClass =
     "text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider";
@@ -32,7 +34,7 @@ export function AthleteTable({
   return (
     <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-w-0 max-w-full">
       <div className="overflow-x-auto max-w-full">
-        <table className="w-full min-w-[900px]">
+        <table className={`w-full ${canViewSensitive ? "min-w-[1020px]" : "min-w-[900px]"}`}>
           <thead className="bg-slate-50 border-b border-slate-100">
             <tr>
               <th className={thClass}>Atlet</th>
@@ -41,6 +43,7 @@ export function AthleteTable({
               <th className={thClass}>Gender</th>
               <th className={thClass}>Kluster</th>
               <th className={thClass}>No. Nasional</th>
+              {canViewSensitive && <th className={thClass}>No. BPJS</th>}
               <th className={thClass}>Status</th>
               <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                 Aksi
@@ -50,14 +53,14 @@ export function AthleteTable({
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center">
+                <td colSpan={canViewSensitive ? 9 : 8} className="px-6 py-12 text-center">
                   <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                 </td>
               </tr>
             ) : athletes.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={canViewSensitive ? 9 : 8}
                   className="px-6 py-12 text-center text-slate-500"
                 >
                   Tidak ada data atlet
@@ -71,6 +74,8 @@ export function AthleteTable({
                   onView={onView}
                   onEdit={onEdit}
                   onDelete={onDelete}
+                  onTransfer={onTransfer}
+                  canViewSensitive={canViewSensitive}
                 />
               ))
             )}
@@ -78,7 +83,7 @@ export function AthleteTable({
         </table>
       </div>
 
-      {/* ── Infinite Scroll Sentinel ──────────────────────────────────────── */}
+      {/* â”€â”€ Infinite Scroll Sentinel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div ref={sentinelRef} className="px-6 py-4 flex justify-center">
         {isFetchingNextPage ? (
           <div className="flex items-center gap-2 text-slate-400 text-sm">

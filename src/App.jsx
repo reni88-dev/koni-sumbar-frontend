@@ -22,6 +22,7 @@ import { CoachAthletesPage } from './pages/CoachAthletes';
 import { EventsPage } from './pages/Events';
 import { EventDetailPage } from './pages/EventDetail';
 import { AthletesPage } from './pages/Athletes';
+import { AthleteTransfersPage } from './pages/AthleteTransfers';
 import { CoachesPage } from './pages/Coaches';
 import { FormBuilderPage } from './pages/FormBuilder';
 import { FormBuilderCreatePage } from './pages/FormBuilderCreate';
@@ -135,6 +136,16 @@ function App() {
           <ProtectedRoute>
             <PermissionRoute permission="data_duplicates.view">
               <DataDuplicatesPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transfer-atlet"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="athlete_transfers.view">
+              <AthleteTransfersPage />
             </PermissionRoute>
           </ProtectedRoute>
         }
@@ -474,4 +485,3 @@ function App() {
 }
 
 export default App;
-

@@ -57,7 +57,7 @@ export function useCoachSubmission({
 
     try {
       const data = buildCoachFormData(formData, achievementsList, files, normalizedPhone, {
-        excludedFields: mode === 'portal' ? ['is_active'] : [],
+        excludedFields: mode === 'portal' ? ['is_active', 'bpjs_number'] : [],
         includeEmptyFields: mode === 'portal',
       });
       if (submitRequest) {

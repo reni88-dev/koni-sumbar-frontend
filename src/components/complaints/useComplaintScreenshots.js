@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   IMAGE_ACCEPT,
-  compressImageToWebP,
+  compressImageForUpload,
   validateSourceFile,
 } from '../form-modal/mediaUtils';
 
@@ -78,7 +78,7 @@ export function useComplaintScreenshots() {
         id, originalName: source.name, sourceSize: source.size, status: 'processing',
       }]);
       try {
-        const compressed = await compressImageToWebP(source, { maxLongest: 1600 });
+        const compressed = await compressImageForUpload(source, { maxLongest: 1600 });
         if (cancelledRef.current.has(id)) {
           cancelledRef.current.delete(id);
           continue;

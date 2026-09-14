@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
+import { buildRolesAccessRequest } from '../../lib/roleAccess';
 
 // ==================== EDUCATION LEVELS ====================
 export const educationLevelKeys = {
@@ -156,10 +157,29 @@ export function useUpdateRolePermissions() {
 export function useSetRoleAccess() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ roleId, accessEnabled }) => {
+    mutationFn: async ({ roleId, accessEnabled, accessDisabledMessage = '' }) => {
       const response = await api.put(`/api/master/roles/${roleId}/access`, {
         access_enabled: accessEnabled,
+        access_disabled_message: accessDisabledMessage,
       });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    },
+  });
+}
+
+export function useSetRolesAccess() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ roleIds, accessEnabled, accessDisabledMessage = '' }) => {
+      const request = buildRolesAccessRequest({
+        roleIds,
+        accessEnabled,
+        accessDisabledMessage,
+      });
+      const response = await api.put(request.url, request.data);
       return response.data;
     },
     onSuccess: () => {
@@ -256,23 +276,66 @@ export function useDeleteUser() {
   });
 }
 
+// ==================== PORPROV COMPETITION CLASS DATA ====================
+export const porprovCompetitionClassKeys = {
+  all: ['porprovCompetitionClassData'],
+  events: () => [...porprovCompetitionClassKeys.all, 'events'],
+  eventAthletes: (eventId) => [...porprovCompetitionClassKeys.all, 'eventAthletes', eventId],
+};
+
+export function usePorprovEvents({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: porprovCompetitionClassKeys.events(),
+    queryFn: async () => {
+      const response = await api.get('/api/porprov/events', {
+        params: { per_page: 100 },
+      });
+      return response.data;
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function usePorprovEventAthletes(eventId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: porprovCompetitionClassKeys.eventAthletes(eventId),
+    queryFn: async () => {
+      const response = await api.get(`/api/porprov/events/${eventId}/athletes`);
+      if (Array.isArray(response.data)) return response.data;
+      return Array.isArray(response.data?.data) ? response.data.data : [];
+    },
+    enabled: enabled && !!eventId,
+    staleTime: 60 * 1000,
+  });
+}
 // ==================== COMPETITION CLASSES ====================
 export const competitionClassKeys = {
   all: ['competitionClasses'],
   lists: () => [...competitionClassKeys.all, 'list'],
   list: (filters) => [...competitionClassKeys.lists(), filters],
   byCabor: (caborId) => [...competitionClassKeys.all, 'byCabor', caborId],
+  athletes: (competitionClassId) => [...competitionClassKeys.all, 'athletes', competitionClassId],
 };
 
-export function useCompetitionClasses({ page = 1, search = '', caborId = '', perPage = 10 } = {}) {
+export function useCompetitionClasses({
+  page = 1,
+  search = '',
+  caborId = '',
+  codePresence = '',
+  descriptionPresence = '',
+  perPage = 10
+} = {}) {
   return useQuery({
-    queryKey: competitionClassKeys.list({ page, search, caborId, perPage }),
+    queryKey: competitionClassKeys.list({ page, search, caborId, codePresence, descriptionPresence, perPage }),
     queryFn: async () => {
       const response = await api.get('/api/master/competition-classes', {
         params: { 
           page, 
           search: search || undefined, 
           cabor_id: caborId || undefined,
+          code_presence: codePresence || undefined,
+          description_presence: descriptionPresence || undefined,
           per_page: perPage 
         }
       });
@@ -281,6 +344,37 @@ export function useCompetitionClasses({ page = 1, search = '', caborId = '', per
   });
 }
 
+export function useCompetitionClassAthletes(competitionClassId, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: competitionClassKeys.athletes(competitionClassId),
+    queryFn: async () => {
+      const perPage = 100;
+      const fetchPage = (page) => api.get('/api/athletes', {
+        params: {
+          competition_class_id: competitionClassId,
+          page,
+          per_page: perPage,
+        },
+      }).then((response) => response.data);
+
+      const firstPage = await fetchPage(1);
+      const athletes = Array.isArray(firstPage?.data) ? [...firstPage.data] : [];
+      const lastPage = Math.max(1, Number(firstPage?.last_page) || 1);
+
+      if (lastPage > 1) {
+        const remainingPages = await Promise.all(
+          Array.from({ length: lastPage - 1 }, (_, index) => fetchPage(index + 2)),
+        );
+        remainingPages.forEach((pageData) => {
+          if (Array.isArray(pageData?.data)) athletes.push(...pageData.data);
+        });
+      }
+
+      return athletes;
+    },
+    enabled: enabled && !!competitionClassId,
+  });
+}
 export function useCompetitionClassesByCabor(caborId) {
   return useQuery({
     queryKey: competitionClassKeys.byCabor(caborId),

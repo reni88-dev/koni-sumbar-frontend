@@ -10,6 +10,11 @@ import {
 } from '../form-validation/profileValidation';
 import { useValidatedPhoneField } from '../form-modal/useValidatedPhoneField';
 import {
+  getBPJSRequirements,
+  getInitialBPJSDeferredAcknowledgement,
+  nextBPJSDeferredAcknowledgement,
+} from '../form-validation/bpjsValidation';
+import {
   createInitialAthleteFormData,
   getAthleteAgeGroup,
   IDENTITY_PATTERN,
@@ -41,6 +46,7 @@ export function useAthleteFormController({
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [initialIncompleteCount, setInitialIncompleteCount] = useState(0);
+  const [bpjsDeferredAcknowledged, setBPJSDeferredAcknowledged] = useState(false);
   const [initialPhoneValues, setInitialPhoneValues] = useState({
     phone: '',
     father_phone: '',
@@ -49,10 +55,16 @@ export function useAthleteFormController({
 
   const updateField = useCallback((field, value) => {
     setFormData((previous) => ({ ...previous, [field]: value }));
+    if (field === 'bpjs_number' && String(value || '').trim()) {
+      setBPJSDeferredAcknowledged((current) => (
+        nextBPJSDeferredAcknowledgement(current, 'number-entered')
+      ));
+    }
     setErrors((previous) => {
-      if (!previous[field]) return previous;
+      if (!previous[field] && field !== 'bpjs_number') return previous;
       const next = { ...previous };
       delete next[field];
+      if (field === 'bpjs_number') delete next.bpjs_deferred_acknowledged;
       return next;
     });
     setErrorMessage('');
@@ -91,6 +103,14 @@ export function useAthleteFormController({
     initialValue: initialPhoneValues.mother_phone,
     onNormalize: normalizeMotherPhone,
   });
+  const bpjsRequirements = getBPJSRequirements({
+    mode,
+    bpjsNumber: formData.bpjs_number,
+    bpjsDocumentFile: media.bpjsDocumentFile,
+    storedBPJSDocument: athlete?.bpjs_document,
+    deferredAcknowledged: bpjsDeferredAcknowledged,
+    requireMatchingPair: true,
+  });
   const emailValidation = useAthleteEmailValidation({
     email: formData.email,
     isOpen,
@@ -102,6 +122,10 @@ export function useAthleteFormController({
     athlete,
     identityDocumentFile: media.identityDocumentFile,
     documentErrors: media.documentErrors,
+    bpjsNumberRequired: bpjsRequirements.numberRequired,
+    bpjsDocumentRequired: bpjsRequirements.documentRequired,
+    bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
+    bpjsDeferredAcknowledged,
     phoneStatus: phoneValidation.status,
     phoneMessage: phoneValidation.message,
     fatherPhoneStatus: fatherPhoneValidation.status,
@@ -112,6 +136,10 @@ export function useAthleteFormController({
     emailMessage: emailValidation.message,
   }), [
     athlete,
+    bpjsDeferredAcknowledged,
+    bpjsRequirements.deferredAcknowledgementRequired,
+    bpjsRequirements.documentRequired,
+    bpjsRequirements.numberRequired,
     emailValidation.message,
     emailValidation.status,
     fatherPhoneValidation.message,
@@ -159,6 +187,7 @@ export function useAthleteFormController({
     onSuccess,
     mode,
     submitRequest,
+    bpjsDeferredAcknowledged: bpjsRequirements.deferredAcknowledgementRequired && bpjsDeferredAcknowledged,
   });
 
   const {
@@ -175,6 +204,7 @@ export function useAthleteFormController({
     setErrors({});
     setErrorMessage('');
     setInitialIncompleteCount(0);
+    setBPJSDeferredAcknowledged(false);
 
     if (!isOpen) {
       lastValidAgeGroupRef.current = null;
@@ -186,10 +216,23 @@ export function useAthleteFormController({
     if (athlete) {
       const mapped = mapAthleteToForm(athlete);
       lastValidAgeGroupRef.current = mapped.ageGroup;
+      const initialDeferredAcknowledged = getInitialBPJSDeferredAcknowledgement(athlete);
+      const initialBPJSRequirements = getBPJSRequirements({
+        mode,
+        bpjsNumber: mapped.formData.bpjs_number,
+        storedBPJSDocument: athlete.bpjs_document,
+        deferredAcknowledged: initialDeferredAcknowledged,
+        requireMatchingPair: true,
+      });
+      setBPJSDeferredAcknowledged(initialDeferredAcknowledged);
       setInitialPhoneValues(mapped.phoneValues);
       setFormData(mapped.formData);
       setInitialIncompleteCount(Object.keys(validateAthleteProfile(mapped.formData, {
         athlete,
+        bpjsNumberRequired: initialBPJSRequirements.numberRequired,
+        bpjsDocumentRequired: initialBPJSRequirements.documentRequired,
+        bpjsDeferredAcknowledgementRequired: initialBPJSRequirements.deferredAcknowledgementRequired,
+        bpjsDeferredAcknowledged: initialDeferredAcknowledged,
         phoneStatus: 'valid',
         fatherPhoneStatus: mapped.formData.father_phone ? 'valid' : undefined,
         motherPhoneStatus: mapped.formData.mother_phone ? 'valid' : undefined,
@@ -210,10 +253,37 @@ export function useAthleteFormController({
     fetchBaseLookups,
     fetchCompetitionClasses,
     isOpen,
+    mode,
     resetMedia,
     setLoading,
   ]);
 
+  const handleBPJSDocumentChange = (event) => {
+    setBPJSDeferredAcknowledged((current) => (
+      nextBPJSDeferredAcknowledgement(current, 'file-selected')
+    ));
+    setErrors((previous) => {
+      const next = { ...previous };
+      delete next.bpjs_deferred_acknowledged;
+      return next;
+    });
+    setErrorMessage('');
+    return media.handleDocumentChange('bpjs', formData.birth_date)(event);
+  };
+
+  const handleBPJSDeferredAcknowledgementChange = (checked) => {
+    setBPJSDeferredAcknowledged((current) => (
+      nextBPJSDeferredAcknowledgement(current, checked ? 'acknowledge' : 'reset')
+    ));
+    if (checked) media.setDocumentError('bpjs', '');
+    setErrors((previous) => {
+      const next = { ...previous };
+      delete next.bpjs_deferred_acknowledged;
+      if (checked) delete next.bpjs_document;
+      return next;
+    });
+    setErrorMessage('');
+  };
   const handleCaborChange = useCallback((caborId) => {
     setFormData((previous) => ({
       ...previous,
@@ -227,9 +297,9 @@ export function useAthleteFormController({
       delete next.competition_class;
       return next;
     });
-    if (athlete) fetchCompetitionClasses(caborId);
-    else clearCompetitionClasses();
-  }, [athlete, clearCompetitionClasses, fetchCompetitionClasses]);
+    clearCompetitionClasses();
+    fetchCompetitionClasses(caborId);
+  }, [clearCompetitionClasses, fetchCompetitionClasses]);
 
   const handleBirthDateChange = useCallback((value) => {
     const previousAgeGroup = getAthleteAgeGroup(formData.birth_date) || lastValidAgeGroupRef.current;
@@ -316,6 +386,7 @@ export function useAthleteFormController({
       updateAchievement,
       handleCaborChange,
       handleBirthDateChange,
+      handleBPJSDocumentChange,
     },
     lookups,
     files: media,
@@ -333,6 +404,11 @@ export function useAthleteFormController({
       ageGroup,
       canReuseStoredIdentity,
       canReuseStoredBPJS,
+      bpjsNumberRequired: bpjsRequirements.numberRequired,
+      bpjsDocumentRequired: bpjsRequirements.documentRequired,
+      bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
+      bpjsDeferredAcknowledged,
+      handleBPJSDeferredAcknowledgementChange,
       storedIdentityType,
       nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik)),
       noKKInvalid: Boolean(errors.no_kk) || (formData.no_kk !== '' && !IDENTITY_PATTERN.test(formData.no_kk)),
@@ -348,4 +424,3 @@ export function useAthleteFormController({
     submission,
   };
 }
-

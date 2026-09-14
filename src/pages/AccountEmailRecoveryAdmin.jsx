@@ -9,6 +9,11 @@ import {
   useRejectAccountEmailRecovery,
   useResendAccountEmailRecovery,
 } from '../hooks/queries/useAccountEmailRecovery';
+import {
+  accountRecoveryErrorMessage as recoveryError,
+  getAccountRecoveryApprovalUI,
+  isAccountRecoveryApprovalBlockError,
+} from '../utils/accountEmailRecoveryAdmin';
 
 const statusOptions = [
   ['', 'Semua status'], ['pending_admin', 'Menunggu admin'], ['approved', 'Disetujui'],
@@ -27,7 +32,6 @@ const statusClass = (value) => ({
 }[value] || 'border-slate-200 bg-slate-50 text-slate-600');
 const deliveryLabel = (value) => ({ not_queued: 'Belum diantrikan', pending: 'Menunggu kirim', processing: 'Sedang dikirim', sent: 'Terkirim', retrying: 'Menunggu percobaan ulang', failed: 'Gagal', expired: 'Kedaluwarsa', cancelled: 'Dibatalkan' }[value] || value || '-');
 const formatDate = (value) => value ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : '-';
-const recoveryError = (error) => error.response?.data?.message || error.response?.data?.error || 'Permintaan tidak dapat diproses.';
 
 export function AccountEmailRecoveryAdmin() {
   const { can } = usePermission();
@@ -55,6 +59,7 @@ export function AccountEmailRecoveryAdmin() {
   const detail = detailQuery.data;
   const resendCount = Number(detail?.resend_count ?? 0);
   const resendLimitReached = resendCount >= 3;
+  const approvalUI = getAccountRecoveryApprovalUI(detail, actionPending);
 
   if (!canView) {
     return <DashboardLayout title="Pemulihan Email" subtitle="Tinjau perubahan email akun atlet dan pelatih"><div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">Anda tidak memiliki permission untuk melihat antrean pemulihan email.</div></DashboardLayout>;
@@ -84,6 +89,11 @@ export function AccountEmailRecoveryAdmin() {
 
   const openConfirmation = (action) => {
     resetActionFeedback();
+    if (action === 'approve' && !approvalUI.canOpenApproval) {
+      setConfirmAction(null);
+      setActionError(approvalUI.blockMessage);
+      return;
+    }
     setConfirmAction(action);
   };
 
@@ -106,7 +116,7 @@ export function AccountEmailRecoveryAdmin() {
     setActionError('');
   };
 
-  const runAction = async (mutation, { payload, successMessage, onSuccess } = {}) => {
+  const runAction = async (mutation, { payload, successMessage, onSuccess, onError } = {}) => {
     if (actionLockRef.current) return;
     actionLockRef.current = true;
     resetActionFeedback();
@@ -116,6 +126,7 @@ export function AccountEmailRecoveryAdmin() {
       onSuccess?.();
     } catch (error) {
       setActionError(recoveryError(error));
+      await onError?.(error);
     } finally {
       actionLockRef.current = false;
     }
@@ -126,9 +137,19 @@ export function AccountEmailRecoveryAdmin() {
     const destinationEmail = detail.proposed_email || 'email baru terverifikasi';
 
     if (confirmAction === 'approve') {
+      if (!approvalUI.canOpenApproval) {
+        setConfirmAction(null);
+        setActionError(approvalUI.blockMessage);
+        return;
+      }
       runAction(approveMutation, {
         successMessage: `Permintaan disetujui. Kredensial sudah otomatis masuk antrean pengiriman ke ${destinationEmail}; Anda tidak perlu langsung membuat dan mengirim ulang password.`,
         onSuccess: () => setConfirmAction(null),
+        onError: async (error) => {
+          if (!isAccountRecoveryApprovalBlockError(error)) return;
+          setConfirmAction(null);
+          await detailQuery.refetch();
+        },
       });
       return;
     }
@@ -192,6 +213,18 @@ export function AccountEmailRecoveryAdmin() {
               </div>
             </div>
           )}
+          {approvalUI.showWarning && (
+            <div role="alert" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-900">
+              <div className="flex items-start gap-3">
+                <div className="shrink-0 rounded-xl bg-amber-100 p-2 text-amber-700"><AlertCircle className="h-5 w-5" /></div>
+                <div>
+                  <h3 className="font-bold">Permintaan tidak dapat disetujui</h3>
+                  <p className="mt-1 text-sm leading-6">{approvalUI.blockMessage}</p>
+                  <p className="mt-2 text-xs font-semibold leading-5 text-amber-800">Status permintaan tetap menunggu admin. Gunakan aksi Tolak untuk menutup permintaan ini.</p>
+                </div>
+              </div>
+            </div>
+          )}
           {detail.status === 'email_verification_pending' && (
             <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-start gap-3">
@@ -227,8 +260,10 @@ export function AccountEmailRecoveryAdmin() {
             <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-end sm:justify-end">
               {detail.status === 'pending_admin' && (
                 <>
-                  <button type="button" disabled={actionPending} onClick={openRejection} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-3 font-bold text-red-700 hover:bg-red-50 disabled:opacity-50 sm:w-auto"><XCircle className="h-5 w-5" /> Tolak</button>
-                  <button type="button" disabled={actionPending} onClick={() => openConfirmation('approve')} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-700 disabled:opacity-50 sm:w-auto"><CheckCircle2 className="h-5 w-5" /> Setujui &amp; kirim kredensial</button>
+                  <button type="button" disabled={approvalUI.rejectDisabled} onClick={openRejection} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 px-4 py-3 font-bold text-red-700 hover:bg-red-50 disabled:opacity-50 sm:w-auto"><XCircle className="h-5 w-5" /> Tolak</button>
+                  <span className="w-full sm:w-auto" title={approvalUI.approvalTooltip}>
+                    <button type="button" disabled={approvalUI.approvalDisabled} onClick={() => openConfirmation('approve')} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"><CheckCircle2 className="h-5 w-5" /> Setujui &amp; kirim kredensial</button>
+                  </span>
                 </>
               )}
               {detail.status === 'approved' && (
@@ -244,7 +279,7 @@ export function AccountEmailRecoveryAdmin() {
           )}
         </div>}
       </div></div>}
-      {confirmAction && detail && (
+      {confirmAction && detail && (confirmAction !== 'approve' || approvalUI.canOpenApproval) && (
         <ConfirmationDialog
           action={confirmAction}
           email={detail.proposed_email || '-'}

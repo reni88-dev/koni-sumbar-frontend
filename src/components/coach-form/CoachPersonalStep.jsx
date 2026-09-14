@@ -3,7 +3,13 @@ import { CoachAffiliationSection } from './CoachAffiliationSection';
 import { CoachDocumentsSection } from './CoachDocumentsSection';
 import { CoachIdentitySection } from './CoachIdentitySection';
 
-export function CoachPersonalStep({ form, lookups, files, validation }) {
+export function CoachPersonalStep({
+  form,
+  lookups,
+  files,
+  validation,
+  showBPJSNumber = false,
+}) {
   return (
     <div className="space-y-4">
       <ProfilePhotoField
@@ -14,7 +20,12 @@ export function CoachPersonalStep({ form, lookups, files, validation }) {
         onChange={files.handlePhotoChange}
       />
       <CoachIdentitySection form={form} validation={validation} />
-      <CoachDocumentsSection files={files} validation={validation} />
+      <CoachDocumentsSection
+        form={form}
+        files={files}
+        validation={validation}
+        showBPJSNumber={showBPJSNumber}
+      />
       <CoachAffiliationSection form={form} lookups={lookups} validation={validation} />
     </div>
   );

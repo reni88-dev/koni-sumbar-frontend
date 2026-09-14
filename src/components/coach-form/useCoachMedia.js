@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
 import { getCoachPhotoUrl } from '../../lib/coachPhoto';
-import { compressImageToWebP, validateSourceFile } from '../form-modal/mediaUtils';
+import { compressImageForUpload, prepareDocumentForUpload, validateSourceFile } from '../form-modal/mediaUtils';
 
 export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
   const photoProcessingIdRef = useRef(0);
@@ -107,7 +107,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
 
     try {
       validateSourceFile(file, { allowPDF: false });
-      const compressed = await compressImageToWebP(file, { maxWidth: 800 });
+      const compressed = await compressImageForUpload(file, { maxWidth: 800 });
       if (processingId !== photoProcessingIdRef.current) return;
       setPhotoFile(compressed);
       setPhotoPreview(URL.createObjectURL(compressed));
@@ -139,10 +139,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     setCertificateProcessing(true);
 
     try {
-      const { extension } = validateSourceFile(file, { allowPDF: true });
-      const processedFile = extension === 'pdf'
-        ? file
-        : await compressImageToWebP(file, { maxLongest: 1600 });
+      const processedFile = await prepareDocumentForUpload(file, { maxLongest: 1600 });
       if (processingId !== certificateProcessingIdRef.current) return;
       setCertificateFile(processedFile);
     } catch (error) {
@@ -178,10 +175,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
     setDocumentProcessing((previous) => ({ ...previous, [kind]: true }));
 
     try {
-      const { extension } = validateSourceFile(file, { allowPDF: true });
-      const processedFile = extension === 'pdf'
-        ? file
-        : await compressImageToWebP(file, { maxLongest: 1600 });
+      const processedFile = await prepareDocumentForUpload(file, { maxLongest: 1600 });
       if (processingId !== processingRef.current) return;
       if (kind === 'identity') {
         setIdentityDocumentFile(processedFile);

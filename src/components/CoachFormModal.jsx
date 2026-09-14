@@ -74,6 +74,7 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
           lookups={lookups}
           files={files}
           validation={validation}
+          showBPJSNumber
         />
       )}
       {navigation.step === 2 && <CoachContactStep form={form} validation={validation} />}

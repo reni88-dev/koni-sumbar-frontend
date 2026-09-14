@@ -4,6 +4,7 @@ import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
 import { useComplaintSummary } from '../hooks/queries/useComplaints';
 import { useAccountEmailRecoverySummary } from '../hooks/queries/useAccountEmailRecovery';
+import { useAthleteTransferSummary } from '../hooks/queries/useAthleteTransfers';
 import { 
   LayoutDashboard, 
   Users, 
@@ -31,7 +32,8 @@ import {
   MailQuestion,
   ChartPie,
   ScanSearch,
-  Megaphone
+  Megaphone,
+  ArrowLeftRight
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 
@@ -98,6 +100,8 @@ function SidebarContent({ onNavigate }) {
   const { data: complaintSummary } = useComplaintSummary(isSuperAdminUser);
   const hasRecoveryPermission = hasSuperAdminAccess || user?.permissions?.includes('account_email_recovery.view');
   const { data: recoverySummary } = useAccountEmailRecoverySummary(Boolean(hasRecoveryPermission));
+  const hasTransferPermission = hasSuperAdminAccess || user?.permissions?.includes('athlete_transfers.view');
+  const { data: transferSummary } = useAthleteTransferSummary(Boolean(hasTransferPermission));
 
   const isActive = (path) => location.pathname === path || (path === '/pengaduan' && location.pathname.startsWith('/pengaduan/'));
   const isChildActive = (children) => children?.some(child => location.pathname === child.path);
@@ -171,6 +175,7 @@ function SidebarContent({ onNavigate }) {
 
   const pembinaanItems = filterVisibleItems([
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
+    { icon: ArrowLeftRight, label: 'Transfer Atlet', path: '/transfer-atlet', permission: 'athlete_transfers.view', badge: transferSummary?.pending_action_count || 0 },
     { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
     { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },
     ...(hasPermission('training.view') || isCoach()
@@ -376,4 +381,3 @@ function SidebarContent({ onNavigate }) {
     </>
   );
 }
-

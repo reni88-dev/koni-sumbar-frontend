@@ -1,4 +1,4 @@
-import { Eye, Edit2, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Eye, Edit2, Trash2 } from "lucide-react";
 import { ProtectedImage } from "../ProtectedImage";
 import { toTitleCase, formatDate } from "./athleteUtils";
 
@@ -14,7 +14,14 @@ const genderLabels = { male: "Laki-laki", female: "Perempuan" };
  *  - onEdit   {(athlete)=>void}
  *  - onDelete {(athlete)=>void}
  */
-export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
+export function AthleteTableRow({
+  athlete,
+  onView,
+  onEdit,
+  onDelete,
+  onTransfer,
+  canViewSensitive = false,
+}) {
   const initial = athlete.name?.charAt(0).toUpperCase() || "?";
   const caborName = athlete.cabor?.display_name || athlete.cabor?.name || "-";
 
@@ -98,6 +105,15 @@ export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
         </span>
       </td>
 
+      {/* Nomor BPJS */}
+      {canViewSensitive && (
+        <td className="px-6 py-4">
+          <span className="font-mono text-sm text-slate-600 whitespace-nowrap">
+            {athlete.bpjs_number || "-"}
+          </span>
+        </td>
+      )}
+
       {/* Status */}
       <td className="px-6 py-4">
         <span
@@ -121,7 +137,15 @@ export function AthleteTableRow({ athlete, onView, onEdit, onDelete }) {
           >
             <Eye className="w-4 h-4" />
           </button>
-          {onEdit && (
+          {onTransfer && athlete.is_active && (
+            <button
+              onClick={() => onTransfer(athlete)}
+              className="p-2 hover:bg-amber-50 rounded-lg text-slate-500 hover:text-amber-700 transition-colors"
+              title="Ajukan Transfer"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+            </button>
+          )}          {onEdit && (
             <button
               onClick={() => onEdit(athlete)}
               className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"

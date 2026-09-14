@@ -14,16 +14,17 @@ import {
   PERMISSION_DENIED_EVENT,
   SESSION_EXPIRED_MESSAGE,
   SESSION_NOTICE_STORAGE_KEY,
-  getAccountBlock,
   getSafeApiMessage,
   isAccessServiceUnavailableError,
   isAccountBlockedError,
   isNetworkError,
   isServerError,
   isSessionInvalidError,
+  persistAccountBlock,
   readStoredAccountBlock,
 } from '../lib/authAccess';
 import { AuthContext } from './auth-context';
+import { clearBPJSReminderSession } from '../lib/bpjsReminderSession';
 
 function getUnavailableMessage(error) {
   return getSafeApiMessage(error, ACCESS_SERVICE_UNAVAILABLE_MESSAGE);
@@ -45,6 +46,7 @@ export function AuthProvider({ children }) {
 
   const clearSession = useCallback(() => {
     localStorage.removeItem('token');
+    clearBPJSReminderSession();
     setUser(null);
     queryClient.clear();
   }, [queryClient]);
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
   const fetchUser = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
+      clearBPJSReminderSession();
       setUser(null);
       setAccessUnavailable(null);
       return null;
@@ -116,10 +119,22 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     queryClient.clear();
+    clearBPJSReminderSession();
 
-    const response = await api.post('/api/login', new URLSearchParams({ email, password }), {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    });
+    let response;
+    try {
+      response = await api.post('/api/login', new URLSearchParams({ email, password }), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+    } catch (error) {
+      if (isAccountBlockedError(error)) {
+        const block = persistAccountBlock(error);
+        setAccessUnavailable(null);
+        clearSession();
+        setAccountBlock(block);
+      }
+      throw error;
+    }
     const { token, user: userData } = response.data;
 
     clearAccountBlock();
@@ -142,6 +157,7 @@ export function AuthProvider({ children }) {
   }, [clearSession]);
 
   const register = async (name, email, password, password_confirmation) => {
+    clearBPJSReminderSession();
     const response = await api.post('/api/register', {
       name,
       email,
@@ -172,11 +188,10 @@ export function AuthProvider({ children }) {
     };
 
     const handleAccountBlocked = (event) => {
-      const block = getAccountBlock(event.detail || {});
-      sessionStorage.setItem(ACCOUNT_BLOCKED_STORAGE_KEY, JSON.stringify(block));
+      const block = persistAccountBlock(event.detail || {});
       setAccessUnavailable(null);
       clearSession();
-      setAccountBlock((current) => current || block);
+      setAccountBlock(block);
     };
 
     const handlePermissionDenied = (event) => {

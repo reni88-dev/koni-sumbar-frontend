@@ -18,12 +18,13 @@ function findVerticalScrollParent(element) {
 /**
  * SearchableSelect — a dropdown with inline search filtering.
  * Props:
- *  - options: [{ id, name, code? }]
+ *  - options: [{ id, name, code?, description? }]
  *  - value: currently selected id (string or number)
  *  - onChange(value): called with the selected id as string
  *  - placeholder: text shown when nothing selected
  *  - disabled: boolean
  *  - className: extra wrapper classes
+ *  - showDescription: show option descriptions below their primary labels
  *  - dropdownPlacement: "bottom", "top", or "auto"
  */
 export function SearchableSelect({
@@ -33,6 +34,7 @@ export function SearchableSelect({
   placeholder = 'Pilih...',
   disabled = false,
   className = '',
+  showDescription = false,
   dropdownPlacement = 'bottom',
   name,
   'aria-invalid': ariaInvalid,
@@ -52,14 +54,20 @@ export function SearchableSelect({
   const selected = options.find(o => String(o.id) === String(value));
 
   // Filter options
+  const normalizedSearch = search.toLowerCase();
   const filtered = search
     ? options.filter(o =>
-        (o.display_name || o.name || '').toLowerCase().includes(search.toLowerCase()) ||
-        (o.code && o.code.toLowerCase().includes(search.toLowerCase()))
+        String(o.display_name || o.name || '').toLowerCase().includes(normalizedSearch) ||
+        String(o.code || '').toLowerCase().includes(normalizedSearch) ||
+        (showDescription && String(o.description || '').toLowerCase().includes(normalizedSearch))
       )
     : options;
 
   const labelFor = (option) => option ? (option.display_name || option.name || '') + (option.code ? ` (${option.code})` : '') : '';
+  const descriptionFor = (option) => showDescription && option?.description
+    ? String(option.description).trim()
+    : '';
+  const selectedDescription = descriptionFor(selected);
 
   // Close on outside click
   useEffect(() => {
@@ -158,9 +166,24 @@ export function SearchableSelect({
           disabled ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer'
         }`}
       >
-        <span className={selected ? 'text-slate-800' : 'text-slate-400'}>
-          {selected ? labelFor(selected) : placeholder}
-        </span>
+        {selected ? (
+          showDescription ? (
+            <span className="min-w-0 flex-1 text-slate-800">
+              <span className="block whitespace-normal break-words [overflow-wrap:anywhere]">
+                {labelFor(selected)}
+              </span>
+              {selectedDescription && (
+                <span className="mt-0.5 block whitespace-normal break-words text-xs font-normal leading-5 text-slate-500 [overflow-wrap:anywhere]">
+                  {selectedDescription}
+                </span>
+              )}
+            </span>
+          ) : (
+            <span className="text-slate-800">{labelFor(selected)}</span>
+          )
+        ) : (
+          <span className="text-slate-400">{placeholder}</span>
+        )}
         <div className="flex items-center gap-1 flex-shrink-0">
           {value && !disabled && (
             <span
@@ -217,25 +240,43 @@ export function SearchableSelect({
                 Tidak ditemukan
               </div>
             ) : (
-              filtered.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => handleSelect(option.id)}
-                  role="option"
-                  aria-selected={String(option.id) === String(value)}
-                  className={`w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 transition-colors flex items-center justify-between ${
-                    String(option.id) === String(value)
-                      ? 'bg-red-50 text-red-700 font-medium'
-                      : 'text-slate-700'
-                  }`}
-                >
-                  <span>{labelFor(option)}</span>
-                  {String(option.id) === String(value) && (
-                    <span className="text-red-600 text-xs">✓</span>
-                  )}
-                </button>
-              ))
+              filtered.map((option) => {
+                const optionDescription = descriptionFor(option);
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleSelect(option.id)}
+                    role="option"
+                    aria-selected={String(option.id) === String(value)}
+                    className={`w-full px-4 py-2.5 text-left text-sm hover:bg-red-50 transition-colors flex justify-between ${
+                      showDescription ? 'items-start gap-3' : 'items-center'
+                    } ${
+                      String(option.id) === String(value)
+                        ? 'bg-red-50 text-red-700 font-medium'
+                        : 'text-slate-700'
+                    }`}
+                  >
+                    {showDescription ? (
+                      <span className="min-w-0 flex-1">
+                        <span className="block whitespace-normal break-words [overflow-wrap:anywhere]">
+                          {labelFor(option)}
+                        </span>
+                        {optionDescription && (
+                          <span className="mt-0.5 block whitespace-normal break-words text-xs font-normal leading-5 text-slate-500 [overflow-wrap:anywhere]">
+                            {optionDescription}
+                          </span>
+                        )}
+                      </span>
+                    ) : (
+                      <span>{labelFor(option)}</span>
+                    )}
+                    {String(option.id) === String(value) && (
+                      <span className={`flex-shrink-0 text-red-600 text-xs ${showDescription ? 'mt-0.5' : ''}`}>✓</span>
+                    )}
+                  </button>
+                );
+              })
             )}
           </div>
         </div>

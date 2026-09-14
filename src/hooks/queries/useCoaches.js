@@ -1,6 +1,7 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { coachAthleteKeys } from './useCoachAthletes';
+import { buildCoachListParams, getNextCoachPageParam } from './coachQueryParams';
 
 // Query keys
 export const coachKeys = {
@@ -14,23 +15,23 @@ export const coachKeys = {
 
 // Fetch coaches with pagination and filters
 export function useCoaches({ page = 1, search = '', caborId = '', organizationId = '', isActive = '', clusterId = '', subClusterId = '', clusterType = '', subClusterType = '', perPage = 10 } = {}) {
+  const params = buildCoachListParams({
+    page,
+    search,
+    caborId,
+    organizationId,
+    isActive,
+    clusterId,
+    subClusterId,
+    clusterType,
+    subClusterType,
+    perPage,
+  });
+
   return useQuery({
-    queryKey: coachKeys.list({ page, search, caborId, organizationId, isActive, clusterId, subClusterId, clusterType, subClusterType, perPage }),
+    queryKey: coachKeys.list(params),
     queryFn: async () => {
-      const response = await api.get('/api/coaches', {
-        params: { 
-          page, 
-          search: search || undefined, 
-          cabor_id: caborId || undefined, 
-          organization_id: organizationId || undefined,
-          cluster_id: clusterId || undefined,
-          sub_cluster_id: subClusterId || undefined,
-          cluster_type: clusterType || undefined,
-          sub_cluster_type: subClusterType || undefined,
-          is_active: isActive !== '' ? isActive : undefined, 
-          per_page: perPage 
-        }
-      });
+      const response = await api.get('/api/coaches', { params });
       return response.data;
     },
   });
@@ -49,49 +50,33 @@ export function useInfiniteCoaches({
   perPage = 20,
   enabled = true,
 } = {}) {
+  const params = buildCoachListParams({
+    page: 1,
+    search,
+    caborId,
+    organizationId,
+    isActive,
+    clusterId,
+    subClusterId,
+    clusterType,
+    subClusterType,
+    perPage,
+  });
+
   return useInfiniteQuery({
-    queryKey: coachKeys.infiniteList({
-      search,
-      caborId,
-      organizationId,
-      isActive,
-      clusterId,
-      subClusterId,
-      clusterType,
-      subClusterType,
-      perPage,
-    }),
+    queryKey: coachKeys.infiniteList(params),
     queryFn: async ({ pageParam }) => {
       const response = await api.get('/api/coaches', {
-        params: {
-          page: pageParam,
-          search: search || undefined,
-          cabor_id: caborId || undefined,
-          organization_id: organizationId || undefined,
-          cluster_id: clusterId || undefined,
-          sub_cluster_id: subClusterId || undefined,
-          cluster_type: clusterType || undefined,
-          sub_cluster_type: subClusterType || undefined,
-          is_active: isActive !== '' ? isActive : undefined,
-          per_page: perPage,
-        },
+        params: { ...params, page: pageParam },
       });
       return response.data;
     },
     initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      const currentPage = Number(lastPage?.page) || 1;
-      const responsePerPage = Number(lastPage?.per_page) || perPage;
-      const total = Number(lastPage?.total) || 0;
+    getNextPageParam: (lastPage) => getNextCoachPageParam(lastPage, perPage),
 
-      return currentPage * responsePerPage < total
-        ? currentPage + 1
-        : undefined;
-    },
     enabled,
   });
 }
-
 // Fetch single coach
 export function useCoach(id) {
   return useQuery({

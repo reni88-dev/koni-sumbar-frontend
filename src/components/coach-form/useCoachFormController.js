@@ -11,6 +11,10 @@ import {
 } from '../form-validation/profileValidation';
 import { useValidatedPhoneField } from '../form-modal/useValidatedPhoneField';
 import {
+  getBPJSRequirements,
+  nextBPJSDeferredAcknowledgement,
+} from '../form-validation/bpjsValidation';
+import {
   createInitialCoachFormData,
   IDENTITY_PATTERN,
   mapCoachToForm,
@@ -38,6 +42,7 @@ export function useCoachFormController({
   const [errors, setErrors] = useState({});
   const [errorMessage, setErrorMessage] = useState('');
   const [initialIncompleteCount, setInitialIncompleteCount] = useState(0);
+  const [bpjsDeferredAcknowledged, setBPJSDeferredAcknowledged] = useState(false);
   const [initialPhoneValue, setInitialPhoneValue] = useState('');
 
   const updateField = useCallback((field, value) => {
@@ -57,6 +62,12 @@ export function useCoachFormController({
 
   const lookups = useCoachLookups();
   const media = useCoachMedia({ coach, setErrors, setErrorMessage });
+  const bpjsRequirements = getBPJSRequirements({
+    mode,
+    bpjsDocumentFile: media.bpjsDocumentFile,
+    storedBPJSDocument: coach?.bpjs_document,
+    deferredAcknowledged: bpjsDeferredAcknowledged,
+  });
   const phoneValidation = useValidatedPhoneField({
     value: formData.phone,
     isOpen,
@@ -70,10 +81,16 @@ export function useCoachFormController({
     identityDocumentFile: media.identityDocumentFile,
     canReuseStoredIdentity: media.canReuseStoredIdentity,
     documentErrors: media.documentErrors,
+    bpjsNumberRequired: bpjsRequirements.numberRequired,
+    bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
+    bpjsDeferredAcknowledged,
     phoneStatus: phoneValidation.status,
     phoneMessage: phoneValidation.message,
     certificateError: media.certificateError,
   }), [
+    bpjsDeferredAcknowledged,
+    bpjsRequirements.deferredAcknowledgementRequired,
+    bpjsRequirements.numberRequired,
     coach,
     formData,
     media.canReuseStoredIdentity,
@@ -128,6 +145,7 @@ export function useCoachFormController({
     setErrors({});
     setErrorMessage('');
     setInitialIncompleteCount(0);
+    setBPJSDeferredAcknowledged(false);
 
     if (!isOpen) {
       setFormData(createInitialCoachFormData());
@@ -140,12 +158,19 @@ export function useCoachFormController({
     fetchLookups();
     if (coach) {
       const mapped = mapCoachToForm(coach);
+      const initialBPJSRequirements = getBPJSRequirements({
+        mode,
+        storedBPJSDocument: coach.bpjs_document,
+      });
       setInitialPhoneValue(mapped.savedPhone);
       setFormData(mapped.formData);
       setAchievementsList(mapped.achievements);
       setInitialIncompleteCount(Object.keys(validateCoachProfile(mapped.formData, {
         isEdit: true,
         canReuseStoredIdentity: Boolean(coach.identity_document),
+        bpjsNumberRequired: initialBPJSRequirements.numberRequired,
+        bpjsDeferredAcknowledgementRequired: initialBPJSRequirements.deferredAcknowledgementRequired,
+        bpjsDeferredAcknowledged: false,
         phoneStatus: mapped.formData.phone ? 'valid' : undefined,
       })).length);
     } else {
@@ -164,10 +189,37 @@ export function useCoachFormController({
     coach,
     fetchLookups,
     isOpen,
+    mode,
     resetMedia,
     resetSubmission,
   ]);
 
+  const handleBPJSDocumentChange = (event) => {
+    setBPJSDeferredAcknowledged((current) => (
+      nextBPJSDeferredAcknowledgement(current, 'file-selected')
+    ));
+    setErrors((previous) => {
+      const next = { ...previous };
+      delete next.bpjs_deferred_acknowledgement;
+      return next;
+    });
+    setErrorMessage('');
+    return media.handleDocumentChange('bpjs')(event);
+  };
+
+  const handleBPJSDeferredAcknowledgementChange = (checked) => {
+    setBPJSDeferredAcknowledged((current) => (
+      nextBPJSDeferredAcknowledgement(current, checked ? 'acknowledge' : 'reset')
+    ));
+    if (checked) media.setDocumentError('bpjs', '');
+    setErrors((previous) => {
+      const next = { ...previous };
+      delete next.bpjs_deferred_acknowledgement;
+      if (checked) delete next.bpjs_document;
+      return next;
+    });
+    setErrorMessage('');
+  };
   const handleAchievementChange = useCallback((index, value) => {
     setAchievementsList((previous) => {
       const next = [...previous];
@@ -229,6 +281,7 @@ export function useCoachFormController({
     form: {
       data: formData,
       updateField,
+      handleBPJSDocumentChange,
       achievementsList,
       handleAchievementChange,
       handleAddAchievement,
@@ -244,6 +297,10 @@ export function useCoachFormController({
       stepErrorCounts: getStepErrorCounts(errors, COACH_PROFILE_FIELDS),
       initialIncompleteCount,
       phone: phoneValidation,
+      bpjsNumberRequired: bpjsRequirements.numberRequired,
+      bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
+      bpjsDeferredAcknowledged,
+      handleBPJSDeferredAcknowledgementChange,
       nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik)),
     },
     navigation: {

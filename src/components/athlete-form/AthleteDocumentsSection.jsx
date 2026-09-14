@@ -2,10 +2,17 @@ import { CheckCircle2, FileText, Loader2, Upload } from 'lucide-react';
 import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
+import { BPJSDeferredAcknowledgement } from '../form-validation/BPJSDeferredAcknowledgement';
 import { DOCUMENT_ACCEPT } from '../form-modal/mediaUtils';
 import { IDENTITY_DOCUMENT_LABELS } from './athleteFormModel';
 
-export function AthleteDocumentsSection({ athlete, form, files, validation }) {
+export function AthleteDocumentsSection({
+  athlete,
+  form,
+  files,
+  validation,
+  showBPJSNumber = false,
+}) {
   const { data: formData, updateField } = form;
   const {
     identityDocumentFile,
@@ -18,6 +25,7 @@ export function AthleteDocumentsSection({ athlete, form, files, validation }) {
     errors,
     canReuseStoredIdentity,
     canReuseStoredBPJS,
+    bpjsNumberRequired,
     storedIdentityType,
   } = validation;
   const handleDocumentChange = (kind) => files.handleDocumentChange(kind, formData.birth_date);
@@ -137,7 +145,33 @@ export function AthleteDocumentsSection({ athlete, form, files, validation }) {
           </label>
           <span className="text-[10px] font-semibold text-slate-500">Kesehatan/Naker</span>
         </div>
-        <p className="text-xs text-slate-500">Opsional. Unggah scan kartu atau surat kepesertaan BPJS (PDF, JPG, PNG, WebP maks. 10 MB).</p>
+        {showBPJSNumber && (
+          <div>
+            <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Nomor BPJS {bpjsNumberRequired && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              {...getFieldControlProps('bpjs_number', errors)}
+              type="text"
+              inputMode="numeric"
+              required={bpjsNumberRequired}
+              aria-required={bpjsNumberRequired}
+              value={formData.bpjs_number}
+              onChange={(event) => updateField('bpjs_number', event.target.value)}
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 ${
+                errors.bpjs_number ? 'border-red-400 bg-red-50' : 'border-slate-200'
+              }`}
+              placeholder="Masukkan nomor kepesertaan BPJS"
+              maxLength={30}
+            />
+            {errors.bpjs_number && (
+              <p id={getFieldErrorId('bpjs_number')} className="mt-1 text-xs text-red-500">
+                {firstFieldError(errors.bpjs_number)}
+              </p>
+            )}
+          </div>
+        )}
+        <p className="text-xs text-slate-500">Dokumen BPJS opsional. Jika dokumen dilampirkan atau sudah tersimpan, nomor BPJS wajib diisi (PDF, JPG, PNG, WebP maks. 10 MB).</p>
         <label
           data-field="bpjs_document"
           tabIndex={-1}
@@ -151,7 +185,7 @@ export function AthleteDocumentsSection({ athlete, form, files, validation }) {
         >
           {documentProcessing.bpjs ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <Upload className="h-4 w-4 text-slate-500" />}
           <span className="text-xs font-bold text-slate-700">{documentProcessing.bpjs ? 'Memproses dokumen...' : 'Pilih Dokumen BPJS'}</span>
-          <input name="bpjs_document" type="file" accept={DOCUMENT_ACCEPT} onChange={handleDocumentChange('bpjs')} disabled={documentProcessing.bpjs} className="hidden" />
+          <input name="bpjs_document" type="file" accept={DOCUMENT_ACCEPT} onChange={form.handleBPJSDocumentChange} disabled={documentProcessing.bpjs} className="hidden" />
         </label>
 
         {bpjsDocumentFile ? (
@@ -171,6 +205,7 @@ export function AthleteDocumentsSection({ athlete, form, files, validation }) {
             {documentErrors.bpjs || firstFieldError(errors.bpjs_document)}
           </p>
         )}
+        <BPJSDeferredAcknowledgement validation={validation} fieldName="bpjs_deferred_acknowledged" />
       </div>
     </FormSectionCard>
   );
