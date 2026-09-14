@@ -205,7 +205,7 @@ export function AthleteDocumentsSection({
             {documentErrors.bpjs || firstFieldError(errors.bpjs_document)}
           </p>
         )}
-        <BPJSDeferredAcknowledgement validation={validation} />
+        <BPJSDeferredAcknowledgement validation={validation} fieldName="bpjs_deferred_acknowledged" />
       </div>
     </FormSectionCard>
   );

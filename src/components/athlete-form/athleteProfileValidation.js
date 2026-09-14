@@ -59,7 +59,7 @@ export const ATHLETE_PROFILE_FIELDS = [
   { name: 'identity_document', label: 'Dokumen Identitas', step: 1, target: target('identity_document') },
   { name: 'bpjs_number', label: 'Nomor BPJS', step: 1, target: target('bpjs_number') },
   { name: 'bpjs_document', label: 'Dokumen BPJS', step: 1, target: target('bpjs_document') },
-  { name: 'bpjs_deferred_acknowledgement', label: 'Pernyataan Penundaan BPJS', step: 1, target: target('bpjs_deferred_acknowledgement') },
+  { name: 'bpjs_deferred_acknowledged', label: 'Pernyataan Penundaan BPJS', step: 1, target: target('bpjs_deferred_acknowledged') },
   { name: 'cabor_id', label: 'Cabang Olahraga', step: 1, target: target('cabor_id') },
   { name: 'organization_id', label: 'Organisasi/Pengcab', step: 1, target: target('organization_id') },
   { name: 'competition_class_id', label: 'Kelas Pertandingan', step: 1, target: target('competition_class_id') },
@@ -167,11 +167,14 @@ export function validateAthleteProfile(formData, context = {}) {
   if (context.documentErrors?.bpjs) {
     errors.bpjs_document = [context.documentErrors.bpjs];
   }
+  if (context.bpjsDocumentRequired && !errors.bpjs_document) {
+    add('bpjs_document', 'Dokumen BPJS wajib diunggah ketika nomor BPJS diisi');
+  }
   if (context.bpjsNumberRequired && !text('bpjs_number')) {
     add('bpjs_number', 'Nomor BPJS wajib diisi ketika dokumen BPJS tersedia');
   }
   if (context.bpjsDeferredAcknowledgementRequired && !context.bpjsDeferredAcknowledged) {
-    add('bpjs_deferred_acknowledgement', 'Pernyataan penundaan dokumen BPJS wajib dicentang');
+    add('bpjs_deferred_acknowledged', 'Pernyataan penundaan dokumen BPJS wajib dicentang');
   }
 
   if (!text('cabor_id')) add('cabor_id', 'Cabang olahraga wajib dipilih');

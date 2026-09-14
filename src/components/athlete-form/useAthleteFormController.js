@@ -11,6 +11,7 @@ import {
 import { useValidatedPhoneField } from '../form-modal/useValidatedPhoneField';
 import {
   getBPJSRequirements,
+  getInitialBPJSDeferredAcknowledgement,
   nextBPJSDeferredAcknowledgement,
 } from '../form-validation/bpjsValidation';
 import {
@@ -54,10 +55,16 @@ export function useAthleteFormController({
 
   const updateField = useCallback((field, value) => {
     setFormData((previous) => ({ ...previous, [field]: value }));
+    if (field === 'bpjs_number' && String(value || '').trim()) {
+      setBPJSDeferredAcknowledged((current) => (
+        nextBPJSDeferredAcknowledgement(current, 'number-entered')
+      ));
+    }
     setErrors((previous) => {
-      if (!previous[field]) return previous;
+      if (!previous[field] && field !== 'bpjs_number') return previous;
       const next = { ...previous };
       delete next[field];
+      if (field === 'bpjs_number') delete next.bpjs_deferred_acknowledged;
       return next;
     });
     setErrorMessage('');
@@ -98,9 +105,11 @@ export function useAthleteFormController({
   });
   const bpjsRequirements = getBPJSRequirements({
     mode,
+    bpjsNumber: formData.bpjs_number,
     bpjsDocumentFile: media.bpjsDocumentFile,
     storedBPJSDocument: athlete?.bpjs_document,
     deferredAcknowledged: bpjsDeferredAcknowledged,
+    requireMatchingPair: true,
   });
   const emailValidation = useAthleteEmailValidation({
     email: formData.email,
@@ -114,6 +123,7 @@ export function useAthleteFormController({
     identityDocumentFile: media.identityDocumentFile,
     documentErrors: media.documentErrors,
     bpjsNumberRequired: bpjsRequirements.numberRequired,
+    bpjsDocumentRequired: bpjsRequirements.documentRequired,
     bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
     bpjsDeferredAcknowledged,
     phoneStatus: phoneValidation.status,
@@ -128,6 +138,7 @@ export function useAthleteFormController({
     athlete,
     bpjsDeferredAcknowledged,
     bpjsRequirements.deferredAcknowledgementRequired,
+    bpjsRequirements.documentRequired,
     bpjsRequirements.numberRequired,
     emailValidation.message,
     emailValidation.status,
@@ -176,6 +187,7 @@ export function useAthleteFormController({
     onSuccess,
     mode,
     submitRequest,
+    bpjsDeferredAcknowledged: bpjsRequirements.deferredAcknowledgementRequired && bpjsDeferredAcknowledged,
   });
 
   const {
@@ -204,17 +216,23 @@ export function useAthleteFormController({
     if (athlete) {
       const mapped = mapAthleteToForm(athlete);
       lastValidAgeGroupRef.current = mapped.ageGroup;
+      const initialDeferredAcknowledged = getInitialBPJSDeferredAcknowledgement(athlete);
       const initialBPJSRequirements = getBPJSRequirements({
         mode,
+        bpjsNumber: mapped.formData.bpjs_number,
         storedBPJSDocument: athlete.bpjs_document,
+        deferredAcknowledged: initialDeferredAcknowledged,
+        requireMatchingPair: true,
       });
+      setBPJSDeferredAcknowledged(initialDeferredAcknowledged);
       setInitialPhoneValues(mapped.phoneValues);
       setFormData(mapped.formData);
       setInitialIncompleteCount(Object.keys(validateAthleteProfile(mapped.formData, {
         athlete,
         bpjsNumberRequired: initialBPJSRequirements.numberRequired,
+        bpjsDocumentRequired: initialBPJSRequirements.documentRequired,
         bpjsDeferredAcknowledgementRequired: initialBPJSRequirements.deferredAcknowledgementRequired,
-        bpjsDeferredAcknowledged: false,
+        bpjsDeferredAcknowledged: initialDeferredAcknowledged,
         phoneStatus: 'valid',
         fatherPhoneStatus: mapped.formData.father_phone ? 'valid' : undefined,
         motherPhoneStatus: mapped.formData.mother_phone ? 'valid' : undefined,
@@ -246,7 +264,7 @@ export function useAthleteFormController({
     ));
     setErrors((previous) => {
       const next = { ...previous };
-      delete next.bpjs_deferred_acknowledgement;
+      delete next.bpjs_deferred_acknowledged;
       return next;
     });
     setErrorMessage('');
@@ -260,7 +278,7 @@ export function useAthleteFormController({
     if (checked) media.setDocumentError('bpjs', '');
     setErrors((previous) => {
       const next = { ...previous };
-      delete next.bpjs_deferred_acknowledgement;
+      delete next.bpjs_deferred_acknowledged;
       if (checked) delete next.bpjs_document;
       return next;
     });
@@ -387,6 +405,7 @@ export function useAthleteFormController({
       canReuseStoredIdentity,
       canReuseStoredBPJS,
       bpjsNumberRequired: bpjsRequirements.numberRequired,
+      bpjsDocumentRequired: bpjsRequirements.documentRequired,
       bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
       bpjsDeferredAcknowledged,
       handleBPJSDeferredAcknowledgementChange,
