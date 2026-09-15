@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -21,6 +21,7 @@ import {
   Medal,
   Award,
   FileText,
+  ExternalLink,
   ArrowLeftRight,
   History as HistoryIcon
 } from 'lucide-react';
@@ -31,12 +32,22 @@ import { AthleteClusterHistoryTab, AthleteDevelopmentFundsTab } from './athlete-
 import { AthleteTransferHistory } from './athlete-transfers/AthleteTransferHistory';
 import { usePermission } from '../hooks/usePermission';
 import {
+  fetchAndOpenStoredDocument,
+  getAthleteStoredDocumentOpenError,
+  revokeStoredDocumentObjectUrls,
+} from './athlete-form/athleteDocumentPreview';
+import {
   openAthleteProfilePrintWindow,
   printAthleteProfile,
 } from './athletes/athleteProfilePrint';
 
 const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 const maritalLabels = { single: 'Belum Menikah', married: 'Menikah', divorced: 'Cerai', widowed: 'Duda/Janda' };
+const identityDocumentLabels = {
+  ktp: 'KTP',
+  family_card: 'Kartu Keluarga',
+  birth_certificate: 'Akte Kelahiran',
+};
 
 function display(value) {
   if (value === null || value === undefined || value === '') return '-';
@@ -79,6 +90,44 @@ function ProfileSection(props) {
   );
 }
 
+function VerificationDocumentCard({ title, description, available, opening, error, onOpen, buttonLabel }) {
+  return (
+    <div className={`rounded-xl border p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs ${
+      available ? 'border-indigo-200/80 bg-indigo-50/50' : 'border-slate-200 bg-slate-50'
+    }`}>
+      <div className="flex items-start gap-2.5 min-w-0">
+        <div className={`p-2 rounded-lg shrink-0 ${
+          available ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-200 text-slate-500'
+        }`}>
+          <FileText aria-hidden="true" className="w-4 h-4" />
+        </div>
+        <div className="min-w-0">
+          <p className={`text-xs font-bold ${available ? 'text-indigo-950' : 'text-slate-700'}`}>{title}</p>
+          <p className={`text-[11px] ${available ? 'text-indigo-700' : 'text-slate-500'}`}>
+            {available ? description : 'Dokumen belum tersedia pada data atlet ini'}
+          </p>
+          {error && <p role="alert" className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
+        </div>
+      </div>
+      {available && (
+        <button
+          type="button"
+          onClick={onOpen}
+          disabled={opening}
+          className="inline-flex shrink-0 items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all shadow-xs disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        >
+          {opening ? (
+            <Loader2 aria-hidden="true" className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <ExternalLink aria-hidden="true" className="w-3.5 h-3.5" />
+          )}
+          <span>{buttonLabel}</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TabButton(props) {
   const { id, activeTab, onSelect, icon: Icon, badge, children } = props;
   const isActive = activeTab === id;
@@ -111,10 +160,119 @@ function TabButton(props) {
 export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive = false, onTransfer }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
+  const [documentOpening, setDocumentOpening] = useState({ identity: false, bpjs: false });
+  const [documentErrors, setDocumentErrors] = useState({ identity: '', bpjs: '' });
   const printingRef = useRef(false);
+  const documentOpenRequestIdsRef = useRef({ identity: 0, bpjs: 0 });
+  const documentOpenControllersRef = useRef({});
+  const documentPreviewWindowsRef = useRef({});
+  const documentObjectUrlsRef = useRef({});
   const { data: educationLevels = [] } = useEducationLevelsAll();
   const { can } = usePermission();
   const canViewTransfers = can("athlete_transfers.view");
+
+  const cleanupDocumentPreview = useCallback(() => {
+    for (const kind of ['identity', 'bpjs']) {
+      documentOpenRequestIdsRef.current[kind] += 1;
+      documentOpenControllersRef.current[kind]?.abort();
+      documentPreviewWindowsRef.current[kind]?.close();
+    }
+    documentOpenControllersRef.current = {};
+    documentPreviewWindowsRef.current = {};
+    revokeStoredDocumentObjectUrls(
+      documentObjectUrlsRef.current,
+      (objectUrl) => URL.revokeObjectURL(objectUrl),
+    );
+    documentObjectUrlsRef.current = {};
+  }, []);
+
+  useEffect(() => {
+    setDocumentOpening({ identity: false, bpjs: false });
+    setDocumentErrors({ identity: '', bpjs: '' });
+    if (!isOpen || !athlete?.id || !canViewSensitive) {
+      cleanupDocumentPreview();
+    }
+    return cleanupDocumentPreview;
+  }, [athlete?.id, canViewSensitive, cleanupDocumentPreview, isOpen]);
+
+  const handleOpenDocument = useCallback(async (kind) => {
+    const documentUrl = kind === 'identity'
+      ? athlete?.identity_document
+      : athlete?.bpjs_document;
+    if (
+      !isOpen ||
+      !canViewSensitive ||
+      !athlete?.id ||
+      !documentUrl ||
+      documentOpening[kind] ||
+      documentOpenControllersRef.current[kind]
+    ) {
+      return;
+    }
+
+    const requestId = ++documentOpenRequestIdsRef.current[kind];
+    const controller = new AbortController();
+    documentOpenControllersRef.current[kind] = controller;
+
+    const label = kind === 'identity'
+      ? (identityDocumentLabels[athlete.identity_document_type] || 'Dokumen Identitas')
+      : 'BPJS';
+    const previewWindow = window.open('', '_blank');
+    documentPreviewWindowsRef.current[kind] = previewWindow;
+    if (previewWindow) {
+      previewWindow.opener = null;
+      previewWindow.document.title = `Memuat ${label}...`;
+      previewWindow.document.body.textContent = `Memuat ${label}...`;
+    }
+    setDocumentOpening((previous) => ({ ...previous, [kind]: true }));
+    setDocumentErrors((previous) => ({ ...previous, [kind]: '' }));
+
+    try {
+      const objectUrl = await fetchAndOpenStoredDocument({
+        apiClient: api,
+        documentUrl,
+        signal: controller.signal,
+        isCurrent: () => requestId === documentOpenRequestIdsRef.current[kind],
+        previewWindow,
+        createObjectURL: (blob) => URL.createObjectURL(blob),
+        documentRef: document,
+      });
+      if (!objectUrl) return;
+
+      if (documentObjectUrlsRef.current[kind]) {
+        URL.revokeObjectURL(documentObjectUrlsRef.current[kind]);
+      }
+      documentObjectUrlsRef.current[kind] = objectUrl;
+    } catch (error) {
+      previewWindow?.close();
+      if (
+        requestId !== documentOpenRequestIdsRef.current[kind] ||
+        error.name === 'CanceledError' ||
+        error.code === 'ERR_CANCELED'
+      ) {
+        return;
+      }
+      setDocumentErrors((previous) => ({
+        ...previous,
+        [kind]: getAthleteStoredDocumentOpenError(kind, error.response?.status),
+      }));
+    } finally {
+      if (requestId === documentOpenRequestIdsRef.current[kind]) {
+        delete documentOpenControllersRef.current[kind];
+        delete documentPreviewWindowsRef.current[kind];
+        setDocumentOpening((previous) => ({ ...previous, [kind]: false }));
+      }
+    }
+  }, [
+    athlete?.bpjs_document,
+    athlete?.id,
+    athlete?.identity_document,
+    athlete?.identity_document_type,
+    canViewSensitive,
+    documentOpening,
+    isOpen,
+  ]);
+
   if (!isOpen || !athlete) return null;
 
   const educationLevel = athlete.education_level?.name
@@ -127,6 +285,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
   const currentCluster = athlete.current_cluster_label || 'Atlet Non Binaan';
   const currentSubCluster = athlete.current_sub_cluster_label;
   const activeStatus = athlete.is_active ? 'Aktif' : 'Nonaktif';
+  const identityDocumentLabel = identityDocumentLabels[athlete.identity_document_type] || 'Dokumen Identitas';
   const topAchievements = (athlete.top_achievements || []).filter(Boolean);
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
 
@@ -459,7 +618,36 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                   <ProfileField label="Alamat Domisili" value={athlete.address} className="sm:col-span-2" />
                 </ProfileSection>
 
-                {/* 2. Cabang Olahraga & Organisasi */}
+                {/* 2. Dokumen Wajib Verifikasi */}
+                {canViewSensitive && (
+                  <ProfileSection
+                    title="Dokumen Wajib Verifikasi"
+                    icon={ShieldCheck}
+                    iconColor="text-indigo-600"
+                    iconBg="bg-indigo-50"
+                  >
+                    <VerificationDocumentCard
+                      title={identityDocumentLabel}
+                      description={`${identityDocumentLabel} tersedia untuk verifikasi`}
+                      available={Boolean(athlete.identity_document)}
+                      opening={documentOpening.identity}
+                      error={documentErrors.identity}
+                      onOpen={() => handleOpenDocument('identity')}
+                      buttonLabel={`Buka ${identityDocumentLabel}`}
+                    />
+                    <VerificationDocumentCard
+                      title="BPJS Kesehatan/Ketenagakerjaan"
+                      description="Dokumen kepesertaan BPJS tersedia untuk verifikasi"
+                      available={Boolean(athlete.bpjs_document)}
+                      opening={documentOpening.bpjs}
+                      error={documentErrors.bpjs}
+                      onOpen={() => handleOpenDocument('bpjs')}
+                      buttonLabel="Buka BPJS"
+                    />
+                  </ProfileSection>
+                )}
+
+                {/* 3. Cabang Olahraga & Organisasi */}
                 <ProfileSection
                   title="Cabang Olahraga & Organisasi"
                   icon={Trophy}
@@ -474,7 +662,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                   <ProfileField label="Sub-Kluster Aktif" value={currentSubCluster} />
                 </ProfileSection>
 
-                {/* 3. Fisik, Kontak & Pendidikan */}
+                {/* 4. Fisik, Kontak & Pendidikan */}
                 <ProfileSection
                   title={canViewSensitive ? 'Fisik, Kontak & Pendidikan' : 'Fisik & Pendidikan'}
                   icon={Activity}
@@ -495,7 +683,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                   <ProfileField label="Hobi" value={athlete.hobby} />
                 </ProfileSection>
 
-                {/* 4. Orang Tua / Wali */}
+                {/* 5. Orang Tua / Wali */}
                 <ProfileSection
                   title="Data Orang Tua / Wali"
                   icon={Heart}
@@ -509,7 +697,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                   <ProfileField label="Alamat Orang Tua / Wali" value={athlete.parent_address} className="sm:col-span-2" />
                 </ProfileSection>
 
-                {/* 5. Prestasi Tertinggi & Medis */}
+                {/* 6. Prestasi Tertinggi & Medis */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Prestasi */}
                   <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/70 to-amber-100/30 p-4 sm:p-5 shadow-xs">
