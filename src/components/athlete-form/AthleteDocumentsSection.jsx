@@ -1,4 +1,4 @@
-import { CheckCircle2, FileText, Loader2, Upload } from 'lucide-react';
+import { CheckCircle2, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
 import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
@@ -12,12 +12,14 @@ export function AthleteDocumentsSection({
   files,
   validation,
   showBPJSNumber = false,
+  showStoredDocumentButtons = false,
 }) {
   const { data: formData, updateField } = form;
   const {
     identityDocumentFile,
     bpjsDocumentFile,
     documentProcessing,
+    documentOpening,
     documentErrors,
   } = files;
   const {
@@ -31,6 +33,7 @@ export function AthleteDocumentsSection({
   const handleDocumentChange = (kind) => files.handleDocumentChange(kind, formData.birth_date);
   const storedIdentityNeedsConfirmation = Boolean(athlete?.identity_document) && !storedIdentityType;
   const selectedIdentityLabel = IDENTITY_DOCUMENT_LABELS[formData.identity_document_type];
+  const storedIdentityLabel = IDENTITY_DOCUMENT_LABELS[storedIdentityType] || 'Dokumen Identitas';
 
   return (
     <FormSectionCard
@@ -115,6 +118,18 @@ export function AthleteDocumentsSection({
           />
         </label>
 
+        {showStoredDocumentButtons && athlete?.identity_document && (
+          <button
+            type="button"
+            onClick={() => files.handleOpenStoredDocument('identity')}
+            disabled={documentOpening.identity || documentProcessing.identity}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {documentOpening.identity ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+            <span>{documentOpening.identity ? 'Membuka Dokumen...' : `Buka ${storedIdentityLabel} Tersimpan`}</span>
+          </button>
+        )}
+
         {identityDocumentFile ? (
           <p className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs font-medium text-emerald-700">
             <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
@@ -187,6 +202,18 @@ export function AthleteDocumentsSection({
           <span className="text-xs font-bold text-slate-700">{documentProcessing.bpjs ? 'Memproses dokumen...' : 'Pilih Dokumen BPJS'}</span>
           <input name="bpjs_document" type="file" accept={DOCUMENT_ACCEPT} onChange={form.handleBPJSDocumentChange} disabled={documentProcessing.bpjs} className="hidden" />
         </label>
+
+        {showStoredDocumentButtons && athlete?.bpjs_document && (
+          <button
+            type="button"
+            onClick={() => files.handleOpenStoredDocument('bpjs')}
+            disabled={documentOpening.bpjs || documentProcessing.bpjs}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 shadow-2xs transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {documentOpening.bpjs ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+            <span>{documentOpening.bpjs ? 'Membuka Dokumen...' : 'Buka Dokumen BPJS Tersimpan'}</span>
+          </button>
+        )}
 
         {bpjsDocumentFile ? (
           <p className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 p-2 text-xs font-medium text-emerald-700">

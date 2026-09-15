@@ -11,6 +11,7 @@ export function AthletePersonalStep({
   files,
   validation,
   showBPJSNumber = false,
+  showStoredDocumentButtons = false,
 }) {
   return (
     <div className="space-y-4">
@@ -29,6 +30,7 @@ export function AthletePersonalStep({
         files={files}
         validation={validation}
         showBPJSNumber={showBPJSNumber}
+        showStoredDocumentButtons={showStoredDocumentButtons}
       />
       <AthleteAffiliationSection athlete={athlete} form={form} lookups={lookups} validation={validation} />
     </div>
