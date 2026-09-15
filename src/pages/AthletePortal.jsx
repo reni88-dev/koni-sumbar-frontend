@@ -370,6 +370,7 @@ function AthleteProfileEditor({ athlete, onCancel, onSuccess, missingFields, foc
     athlete,
     onSuccess,
     mode: 'portal',
+    useAdminBPJSRules: true,
     submitRequest: updateProfile.mutateAsync,
   });
   const { formContainerRef, validationSummaryRef, form, lookups, files, validation, submission } = controller;
@@ -413,6 +414,7 @@ function AthleteProfileEditor({ athlete, onCancel, onSuccess, missingFields, foc
         lookups={lookups}
         files={files}
         validation={validation}
+        showBPJSNumber
       />
       <AthletePhysicalContactStep form={form} lookups={lookups} validation={validation} />
       <AthleteCareerStep

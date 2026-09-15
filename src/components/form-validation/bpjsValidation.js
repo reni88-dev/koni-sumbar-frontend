@@ -5,6 +5,7 @@ function hasValue(value) {
 
 export function getBPJSRequirements({
   mode = 'admin',
+  useAdminRules = mode === 'admin',
   bpjsNumber,
   bpjsDocumentFile,
   storedBPJSDocument,
@@ -13,7 +14,7 @@ export function getBPJSRequirements({
 } = {}) {
   const numberAvailable = hasValue(bpjsNumber);
   const documentAvailable = hasValue(bpjsDocumentFile) || hasValue(storedBPJSDocument);
-  const usesAdminRules = mode === 'admin';
+  const usesAdminRules = Boolean(useAdminRules);
   const documentRequired = usesAdminRules && requireMatchingPair && numberAvailable && !documentAvailable;
   const deferredAcknowledgementRequired = usesAdminRules && (
     requireMatchingPair
@@ -36,6 +37,10 @@ export function nextBPJSDeferredAcknowledgement(currentValue, event) {
   if (event === 'reset' || event === 'file-selected' || event === 'number-entered') return false;
   return Boolean(currentValue);
 }
+export function getInitialBPJSNumber(athlete) {
+  return athlete?.bpjs_number || '';
+}
+
 export function getInitialBPJSDeferredAcknowledgement(athlete) {
   return Boolean(athlete?.bpjs_deferred_acknowledged);
 }

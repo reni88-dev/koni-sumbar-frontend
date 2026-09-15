@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { normalizeValidationErrors } from '../form-modal/formUtils';
 import {
@@ -36,6 +35,7 @@ export function useAthleteFormController({
   athlete,
   onSuccess,
   mode = 'admin',
+  useAdminBPJSRules = mode === 'admin',
   submitRequest,
 }) {
   const formContainerRef = useRef(null);
@@ -105,6 +105,7 @@ export function useAthleteFormController({
   });
   const bpjsRequirements = getBPJSRequirements({
     mode,
+    useAdminRules: useAdminBPJSRules,
     bpjsNumber: formData.bpjs_number,
     bpjsDocumentFile: media.bpjsDocumentFile,
     storedBPJSDocument: athlete?.bpjs_document,
@@ -219,6 +220,7 @@ export function useAthleteFormController({
       const initialDeferredAcknowledged = getInitialBPJSDeferredAcknowledgement(athlete);
       const initialBPJSRequirements = getBPJSRequirements({
         mode,
+        useAdminRules: useAdminBPJSRules,
         bpjsNumber: mapped.formData.bpjs_number,
         storedBPJSDocument: athlete.bpjs_document,
         deferredAcknowledged: initialDeferredAcknowledged,
@@ -255,6 +257,7 @@ export function useAthleteFormController({
     isOpen,
     mode,
     resetMedia,
+    useAdminBPJSRules,
     setLoading,
   ]);
 

@@ -56,7 +56,7 @@ export function useAthleteSubmission({
 
     try {
       const data = buildAthleteFormData(submissionData, files, {
-        excludedFields: mode === 'portal' ? ['is_active', 'bpjs_number', 'bpjs_deferred_acknowledged'] : [],
+        excludedFields: mode === 'portal' ? ['is_active'] : [],
         includeEmptyFields: mode === 'portal',
       });
       if (submitRequest) {
