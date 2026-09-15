@@ -7,7 +7,7 @@ import { RegionCascadeFields } from '../form-modal/RegionCascadeFields';
 
 const OPTIONAL_REGION_FIELDS = ['village'];
 
-export function CoachAffiliationSection({ form, lookups, validation }) {
+export function CoachAffiliationSection({ coach, form, lookups, validation }) {
   const { data: formData, updateField } = form;
   const { cabors, organizations } = lookups;
   const { errors } = validation;
@@ -43,7 +43,9 @@ export function CoachAffiliationSection({ form, lookups, validation }) {
           value={formData.organization_id}
           onChange={(val) => updateField('organization_id', val)}
           placeholder="Cari & pilih organisasi / pengcab..."
+          disabled={Boolean(coach)}
         />
+        {coach && <p className="mt-1 text-xs text-slate-500">Pemindahan organisasi hanya melalui fitur Transfer Pelatih.</p>}
       </div>
 
       <div className="sm:col-span-2">

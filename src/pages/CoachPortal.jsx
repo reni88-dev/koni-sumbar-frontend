@@ -534,7 +534,7 @@ function CoachProfileEditor({ coach, onCancel, onSuccess, missingFields, focusBP
         </div>
       )}
 
-      <CoachPersonalStep form={form} lookups={lookups} files={files} validation={validation} />
+      <CoachPersonalStep coach={coach} form={form} lookups={lookups} files={files} validation={validation} />
       <CoachContactStep form={form} validation={validation} />
       <CoachLicenseCareerStep
         coach={coach}

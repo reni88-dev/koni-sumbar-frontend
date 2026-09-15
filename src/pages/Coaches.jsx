@@ -9,6 +9,7 @@ import {
   Loader2,
   AlertCircle,
   Eye,
+  ArrowLeftRight,
   Layers,
   Download,
   Upload,
@@ -30,6 +31,7 @@ import { usePermission } from '../hooks/usePermission';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CoachFormModal } from '../components/CoachFormModal';
 import { CoachDetailModal } from '../components/CoachDetailModal';
+import { CoachTransferCreateModal } from '../components/coach-transfers/CoachTransferCreateModal';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { useInfiniteCoaches, useDeleteCoach, coachKeys } from '../hooks/queries/useCoaches';
 import { useCaborsAll } from '../hooks/queries/useCabors';
@@ -47,6 +49,7 @@ export function CoachesPage() {
   const canCreate = can('coaches.create');
   const canEdit = can('coaches.edit');
   const canDelete = can('coaches.delete');
+  const canTransfer = can('coach_transfers.create');
   const canViewSensitive = can('coaches.sensitive.read');
   const canCreateSensitive = canCreate && canViewSensitive;
   const canEditSensitive = canEdit && canViewSensitive;
@@ -66,6 +69,7 @@ export function CoachesPage() {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [coachToDelete, setCoachToDelete] = useState(null);
   const [deleteError, setDeleteError] = useState('');
 
@@ -945,6 +949,16 @@ export function CoachesPage() {
                               <Eye className="w-4 h-4" />
                             </button>
                           )}
+                          {canTransfer && coach.is_active && (
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedCoach(coach); setIsTransferModalOpen(true); }}
+                              className="p-1.5 text-slate-400 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+                              title="Ajukan Transfer"
+                            >
+                              <ArrowLeftRight className="w-4 h-4" />
+                            </button>
+                          )}
                           {canEditSensitive && (
                             <button
                               type="button"
@@ -1007,9 +1021,22 @@ export function CoachesPage() {
           onClose={() => setIsDetailModalOpen(false)}
           coach={selectedCoach}
           canViewSensitive={canViewSensitive}
+          onTransfer={canTransfer ? (coach) => {
+            setIsDetailModalOpen(false);
+            setSelectedCoach(coach);
+            setIsTransferModalOpen(true);
+          } : undefined}
         />
       )}
 
+      {canTransfer && (
+        <CoachTransferCreateModal
+          coach={selectedCoach}
+          isOpen={isTransferModalOpen}
+          onClose={() => setIsTransferModalOpen(false)}
+          onSuccess={() => showSuccessToast('Pengajuan transfer berhasil dikirim.')}
+        />
+      )}
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && coachToDelete && (

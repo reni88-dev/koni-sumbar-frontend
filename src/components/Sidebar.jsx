@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useComplaintSummary } from '../hooks/queries/useComplaints';
 import { useAccountEmailRecoverySummary } from '../hooks/queries/useAccountEmailRecovery';
 import { useAthleteTransferSummary } from '../hooks/queries/useAthleteTransfers';
+import { useCoachTransferSummary } from '../hooks/queries/useCoachTransfers';
 import { 
   LayoutDashboard, 
   Users, 
@@ -102,6 +103,8 @@ function SidebarContent({ onNavigate }) {
   const { data: recoverySummary } = useAccountEmailRecoverySummary(Boolean(hasRecoveryPermission));
   const hasTransferPermission = hasSuperAdminAccess || user?.permissions?.includes('athlete_transfers.view');
   const { data: transferSummary } = useAthleteTransferSummary(Boolean(hasTransferPermission));
+  const hasCoachTransferPermission = hasSuperAdminAccess || user?.permissions?.includes('coach_transfers.view');
+  const { data: coachTransferSummary } = useCoachTransferSummary(Boolean(hasCoachTransferPermission));
 
   const isActive = (path) => location.pathname === path || (path === '/pengaduan' && location.pathname.startsWith('/pengaduan/'));
   const isChildActive = (children) => children?.some(child => location.pathname === child.path);
@@ -177,6 +180,7 @@ function SidebarContent({ onNavigate }) {
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
     { icon: ArrowLeftRight, label: 'Transfer Atlet', path: '/transfer-atlet', permission: 'athlete_transfers.view', badge: transferSummary?.pending_action_count || 0 },
     { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
+    { icon: ArrowLeftRight, label: 'Transfer Pelatih', path: '/transfer-pelatih', permission: 'coach_transfers.view', badge: coachTransferSummary?.pending_action_count || 0 },
     { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },
     ...(hasPermission('training.view') || isCoach()
       ? [{

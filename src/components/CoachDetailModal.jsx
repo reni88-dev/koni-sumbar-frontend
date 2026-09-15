@@ -10,6 +10,8 @@ import {
   Heart,
   Layers,
   Wallet,
+  ArrowLeftRight,
+  History as HistoryIcon,
   Printer,
   Loader2,
   Sparkles,
@@ -29,6 +31,8 @@ import {
   printCoachProfile,
 } from './coaches/coachProfilePrint';
 import { CoachClusterHistoryTab, CoachDevelopmentFundsTab } from './coach-clusters';
+import { CoachTransferHistory } from './coach-transfers/CoachTransferHistory';
+import { usePermission } from '../hooks/usePermission';
 
 const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 
@@ -134,11 +138,13 @@ function TabButton(props) {
   );
 }
 
-export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = false }) {
+export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = false, onTransfer }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
   const printingRef = useRef(false);
   const [openingDocument, setOpeningDocument] = useState('');
+  const { can } = usePermission();
+  const canViewTransfers = can('coach_transfers.view');
   const documentRequestIdRef = useRef(0);
   const documentControllerRef = useRef(null);
   const documentPreviewWindowRef = useRef(null);
@@ -317,6 +323,16 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
               </div>
 
               <div className="flex items-center gap-2">
+                {onTransfer && coach.is_active && (
+                  <button
+                    type="button"
+                    onClick={() => onTransfer(coach)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-1.5 text-xs font-semibold text-white border border-white/20 hover:bg-white/25"
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ajukan Transfer</span>
+                  </button>
+                )}
                 {canViewSensitive && (
                   <button
                     type="button"
@@ -531,6 +547,11 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
               <TabButton id="funds" activeTab={activeTab} onSelect={setActiveTab} icon={Wallet}>
                 Biaya Pembinaan
               </TabButton>
+              {canViewTransfers && (
+                <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={HistoryIcon}>
+                  Riwayat Transfer
+                </TabButton>
+              )}
             </div>
 
             {/* Tab 1: Profil Lengkap */}
@@ -672,6 +693,8 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
 
             {/* Tab 3: Biaya Pembinaan */}
             {activeTab === 'funds' && <CoachDevelopmentFundsTab coach={coach} onOpenClusterHistory={() => setActiveTab('clusters')} />}
+
+            {activeTab === 'transfers' && canViewTransfers && <CoachTransferHistory coachId={coach.id} />}
           </div>
         </div>
       </Motion.div>
