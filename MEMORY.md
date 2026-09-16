@@ -385,7 +385,7 @@ Implementasi mencoba mengekstrak referensi asset dengan regex tertentu. Jika tid
 
 ## Test dan Automation
 
-Repository mempunyai suite helper berbasis Node test runner melalui script `npm test`. Pada 2026-09-16 suite mencakup 66 test, termasuk kontrak URL/request laporan kualitas data serta helper auth/user access. Repository belum mempunyai Vitest/Jest DOM, Playwright, Cypress, atau workflow CI yang membuktikan browser flow.
+Repository mempunyai suite helper berbasis Node test runner melalui script `npm test`. Pada 2026-09-16 suite mencakup 69 test, termasuk kontrak URL/request laporan kualitas data serta helper auth/user access. Repository belum mempunyai Vitest/Jest DOM, Playwright, Cypress, atau workflow CI yang membuktikan browser flow.
 
 Karena itu `npm test`, targeted ESLint, full lint baseline, dan production build tetap harus dilengkapi review kontrak serta browser/runtime check manual bila tersedia.
 
@@ -414,6 +414,9 @@ Pada **2026-08-25**, targeted ESLint untuk gating katalog dan UI sensitif atlet/
 Pada **2026-09-16**, implementasi laporan kualitas data beserta scan manual berbasis permission tervalidasi dengan targeted ESLint tanpa output, `npm test` lulus **63/63**, dan `npm run build` berhasil: 2.733 module transformed, bundle JS utama `2,172.01 kB` minified/`538.32 kB` gzip. Full `npm run lint` tetap nonzero dengan **55 problems (49 errors, 6 warnings)** pada file baseline lama di luar scope; file laporan baru/diubah bersih pada targeted lint. `git diff --check` bersih. Browser flow dan runtime API tidak dijalankan dari workspace ini.
 
 Pada **2026-09-16**, fitur penonaktifan akses per user di `/master/users` tervalidasi dengan targeted ESLint tanpa output, `npm test` lulus **66/66**, dan `npm run build` berhasil: 2.734 module transformed, bundle JS utama `2,178.82 kB` minified/`539.10 kB` gzip. Full `npm run lint` tetap nonzero dengan **55 problems (49 errors, 6 warnings)** pada file baseline lama di luar scope. Browser flow dan runtime API belum dijalankan dari workspace ini.
+
+Pada **2026-09-16**, input nama utama atlet dan pelatih pada modal admin serta portal dibatasi menjadi huruf Unicode dan spasi melalui komponen form bersama, dengan validasi yang konsisten sebelum submit. Dropdown pemilihan kelas pertandingan pada form atlet dikomentari agar tidak tampil namun mudah diaktifkan kembali. Targeted ESLint lulus tanpa output, `npm test` lulus **69/69**, dan `npm run build` berhasil: 2.734 module transformed, bundle JS utama `2,178.74 kB` minified/`539.15 kB` gzip; warning chunk >500 kB tetap non-blocking. Full lint tetap baseline merah **55 problems (49 errors, 6 warnings)** di luar scope, dan browser/runtime API belum diuji.
+
 ## Watchlist: Jangan Ikuti Asumsi Usang
 
 1. **README masih template Vite generik.** Ia tidak menjelaskan domain KONI, route, auth, API, Docker, atau baseline repository aktual.

@@ -6,7 +6,7 @@ import { getFieldControlProps, getFieldErrorId } from '../form-validation/profil
 
 export function AthleteAffiliationSection({ athlete, form, lookups, validation }) {
   const { data: formData, updateField, handleCaborChange } = form;
-  const { cabors, organizations, competitionClasses } = lookups;
+  const { cabors, organizations } = lookups;
   const errors = validation?.errors || {};
   return (
     <FormSectionCard
@@ -31,6 +31,9 @@ export function AthleteAffiliationSection({ athlete, form, lookups, validation }
         {errors.cabor_id && <p id={getFieldErrorId('cabor_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.cabor_id)}</p>}
       </div>
 
+      {/* Dropdown kelas pertandingan disembunyikan sementara.
+          Untuk mengaktifkan kembali, ambil kembali competitionClasses dari lookups
+          lalu uncomment blok berikut.
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
           Kelas Pertandingan
@@ -47,6 +50,7 @@ export function AthleteAffiliationSection({ athlete, form, lookups, validation }
         />
         {errors.competition_class_id && <p id={getFieldErrorId('competition_class_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.competition_class_id)}</p>}
       </div>
+      */}
 
       <div>
         <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
