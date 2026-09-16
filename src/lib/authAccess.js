@@ -1,6 +1,7 @@
 export const ACCESS_CODES = Object.freeze({
   AUTH_REQUIRED: 'AUTH_REQUIRED',
   AUTH_SESSION_INVALID: 'AUTH_SESSION_INVALID',
+  USER_ACCESS_DISABLED: 'USER_ACCESS_DISABLED',
   ROLE_ACCESS_DISABLED: 'ROLE_ACCESS_DISABLED',
   ORGANIZATION_ASSIGNMENT_REQUIRED: 'ORGANIZATION_ASSIGNMENT_REQUIRED',
   INSUFFICIENT_PERMISSION: 'INSUFFICIENT_PERMISSION',
@@ -17,6 +18,8 @@ export const SESSION_EXPIRED_MESSAGE =
   'Sesi Anda telah berakhir. Silakan masuk kembali untuk melanjutkan.';
 export const ROLE_ACCESS_DISABLED_MESSAGE =
   'Akses untuk role akun Anda sedang dinonaktifkan. Hubungi administrator untuk informasi lebih lanjut.';
+export const USER_ACCESS_DISABLED_MESSAGE =
+  'Akses akun Anda sedang dinonaktifkan. Hubungi administrator untuk informasi lebih lanjut.';
 export const ORGANIZATION_ASSIGNMENT_REQUIRED_MESSAGE =
   'Akun Anda belum terhubung ke organisasi. Hubungi administrator untuk menyelesaikan penugasan akun.';
 export const ACCESS_SERVICE_UNAVAILABLE_MESSAGE =
@@ -59,6 +62,7 @@ export function isSessionInvalidError(error) {
 export function isAccountBlockedError(error) {
   const code = getAccessCode(error);
   return (
+    code === ACCESS_CODES.USER_ACCESS_DISABLED ||
     code === ACCESS_CODES.ROLE_ACCESS_DISABLED ||
     code === ACCESS_CODES.ORGANIZATION_ASSIGNMENT_REQUIRED
   );
@@ -88,6 +92,14 @@ export function getAccountBlock(errorOrDetail) {
     errorOrDetail,
     directMessage && directMessage.length <= 500 ? directMessage : '',
   );
+
+  if (code === ACCESS_CODES.USER_ACCESS_DISABLED) {
+    return {
+      code,
+      title: 'Akses Akun Dinonaktifkan',
+      message: apiMessage || USER_ACCESS_DISABLED_MESSAGE,
+    };
+  }
 
   if (code === ACCESS_CODES.ORGANIZATION_ASSIGNMENT_REQUIRED) {
     return {

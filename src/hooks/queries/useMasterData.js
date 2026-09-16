@@ -264,6 +264,22 @@ export function useUpdateUser() {
   });
 }
 
+export function useSetUserAccess() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, accessEnabled, accessDisabledMessage = '' }) => {
+      const response = await api.put(`/api/master/users/${userId}/access`, {
+        access_enabled: accessEnabled,
+        access_disabled_message: accessDisabledMessage,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: userKeys.all });
+    },
+  });
+}
+
 export function useDeleteUser() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -11,19 +11,19 @@ Jika branch, commit, dependency, backend sibling, atau source berubah, verifikas
 
 ## Snapshot Repository
 
-Snapshot diverifikasi ulang pada **2026-08-24** di Windows, timezone `Asia/Jakarta`.
+Snapshot diverifikasi ulang pada **2026-09-16** di Windows, timezone `Asia/Jakarta`.
 
 | Item | Nilai pada snapshot |
 | --- | --- |
 | Repository | `koni-sumbar-frontend` |
 | Package | `frontend@0.0.0`, private, ESM |
 | Branch | `coach-cluster`, tracking `origin/coach-cluster` |
-| Commit | `304701f4e041d1ed3d6ae3152e714dae9c55abd8` (`304701f`) |
-| Commit subject | `update accountemailrecovery.jsx` |
-| Waktu commit | `2026-08-24T06:51:41+07:00` |
-| Working tree awal task access hardening | Bersih |
+| Commit | `e3364db6e7f487ed20b6f75fced516cf100ddaf3` (`e3364db`) |
+| Commit subject | `update` |
+| Waktu commit | `2026-09-16T14:21:13+07:00` |
+| Working tree awal task akses user | Bersih |
 | Git line ending | `core.autocrlf=true` |
-| Backend sibling saat diperiksa | `../golang-koni-sumbar`, branch `refactor`, commit `b06682b01b133e0d8dd8269beb7e09e44514bd40` |
+| Backend sibling saat diperiksa | `../golang-koni-sumbar`, branch `refactor`, commit `41f17c0dc5d3072e4e91e010833e4cf9e9a4bd53` |
 
 Snapshot branch/commit bukan fakta permanen. Selalu mulai sesi baru dengan status, branch, dan commit terbaru.
 
@@ -176,6 +176,8 @@ Masing-masing route detail dibungkus `PermissionRoute` dengan permission `report
 - `/master/organizations`
 - `/master/venues`
 
+Pada `/master/users`, kolom **Akses** menampilkan status aktif/nonaktif dan pesan penonaktifan. Hanya `super_admin` yang mendapat aksi toggle/edit pesan; akun yang sedang login tidak dapat menonaktifkan dirinya sendiri. Mutation memakai `PUT /api/master/users/{id}/access`, pesan opsional maksimal 500 karakter, lalu menginvalidasi `userKeys.all`.
+
 ### Sistem dan Fallback
 
 - `/activity-logs`
@@ -230,9 +232,9 @@ Query `/api/master/roles/all` pada halaman User hanya aktif bila user memiliki `
 6. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
 7. Bootstrap `/api/user` yang gagal karena network/5xx/`ACCESS_SERVICE_UNAVAILABLE` mempertahankan token dan menampilkan layar **Layanan Akses Tidak Tersedia** dengan tindakan **Coba Lagi** dan **Keluar**.
 8. `AUTH_REQUIRED`/`AUTH_SESSION_INVALID` pada protected request membersihkan user/token/cache dan menyimpan session-expired notice satu kali di session storage.
-9. `ROLE_ACCESS_DISABLED` dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape.
+9. `USER_ACCESS_DISABLED`, `ROLE_ACCESS_DISABLED`, dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape. Blokir user memakai judul **Akses Akun Dinonaktifkan** dan pesan backend atau fallback sistem.
 10. `INSUFFICIENT_PERMISSION` tidak logout; event global menampilkan notice, me-refresh `/api/user` secara terdeduplikasi, lalu membersihkan cache setelah permission terbaru diterima.
-11. Login membedakan credential salah, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
+11. Login membedakan credential salah, user disabled, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
 
 ### Axios Interceptor
 
@@ -383,7 +385,7 @@ Implementasi mencoba mengekstrak referensi asset dengan regex tertentu. Jika tid
 
 ## Test dan Automation
 
-Repository mempunyai suite helper berbasis Node test runner melalui script `npm test`. Pada 2026-09-16 suite mencakup 63 test, termasuk kontrak URL/request laporan kualitas data. Repository belum mempunyai Vitest/Jest DOM, Playwright, Cypress, atau workflow CI yang membuktikan browser flow.
+Repository mempunyai suite helper berbasis Node test runner melalui script `npm test`. Pada 2026-09-16 suite mencakup 66 test, termasuk kontrak URL/request laporan kualitas data serta helper auth/user access. Repository belum mempunyai Vitest/Jest DOM, Playwright, Cypress, atau workflow CI yang membuktikan browser flow.
 
 Karena itu `npm test`, targeted ESLint, full lint baseline, dan production build tetap harus dilengkapi review kontrak serta browser/runtime check manual bila tersedia.
 
@@ -410,6 +412,8 @@ Pada **2026-08-25**, targeted ESLint untuk `App.jsx`, `PortalRoute.jsx`, `mediaU
 Pada **2026-08-25**, targeted ESLint untuk gating katalog dan UI sensitif atlet/pelatih berhasil tanpa output. `npm run build` juga berhasil: 2.672 module transformed, bundle JS utama `1,681.14 kB` minified/`423.24 kB` gzip, dengan warning chunk >500 kB yang tetap non-blocking. Browser flow dan runtime API tidak dijalankan dari workspace ini.
 
 Pada **2026-09-16**, implementasi laporan kualitas data beserta scan manual berbasis permission tervalidasi dengan targeted ESLint tanpa output, `npm test` lulus **63/63**, dan `npm run build` berhasil: 2.733 module transformed, bundle JS utama `2,172.01 kB` minified/`538.32 kB` gzip. Full `npm run lint` tetap nonzero dengan **55 problems (49 errors, 6 warnings)** pada file baseline lama di luar scope; file laporan baru/diubah bersih pada targeted lint. `git diff --check` bersih. Browser flow dan runtime API tidak dijalankan dari workspace ini.
+
+Pada **2026-09-16**, fitur penonaktifan akses per user di `/master/users` tervalidasi dengan targeted ESLint tanpa output, `npm test` lulus **66/66**, dan `npm run build` berhasil: 2.734 module transformed, bundle JS utama `2,178.82 kB` minified/`539.10 kB` gzip. Full `npm run lint` tetap nonzero dengan **55 problems (49 errors, 6 warnings)** pada file baseline lama di luar scope. Browser flow dan runtime API belum dijalankan dari workspace ini.
 ## Watchlist: Jangan Ikuti Asumsi Usang
 
 1. **README masih template Vite generik.** Ia tidak menjelaskan domain KONI, route, auth, API, Docker, atau baseline repository aktual.
