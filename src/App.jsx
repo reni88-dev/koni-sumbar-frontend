@@ -48,6 +48,8 @@ import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
 import { DataSummaryPage } from './pages/DataSummary';
 import { DataDuplicatesPage } from './pages/DataDuplicates';
+import { DataQualityReportIndex, DataQualityReportPage } from './pages/DataQualityReport';
+import { QUALITY_REPORTS, QUALITY_REPORT_BASE_PATH } from './features/data-quality-report/reportConfig.js';
 import { SystemAnnouncementsPage } from './pages/SystemAnnouncements';
 import { EmailBroadcastsPage } from './pages/EmailBroadcasts';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -141,6 +143,29 @@ function App() {
           </ProtectedRoute>
         }
       />
+      {/* Read-only Data Quality Report Routes */}
+      <Route
+        path={QUALITY_REPORT_BASE_PATH}
+        element={
+          <ProtectedRoute>
+            <DataQualityReportIndex />
+          </ProtectedRoute>
+        }
+      />
+      {QUALITY_REPORTS.map((report) => (
+        <Route
+          key={report.key}
+          path={report.path}
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission={report.permission}>
+                <DataQualityReportPage reportKey={report.key} />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+      ))}
+
       <Route
         path="/transfer-atlet"
         element={

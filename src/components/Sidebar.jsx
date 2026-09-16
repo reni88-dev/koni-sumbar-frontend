@@ -34,9 +34,11 @@ import {
   ChartPie,
   ScanSearch,
   Megaphone,
-  ArrowLeftRight
+  ArrowLeftRight,
+  BarChart3
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
+import { QUALITY_REPORTS } from '../features/data-quality-report/reportConfig.js';
 
 export function Sidebar({ isOpen, onClose }) {
   return (
@@ -213,6 +215,25 @@ function SidebarContent({ onNavigate }) {
         }]
       : []),
   ]);
+  const qualityReportChildren = QUALITY_REPORTS
+    .filter((report) => hasPermission(report.permission))
+    .map((report) => ({
+      icon: BarChart3,
+      label: report.label,
+      path: report.path,
+    }));
+
+  const reportItems = filterVisibleItems([
+    ...(qualityReportChildren.length
+      ? [{
+          icon: BarChart3,
+          label: 'Laporan Kualitas Data',
+          path: '#',
+          children: qualityReportChildren,
+        }]
+      : []),
+  ]);
+
   const masterDataChildren = filterVisibleItems([
     { icon: Users, label: 'Data User', path: '/master/users', permission: 'users.view' },
     { icon: Shield, label: 'Data Role', path: '/master/roles', permission: 'roles.view' },
@@ -257,6 +278,7 @@ function SidebarContent({ onNavigate }) {
     ...createSection('Pembinaan', pembinaanItems),
     ...createSection('Kegiatan', kegiatanItems),
     ...createSection('Analisis Data', analysisItems),
+    ...createSection('Laporan', reportItems),
     ...createSection('Master Data', masterDataItems),
     ...createSection('Sistem', systemItems),
   ];

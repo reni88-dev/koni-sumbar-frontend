@@ -33,3 +33,6 @@ export * from './useDataAnalysis';
 
 // System announcements
 export * from './useAnnouncements';
+
+// Data quality reports and permission-gated manual scan
+export * from './useDataQualityReports';
