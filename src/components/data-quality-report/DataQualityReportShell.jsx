@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -132,28 +134,153 @@ function SelectField({ id, label, value, options, onChange }) {
   );
 }
 
-function ScopeMultiSelect({ field, label, options, value, onChange, disabled }) {
+function ScopeCheckboxDropdown({ field, label, options, value, onChange, disabled }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef(null);
+  const triggerRef = useRef(null);
+  const dropdownOpen = isOpen && !disabled;
+  const panelId = `quality-${field}-options`;
+  const selectedValues = (value || []).map(String);
+  const selectedSet = new Set(selectedValues);
+  const normalizedSearch = search.trim().toLocaleLowerCase('id-ID');
+  const filteredOptions = normalizedSearch
+    ? options.filter((option) => String(option.name || '').toLocaleLowerCase('id-ID').includes(normalizedSearch))
+    : options;
+
+  let summary = 'Semua';
+  if (selectedValues.length === 1) {
+    const selectedOption = options.find((option) => String(option.id) === selectedValues[0]);
+    summary = selectedOption?.name || `ID ${selectedValues[0]}`;
+  } else if (selectedValues.length > 1) {
+    summary = `${selectedValues.length} dipilih`;
+  }
+
+  useEffect(() => {
+    if (!dropdownOpen) return undefined;
+
+    const closeDropdown = () => {
+      setIsOpen(false);
+      setSearch('');
+    };
+    const handlePointerDown = (event) => {
+      if (!containerRef.current?.contains(event.target)) closeDropdown();
+    };
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      closeDropdown();
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [dropdownOpen]);
+
+  const toggleDropdown = () => {
+    if (dropdownOpen) {
+      setIsOpen(false);
+      setSearch('');
+      return;
+    }
+    setIsOpen(true);
+  };
+
+  const toggleOption = (optionId, checked) => {
+    const optionValue = String(optionId);
+    onChange(checked
+      ? [...selectedValues, optionValue]
+      : selectedValues.filter((selectedValue) => selectedValue !== optionValue));
+  };
+
   return (
-    <label htmlFor={`quality-${field}`} className="space-y-1.5 text-sm font-medium text-slate-700">
-      <span>{label}</span>
-      <select
-        id={`quality-${field}`}
-        multiple
-        size={Math.min(4, Math.max(2, options.length || 2))}
-        value={(value || []).map(String)}
-        onChange={(event) => onChange(Array.from(event.target.selectedOptions, (option) => option.value))}
+    <div ref={containerRef} className="relative space-y-1.5 text-sm font-medium text-slate-700">
+      <span id={`quality-${field}-label`} className="block">{label}</span>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={toggleDropdown}
         disabled={disabled}
-        aria-describedby={`quality-${field}-hint`}
-        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:bg-slate-50 disabled:text-slate-400"
+        aria-label={`${label}: ${summary}`}
+        aria-expanded={dropdownOpen}
+        aria-controls={panelId}
+        className={`flex w-full items-center justify-between gap-2 rounded-xl border bg-white px-3 py-2.5 text-left text-sm outline-none transition focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400 ${dropdownOpen ? 'border-red-300 ring-2 ring-red-100' : 'border-slate-200'}`}
       >
-        {options.map((option) => (
-          <option key={option.id} value={option.id}>{option.name}</option>
-        ))}
-      </select>
-      <span id={`quality-${field}-hint`} className="block text-xs font-normal text-slate-400">
-        Gunakan Ctrl/Cmd untuk memilih lebih dari satu.
-      </span>
-    </label>
+        <span className="truncate">{summary}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {dropdownOpen && (
+        <div
+          id={panelId}
+          role="group"
+          aria-labelledby={`quality-${field}-label`}
+          className="absolute left-0 right-0 z-30 mt-2 min-w-0 rounded-xl border border-slate-200 bg-white p-2 shadow-xl"
+        >
+          <label htmlFor={`quality-${field}-search`} className="sr-only">Cari {label}</label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              id={`quality-${field}-search`}
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') event.preventDefault();
+              }}
+              placeholder={`Cari ${label.toLocaleLowerCase('id-ID')}`}
+              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm font-normal outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+            />
+          </div>
+
+          {selectedValues.length > 0 && (
+            <div className="mt-2 flex items-center justify-between gap-2 border-b border-slate-100 px-1 pb-2">
+              <span className="text-xs font-normal text-slate-500">{selectedValues.length} dipilih</span>
+              <button
+                type="button"
+                onClick={() => onChange([])}
+                className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline"
+              >
+                Bersihkan
+              </button>
+            </div>
+          )}
+
+          <div className="mt-2 max-h-56 overflow-y-auto overscroll-contain">
+            {options.length === 0 ? (
+              <p className="px-2 py-4 text-center text-xs font-normal text-slate-500">Pilihan tidak tersedia.</p>
+            ) : filteredOptions.length === 0 ? (
+              <p className="px-2 py-4 text-center text-xs font-normal text-slate-500">Pilihan tidak ditemukan.</p>
+            ) : (
+              filteredOptions.map((option) => {
+                const optionValue = String(option.id);
+                const checkboxId = `quality-${field}-option-${optionValue}`;
+                return (
+                  <label
+                    key={optionValue}
+                    htmlFor={checkboxId}
+                    className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-2 font-normal text-slate-700 hover:bg-slate-50"
+                  >
+                    <input
+                      id={checkboxId}
+                      type="checkbox"
+                      checked={selectedSet.has(optionValue)}
+                      onChange={(event) => toggleOption(optionValue, event.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+                    />
+                    <span className="min-w-0 break-words leading-5">{option.name}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -278,6 +405,7 @@ export function QualityReportNavigation({ reports, currentKey }) {
 
 export function QualityFilterPanel({ report, draft, setDraft, options, optionsQuery, errors, onApply, onReset }) {
   const setField = (field, value) => setDraft((current) => ({ ...current, [field]: value }));
+  const scopeFiltersDisabled = optionsQuery.isLoading || optionsQuery.isError;
   const showsSearch = ['athletes', 'coaches', 'duplicates', 'validity', 'documents'].includes(report.key);
 
   return (
@@ -299,14 +427,14 @@ export function QualityFilterPanel({ report, draft, setDraft, options, optionsQu
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {SCOPE_FILTERS.map(([field, label, optionKey]) => (
-          <ScopeMultiSelect
-            key={field}
+          <ScopeCheckboxDropdown
+            key={`${field}-${scopeFiltersDisabled ? 'disabled' : 'enabled'}`}
             field={field}
             label={label}
             options={options?.[optionKey] || []}
             value={draft[field]}
             onChange={(value) => setField(field, value)}
-            disabled={optionsQuery.isLoading || optionsQuery.isError}
+            disabled={scopeFiltersDisabled}
           />
         ))}
       </div>

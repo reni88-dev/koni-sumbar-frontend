@@ -6,7 +6,7 @@ export const QUALITY_REPORTS = [
   {
     key: 'summary',
     slug: 'ringkasan',
-    label: 'Ringkasan',
+    label: 'Kualitas Data',
     title: 'Ringkasan Kualitas Data',
     description: 'Gambaran skor, kelengkapan, temuan aktif, tren, dan peringkat kualitas data.',
     permission: 'reports.quality.summary.view',

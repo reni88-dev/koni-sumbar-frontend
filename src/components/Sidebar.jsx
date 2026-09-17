@@ -227,7 +227,7 @@ function SidebarContent({ onNavigate }) {
     ...(qualityReportChildren.length
       ? [{
           icon: BarChart3,
-          label: 'Laporan Kualitas Data',
+          label: 'Laporan',
           path: '#',
           children: qualityReportChildren,
         }]
