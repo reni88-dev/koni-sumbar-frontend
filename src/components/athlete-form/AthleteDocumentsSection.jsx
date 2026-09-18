@@ -34,6 +34,7 @@ export function AthleteDocumentsSection({
   const storedIdentityNeedsConfirmation = Boolean(athlete?.identity_document) && !storedIdentityType;
   const selectedIdentityLabel = IDENTITY_DOCUMENT_LABELS[formData.identity_document_type];
   const storedIdentityLabel = IDENTITY_DOCUMENT_LABELS[storedIdentityType] || 'Dokumen Identitas';
+  const hasBPJSNumber = Boolean(String(formData.bpjs_number || '').trim());
 
   return (
     <FormSectionCard
@@ -162,9 +163,16 @@ export function AthleteDocumentsSection({
         </div>
         {showBPJSNumber && (
           <div>
-            <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-slate-700">
-              Nomor BPJS {bpjsNumberRequired && <span className="text-red-500">*</span>}
-            </label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                Nomor BPJS {bpjsNumberRequired && <span className="text-red-500">*</span>}
+              </label>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                hasBPJSNumber ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+              }`}>
+                {hasBPJSNumber ? 'Nomor Tersedia' : 'Nomor Belum Tersedia'}
+              </span>
+            </div>
             <input
               {...getFieldControlProps('bpjs_number', errors)}
               type="text"
