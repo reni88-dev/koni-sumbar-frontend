@@ -17,6 +17,7 @@ import {
   QualitySortControls,
 } from '../components/data-quality-report/DataQualityReportShell';
 import { DataQualityReportContent } from '../components/data-quality-report/DataQualityReportViews';
+import { PrintDataQualityReport } from '../components/data-quality-report/PrintDataQualityReport';
 import { getFilenameFromContentDisposition, triggerBlobDownload } from '../features/data-quality-report/exportUtils.js';
 import {
   buildQualitySearchParams,
@@ -232,13 +233,22 @@ export function DataQualityReportPage({ reportKey }) {
             <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">{report.title}</h1>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-500">{report.description}</p>
           </div>
-          <QualityExportActions
-            formats={report.formats}
-            canExport={can('reports.quality.export')}
-            exportingFormat={exportingFormat}
-            exportError={exportError}
-            onExport={handleExport}
-          />
+          <div className="flex flex-wrap items-start gap-2">
+            <PrintDataQualityReport
+              report={report}
+              response={response}
+              filters={appliedFilters}
+              filterOptions={filterOptions}
+              disabled={reportQuery.isLoading || reportQuery.isFetching || reportQuery.isError || empty}
+            />
+            <QualityExportActions
+              formats={report.formats}
+              canExport={can('reports.quality.export')}
+              exportingFormat={exportingFormat}
+              exportError={exportError}
+              onExport={handleExport}
+            />
+          </div>
         </header>
 
         <QualityReportNavigation reports={allowedReports} currentKey={reportKey} />

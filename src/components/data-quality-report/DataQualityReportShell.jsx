@@ -20,15 +20,8 @@ import {
   formatQualityDateTime,
   qualityLabel,
 } from '../../features/data-quality-report/formatters.js';
+import { buildQualityFilterChips, QUALITY_SCOPE_FILTERS } from '../../features/data-quality-report/filterChips.js';
 import { QUALITY_REPORT_PER_PAGE_OPTIONS } from '../../features/data-quality-report/queryParams.js';
-
-const SCOPE_FILTERS = [
-  ['region_ids', 'Wilayah', 'regions'],
-  ['organization_ids', 'Organisasi', 'organizations'],
-  ['federation_ids', 'Federasi', 'federations'],
-  ['cabor_ids', 'Cabor', 'cabors'],
-  ['pengcab_ids', 'Pengcab', 'pengcabs'],
-];
 
 const PROFILE_CATEGORY_OPTIONS = [
   ['complete', 'Lengkap'],
@@ -426,7 +419,7 @@ export function QualityFilterPanel({ report, draft, setDraft, options, optionsQu
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {SCOPE_FILTERS.map(([field, label, optionKey]) => (
+        {QUALITY_SCOPE_FILTERS.map(([field, label, optionKey]) => (
           <ScopeCheckboxDropdown
             key={`${field}-${scopeFiltersDisabled ? 'disabled' : 'enabled'}`}
             field={field}
@@ -473,32 +466,8 @@ export function QualityFilterPanel({ report, draft, setDraft, options, optionsQu
   );
 }
 
-function optionNames(ids, options) {
-  const index = new Map((options || []).map((option) => [Number(option.id), option.name]));
-  return (ids || []).map((id) => index.get(Number(id)) || `ID ${id}`).join(', ');
-}
-
 export function QualityActiveFilterChips({ reportKey, filters, options, onRemove }) {
-  const chips = [];
-  for (const [field, label, optionKey] of SCOPE_FILTERS) {
-    if (filters[field]?.length) chips.push([field, `${label}: ${optionNames(filters[field], options?.[optionKey])}`]);
-  }
-  if (filters.as_of_date) chips.push(['as_of_date', `Posisi: ${formatQualityDate(filters.as_of_date)}`]);
-  if (filters.date_from && filters.date_to) chips.push(['date_range', `${formatQualityDate(filters.date_from)} – ${formatQualityDate(filters.date_to)}`]);
-  for (const [field, label] of [
-    ['gender', 'Jenis kelamin'],
-    ['record_status', 'Status profil'],
-    ['account_status', 'Status akun'],
-    ['completeness_category', 'Kelengkapan'],
-    ['finding_type', reportKey === 'duplicates' ? 'Klasifikasi' : 'Jenis masalah'],
-    ['priority', 'Prioritas'],
-    ['finding_status', 'Status temuan'],
-    ['document_type', 'Jenis dokumen'],
-    ['document_status', 'Status dokumen'],
-  ]) {
-    if (filters[field]) chips.push([field, `${label}: ${qualityLabel(filters[field])}`]);
-  }
-  if (filters.search) chips.push(['search', `Pencarian: “${filters.search}”`]);
+  const chips = buildQualityFilterChips(reportKey, filters, options);
 
   if (!chips.length) return null;
   return (
@@ -609,10 +578,9 @@ export function QualityScanControl({
   isStatusLoading,
   isStatusFetching,
   isStatusError,
-  isStarting,
+  // isStarting dan onRequestScan dipakai tombol scan manual yang sedang dikomentari.
   startError,
   onRetryStatus,
-  onRequestScan,
 }) {
   const status = QUALITY_SCAN_STATUS[run?.status];
   const isActive = run?.status === 'queued' || run?.status === 'running';
@@ -652,6 +620,7 @@ export function QualityScanControl({
             ) : null}
           </div>
         </div>
+        {/* Tombol scan manual disembunyikan sementara.
         <button
           type="button"
           onClick={onRequestScan}
@@ -662,6 +631,7 @@ export function QualityScanControl({
           {isStarting || isActive ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
           {isStarting ? 'Memulai Scan...' : isActive ? 'Scan Sedang Diproses' : 'Jalankan Scan Manual'}
         </button>
+        */}
       </div>
       {isStatusError && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
