@@ -424,7 +424,7 @@ export function QualityFilterPanel({ report, draft, setDraft, options, optionsQu
             key={`${field}-${scopeFiltersDisabled ? 'disabled' : 'enabled'}`}
             field={field}
             label={label}
-            options={options?.[optionKey] || []}
+            options={(options?.[optionKey] || []).filter((option) => field !== 'cabor_ids' || option.type === 'sport')}
             value={draft[field]}
             onChange={(value) => setField(field, value)}
             disabled={scopeFiltersDisabled}

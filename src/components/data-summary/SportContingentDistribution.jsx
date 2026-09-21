@@ -96,7 +96,7 @@ export function SportContingentDistribution({ data }) {
               <h2 id="sport-contingent-title" className="font-bold text-slate-800">Kelompok Cabor berdasarkan Kontingen</h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">
                 Cabor Besar memiliki minimal {formatNumber(threshold)} kontingen kab/kota. Cabor Kecil memiliki maksimal{' '}
-                {formatNumber(Math.max(0, threshold - 1))} kontingen. Perhitungan hanya memakai atlet SatuData dari organisasi pengkab dan pengkot sesuai filter aktif.
+                {formatNumber(Math.max(0, threshold - 1))} kontingen. Perhitungan hanya menghitung kontingen yang benar-benar mendaftarkan atlet pada cabor tersebut di event Porprov/Sirimau aktif sesuai filter aktif.
               </p>
             </div>
           </div>
@@ -137,7 +137,7 @@ export function SportContingentDistribution({ data }) {
           <MapPinned className="mx-auto h-10 w-10 text-slate-300" aria-hidden="true" />
           <h3 className="mt-3 font-bold text-slate-700">Distribusi kontingen belum tersedia</h3>
           <p className="mt-1 text-sm text-slate-500">
-            Tidak ada atlet dari organisasi pengkab atau pengkot pada scope dan filter Data Summary saat ini.
+            Belum ada kontingen Porprov/Sirimau yang mendaftarkan atlet pada scope dan filter Data Summary saat ini.
           </p>
         </div>
       ) : !visibleSports.length ? (
