@@ -31,6 +31,7 @@ import { usePermission } from '../hooks/usePermission';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { CoachFormModal } from '../components/CoachFormModal';
 import { CoachDetailModal } from '../components/CoachDetailModal';
+import { PrintCoachList } from '../components/PrintCoachList';
 import { CoachTransferCreateModal } from '../components/coach-transfers/CoachTransferCreateModal';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { useInfiniteCoaches, useDeleteCoach, coachKeys } from '../hooks/queries/useCoaches';
@@ -96,13 +97,7 @@ export function CoachesPage() {
   const selectedClusterType = selectedCluster?.code === 'non_development'
     ? 'non_development'
     : '';
-  const {
-    data,
-    isLoading: loading,
-    isFetchingNextPage,
-    hasNextPage,
-    fetchNextPage,
-  } = useInfiniteCoaches({
+  const coachListFilters = {
     search: debouncedSearch,
     caborId: filterCabor,
     organizationId: filterOrganization,
@@ -110,7 +105,14 @@ export function CoachesPage() {
     clusterId: filterCluster,
     clusterType: selectedClusterType,
     subClusterId: filterSubCluster
-  });
+  };
+  const {
+    data,
+    isLoading: loading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteCoaches(coachListFilters);
 
   const deleteCoachMutation = useDeleteCoach();
 
@@ -420,6 +422,17 @@ export function CoachesPage() {
 
             {/* Action Buttons Group */}
             <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+              <PrintCoachList
+                filterParams={coachListFilters}
+                filters={{
+                  cabor: selectedCabor?.display_name || selectedCabor?.name || '',
+                  organization: selectedOrganization?.name || '',
+                  cluster: selectedCluster?.name || '',
+                  subCluster: selectedSubCluster?.name || '',
+                  search: debouncedSearch,
+                }}
+              />
+
               {canCreateSensitive && (
                 <>
                   <input
