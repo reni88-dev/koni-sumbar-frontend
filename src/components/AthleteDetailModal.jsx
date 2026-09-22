@@ -23,7 +23,8 @@ import {
   FileText,
   ExternalLink,
   ArrowLeftRight,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Clock
 } from 'lucide-react';
 import api from '../api/axios';
 import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
@@ -57,6 +58,17 @@ function display(value) {
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 
@@ -737,6 +749,19 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                     </div>
                   </div>
                 </div>
+
+                {/* 7. Riwayat Data */}
+                <ProfileSection
+                  title="Riwayat Data"
+                  icon={Clock}
+                  iconColor="text-slate-600"
+                  iconBg="bg-slate-100"
+                >
+                  <ProfileField label="Dibuat Pada" value={formatDateTime(athlete.created_at)} />
+                  <ProfileField label="Dibuat Oleh" value={athlete.created_by_name || 'Tidak diketahui'} />
+                  <ProfileField label="Terakhir Diedit Pada" value={formatDateTime(athlete.updated_at)} />
+                  <ProfileField label="Terakhir Diedit Oleh" value={athlete.updated_by_name || 'Tidak diketahui'} />
+                </ProfileSection>
               </div>
             )}
 
