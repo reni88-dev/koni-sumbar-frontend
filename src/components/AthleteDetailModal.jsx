@@ -300,6 +300,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
   const identityDocumentLabel = identityDocumentLabels[athlete.identity_document_type] || 'Dokumen Identitas';
   const topAchievements = (athlete.top_achievements || []).filter(Boolean);
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
+  const athleteEverEdited = Boolean(athlete.created_at && athlete.updated_at && athlete.created_at !== athlete.updated_at);
 
   const handlePrintDetail = async () => {
     if (!canViewSensitive || isPrinting || printingRef.current) return;
@@ -759,8 +760,14 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                 >
                   <ProfileField label="Dibuat Pada" value={formatDateTime(athlete.created_at)} />
                   <ProfileField label="Dibuat Oleh" value={athlete.created_by_name || 'Tidak diketahui'} />
-                  <ProfileField label="Terakhir Diedit Pada" value={formatDateTime(athlete.updated_at)} />
-                  <ProfileField label="Terakhir Diedit Oleh" value={athlete.updated_by_name || 'Tidak diketahui'} />
+                  <ProfileField
+                    label="Terakhir Diedit Pada"
+                    value={athleteEverEdited ? formatDateTime(athlete.updated_at) : 'Belum pernah diedit'}
+                  />
+                  <ProfileField
+                    label="Terakhir Diedit Oleh"
+                    value={athleteEverEdited ? (athlete.updated_by_name || 'Tidak diketahui') : '-'}
+                  />
                 </ProfileSection>
               </div>
             )}

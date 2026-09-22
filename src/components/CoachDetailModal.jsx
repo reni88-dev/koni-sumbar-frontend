@@ -249,6 +249,7 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
   const achievementsList = parseCoachAchievements(coach.achievements);
   const photoUrl = getCoachPhotoUrl(coach);
+  const coachEverEdited = Boolean(coach.created_at && coach.updated_at && coach.created_at !== coach.updated_at);
 
   const handlePrintDetail = async () => {
     if (!canViewSensitive || isPrinting || printingRef.current) return;
@@ -707,8 +708,14 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
                 >
                   <ProfileField label="Dibuat Pada" value={formatDateTime(coach.created_at)} />
                   <ProfileField label="Dibuat Oleh" value={coach.created_by_name || 'Tidak diketahui'} />
-                  <ProfileField label="Terakhir Diedit Pada" value={formatDateTime(coach.updated_at)} />
-                  <ProfileField label="Terakhir Diedit Oleh" value={coach.updated_by_name || 'Tidak diketahui'} />
+                  <ProfileField
+                    label="Terakhir Diedit Pada"
+                    value={coachEverEdited ? formatDateTime(coach.updated_at) : 'Belum pernah diedit'}
+                  />
+                  <ProfileField
+                    label="Terakhir Diedit Oleh"
+                    value={coachEverEdited ? (coach.updated_by_name || 'Tidak diketahui') : '-'}
+                  />
                 </ProfileSection>
               </div>
             )}
