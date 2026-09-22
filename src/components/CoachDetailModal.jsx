@@ -12,6 +12,7 @@ import {
   Wallet,
   ArrowLeftRight,
   History as HistoryIcon,
+  Clock,
   Printer,
   Loader2,
   Sparkles,
@@ -44,6 +45,17 @@ function display(value) {
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 
@@ -685,6 +697,19 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
                     <p className="text-xs text-slate-500 italic">Belum ada riwayat prestasi yang dicatat.</p>
                   )}
                 </div>
+
+                {/* 6. Riwayat Data */}
+                <ProfileSection
+                  title="Riwayat Data"
+                  icon={Clock}
+                  iconColor="text-slate-600"
+                  iconBg="bg-slate-100"
+                >
+                  <ProfileField label="Dibuat Pada" value={formatDateTime(coach.created_at)} />
+                  <ProfileField label="Dibuat Oleh" value={coach.created_by_name || 'Tidak diketahui'} />
+                  <ProfileField label="Terakhir Diedit Pada" value={formatDateTime(coach.updated_at)} />
+                  <ProfileField label="Terakhir Diedit Oleh" value={coach.updated_by_name || 'Tidak diketahui'} />
+                </ProfileSection>
               </div>
             )}
 
