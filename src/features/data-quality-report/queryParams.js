@@ -437,6 +437,27 @@ export function buildQualityExportRequest(reportKey, source, format) {
   };
 }
 
+// buildQualityPrintAllRequest keeps the applied filters/sorting and drops
+// pagination like the regular export request, but always targets PDF so the
+// "cetak seluruh hasil" action can preview it in a new tab. Unlike
+// buildQualityExportRequest, it does not require the report to list "pdf" in
+// its export formats, so the format never shows up as a regular export button.
+export function buildQualityPrintAllRequest(reportKey, source) {
+  const report = getQualityReportByKey(reportKey);
+  if (!report) {
+    throw new Error('Laporan kualitas data tidak dikenal.');
+  }
+  return {
+    method: 'GET',
+    url: `${QUALITY_REPORT_API_BASE}/export`,
+    params: {
+      ...buildQualityApiParams(reportKey, source, { exportRequest: true }),
+      report: report.exportReport,
+      format: 'pdf',
+    },
+  };
+}
+
 export function withQualityPagination(reportKey, source, page) {
   return normalizeQualityFilters(reportKey, { ...source, page });
 }

@@ -9,6 +9,7 @@ import {
 import {
   buildQualityApiParams,
   buildQualityExportRequest,
+  buildQualityPrintAllRequest,
   buildQualityReportRequest,
   buildQualityScanRequest,
   buildQualityScanStatusRequest,
@@ -197,6 +198,50 @@ test('export builder keeps applied filters, removes pagination, and never reques
   });
   assert.throws(() => buildQualityExportRequest('athletes', {}, 'pdf'));
   assert.equal(buildQualityExportRequest('summary', {}, 'pdf').params.format, 'pdf');
+});
+
+test('print-all request keeps applied filters/sorting, drops pagination, and always targets PDF', () => {
+  const request = buildQualityPrintAllRequest('athletes', {
+    organization_ids: [9, 4],
+    search: 'Rahma',
+    page: 3,
+    per_page: 100,
+    sensitive: 'full',
+  });
+  assert.deepEqual(request, {
+    method: 'GET',
+    url: '/api/reports/quality/export',
+    params: {
+      organization_ids: '4,9',
+      date_basis: 'updated_at',
+      search: 'Rahma',
+      sort_by: 'score',
+      sort_dir: 'asc',
+      report: 'athletes',
+      format: 'pdf',
+    },
+  });
+  assert.equal('sensitive' in request.params, false);
+  assert.equal('page' in request.params, false);
+  assert.equal('per_page' in request.params, false);
+});
+
+test('print-all can request PDF for every report key without adding PDF to the regular export button', () => {
+  for (const report of QUALITY_REPORTS) {
+    const request = buildQualityPrintAllRequest(report.key, {});
+    assert.equal(request.method, 'GET');
+    assert.equal(request.url, '/api/reports/quality/export');
+    assert.equal(request.params.report, report.exportReport);
+    assert.equal(request.params.format, 'pdf');
+
+    if (report.key === 'summary') {
+      assert.ok(report.formats.includes('pdf'), 'summary keeps its existing PDF export button');
+    } else {
+      assert.equal(report.formats.includes('pdf'), false, `${report.key} export button must not gain a PDF format`);
+      assert.throws(() => buildQualityExportRequest(report.key, {}, 'pdf'));
+    }
+  }
+  assert.throws(() => buildQualityPrintAllRequest('not-a-report', {}));
 });
 
 test('export filename supports quoted and RFC 5987 content disposition values', () => {

@@ -4,6 +4,7 @@ import api from '../../api/axios';
 import {
   buildQualityExportRequest,
   buildQualityFiltersRequest,
+  buildQualityPrintAllRequest,
   buildQualityReportRequest,
   buildQualityScanRequest,
   buildQualityScanStatusRequest,
@@ -11,6 +12,9 @@ import {
 } from '../../features/data-quality-report/queryParams.js';
 
 const QUALITY_SCAN_POLL_INTERVAL = 7_000;
+// Matches the backend's 60s write timeout (see main.go) plus a margin so the
+// client can distinguish a slow/oversized "print all" request from a hang.
+const QUALITY_PRINT_ALL_TIMEOUT_MS = 65_000;
 
 export const qualityReportKeys = {
   all: ['quality-reports'],
@@ -144,5 +148,15 @@ export async function requestQualityReportExport(reportKey, filters, format, sig
     params: request.params,
     responseType: 'blob',
     signal,
+  });
+}
+
+export async function requestQualityReportPrintAll(reportKey, filters, signal) {
+  const request = buildQualityPrintAllRequest(reportKey, filters);
+  return api.get(request.url, {
+    params: request.params,
+    responseType: 'blob',
+    signal,
+    timeout: QUALITY_PRINT_ALL_TIMEOUT_MS,
   });
 }

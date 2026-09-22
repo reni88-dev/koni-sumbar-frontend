@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react';
-import { Loader2, Printer } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ChevronDown, FileText, Layers, Loader2, Printer } from 'lucide-react';
 import {
   formatQualityDate,
   formatQualityDateTime,
@@ -9,6 +9,7 @@ import {
   qualityLabel,
 } from '../../features/data-quality-report/formatters.js';
 import { buildQualityFilterChips } from '../../features/data-quality-report/filterChips.js';
+import { requestQualityReportPrintAll } from '../../hooks/queries/useDataQualityReports';
 import { escapePrintHtml, printProfileDocument } from '../profilePrintUtils';
 
 const PRINT_STYLES = `
@@ -226,28 +227,76 @@ function buildPrintHtml({ report, response, filters, filterOptions, printedAt })
 </html>`;
 }
 
-export function PrintDataQualityReport({ report, response, filters, filterOptions, disabled = false }) {
-  const [loading, setLoading] = useState(false);
-  const printInProgressRef = useRef(false);
-  const isDisabled = disabled || loading || !response;
+function openPreparingWindow(title) {
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) return null;
+  printWindow.opener = null;
+  printWindow.document.title = 'Menyiapkan laporan...';
+  printWindow.document.body.innerHTML = `<p style="font-family:Segoe UI,Arial,sans-serif;padding:24px;color:#475569">${escapePrintHtml(title)}</p>`;
+  return printWindow;
+}
 
-  const handlePrint = async () => {
-    if (isDisabled || printInProgressRef.current) return;
+function printAllErrorMessage(error) {
+  if (error?.code === 'ERR_CANCELED') return '';
+  if (error?.code === 'ECONNABORTED' || /timeout/i.test(error?.message || '')) {
+    return 'Waktu pembuatan laporan habis. Persempit filter lalu coba lagi, atau gunakan ekspor XLSX/CSV.';
+  }
+  const status = error?.response?.status;
+  if (status === 403) return 'Anda tidak memiliki izin untuk mencetak seluruh hasil.';
+  if (status === 422) return 'Jumlah data melebihi batas cetak. Persempit filter lalu coba lagi, atau gunakan ekspor XLSX/CSV.';
+  if (status === 404) return 'Snapshot untuk laporan ini tidak tersedia.';
+  if (status === 503) return 'Baseline laporan belum tersedia untuk dicetak.';
+  if (!error?.response) return 'Gagal terhubung ke server. Periksa koneksi lalu coba lagi.';
+  return 'Gagal menyiapkan seluruh hasil. Coba lagi atau gunakan ekspor XLSX/CSV.';
+}
 
-    printInProgressRef.current = true;
-    setLoading(true);
+export function PrintDataQualityReport({ report, response, filters, filterOptions, disabled = false, canPrintAll = false }) {
+  const [pageLoading, setPageLoading] = useState(false);
+  const [allLoading, setAllLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const pageInProgressRef = useRef(false);
+  const allInProgressRef = useRef(false);
+  const allControllerRef = useRef(null);
+  const allPreviewWindowRef = useRef(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
+  useEffect(() => () => {
+    // A non-null controller means the print-all request is still in flight,
+    // so the preview tab is still showing "Menyiapkan..." and is safe to
+    // close. Once the request finishes the ref is cleared, so a tab that
+    // already loaded the PDF is left alone even if this component unmounts.
+    const requestInFlight = Boolean(allControllerRef.current);
+    allControllerRef.current?.abort();
+    if (requestInFlight && allPreviewWindowRef.current && !allPreviewWindowRef.current.closed) {
+      allPreviewWindowRef.current.close();
+    }
+  }, []);
+
+  const isPageDisabled = disabled || pageLoading || !response;
+  const isAllDisabled = disabled || allLoading;
+
+  const handlePrintPage = async () => {
+    if (isPageDisabled || pageInProgressRef.current) return;
+
+    pageInProgressRef.current = true;
+    setPageLoading(true);
     let printWindow = null;
 
     try {
-      printWindow = window.open('', '_blank');
+      printWindow = openPreparingWindow('Menyiapkan laporan untuk dicetak...');
       if (!printWindow) {
         window.alert('Popup cetak diblokir. Izinkan popup untuk mencetak laporan kualitas data.');
         return;
       }
-
-      printWindow.opener = null;
-      printWindow.document.title = 'Menyiapkan laporan...';
-      printWindow.document.body.innerHTML = '<p style="font-family:Segoe UI,Arial,sans-serif;padding:24px;color:#475569">Menyiapkan laporan untuk dicetak...</p>';
 
       const html = buildPrintHtml({ report, response, filters, filterOptions, printedAt: new Date().toISOString() });
       await printProfileDocument(printWindow, html);
@@ -255,22 +304,123 @@ export function PrintDataQualityReport({ report, response, filters, filterOption
       if (printWindow && !printWindow.closed) printWindow.close();
       window.alert('Gagal menyiapkan laporan kualitas data. Silakan coba lagi.');
     } finally {
-      printInProgressRef.current = false;
-      setLoading(false);
+      pageInProgressRef.current = false;
+      setPageLoading(false);
     }
   };
 
+  const handlePrintAll = async () => {
+    if (isAllDisabled || allInProgressRef.current) return;
+
+    allControllerRef.current?.abort();
+    const controller = new AbortController();
+    allControllerRef.current = controller;
+    allInProgressRef.current = true;
+    setAllLoading(true);
+    let previewWindow = null;
+    let objectUrl = null;
+
+    try {
+      previewWindow = openPreparingWindow('Menyiapkan seluruh hasil untuk dicetak...');
+      if (!previewWindow) {
+        window.alert('Popup pratinjau diblokir. Izinkan popup untuk mencetak seluruh hasil.');
+        return;
+      }
+      allPreviewWindowRef.current = previewWindow;
+
+      const response = await requestQualityReportPrintAll(report.key, filters, controller.signal);
+      if (previewWindow.closed) return;
+
+      objectUrl = URL.createObjectURL(response.data);
+      try {
+        previewWindow.addEventListener('unload', () => {
+          try { URL.revokeObjectURL(objectUrl); } catch { /* window already gone */ }
+        });
+      } catch { /* ignore listener failures, URL still gets cleaned up on reload/GC */ }
+      previewWindow.location.href = objectUrl;
+    } catch (error) {
+      const message = printAllErrorMessage(error);
+      if (!message) return;
+      if (previewWindow && !previewWindow.closed) previewWindow.close();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      window.alert(message);
+    } finally {
+      allInProgressRef.current = false;
+      setAllLoading(false);
+      if (allControllerRef.current === controller) allControllerRef.current = null;
+      if (allPreviewWindowRef.current === previewWindow) allPreviewWindowRef.current = null;
+    }
+  };
+
+  if (report.key === 'summary') {
+    return (
+      <button
+        type="button"
+        onClick={handlePrintPage}
+        disabled={isPageDisabled}
+        aria-busy={pageLoading}
+        className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-red-200 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
+        title="Cetak laporan yang sedang ditampilkan"
+      >
+        {pageLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+        {pageLoading ? 'Menyiapkan...' : 'Cetak'}
+      </button>
+    );
+  }
+
+  const busy = pageLoading || allLoading;
+
   return (
-    <button
-      type="button"
-      onClick={handlePrint}
-      disabled={isDisabled}
-      aria-busy={loading}
-      className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:border-red-200 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50"
-      title="Cetak laporan yang sedang ditampilkan"
-    >
-      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
-      {loading ? 'Menyiapkan...' : 'Cetak'}
-    </button>
+    <div className="relative inline-block text-left" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setMenuOpen((prev) => !prev)}
+        disabled={busy}
+        aria-haspopup="true"
+        aria-expanded={menuOpen}
+        className={`inline-flex items-center gap-2 rounded-xl border bg-white px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${
+          menuOpen ? 'border-red-200 text-red-600' : 'border-slate-200 text-slate-700 hover:border-red-200 hover:text-red-600'
+        }`}
+        title="Opsi cetak laporan"
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />}
+        Cetak
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {menuOpen && (
+        <div role="menu" className="absolute right-0 z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-100 bg-white py-2 shadow-xl">
+          <button
+            type="button"
+            role="menuitem"
+            disabled={isPageDisabled}
+            onClick={() => { setMenuOpen(false); handlePrintPage(); }}
+            className="flex w-full items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span className="rounded-lg bg-slate-50 p-2 text-slate-600"><FileText className="h-4 w-4" /></span>
+            <span>
+              <p className="text-sm font-medium text-slate-800">Cetak halaman ini</p>
+              <p className="text-xs text-slate-400">Data pada halaman yang sedang tampil</p>
+            </span>
+          </button>
+
+          {canPrintAll && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={isAllDisabled}
+              onClick={() => { setMenuOpen(false); handlePrintAll(); }}
+              className="flex w-full items-center gap-3 px-3.5 py-2 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="rounded-lg bg-rose-50 p-2 text-rose-600"><Layers className="h-4 w-4" /></span>
+              <span>
+                <p className="text-sm font-medium text-slate-800">Cetak seluruh hasil</p>
+                <p className="text-xs text-slate-400">Semua data sesuai filter aktif (PDF)</p>
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

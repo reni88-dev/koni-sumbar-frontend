@@ -240,6 +240,7 @@ export function DataQualityReportPage({ reportKey }) {
               filters={appliedFilters}
               filterOptions={filterOptions}
               disabled={reportQuery.isLoading || reportQuery.isFetching || reportQuery.isError || empty}
+              canPrintAll={can('reports.quality.export')}
             />
             <QualityExportActions
               formats={report.formats}
