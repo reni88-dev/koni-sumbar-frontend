@@ -19,6 +19,7 @@ function DocumentUploadCard({
   onOpenStored,
   required = true,
   children,
+  footer,
 }) {
   const hasDocument = Boolean(file || stored);
   const hasError = Boolean(error || fieldError);
@@ -97,6 +98,8 @@ function DocumentUploadCard({
           <span>{error || firstFieldError(fieldError)}</span>
         </p>
       )}
+
+      {footer}
     </div>
   );
 }
@@ -143,6 +146,7 @@ export function CoachDocumentsSection({
         onChange={form.handleBPJSDocumentChange}
         opening={files.documentOpening.bpjs}
         onOpenStored={() => files.handleOpenStoredDocument('bpjs')}
+        footer={<BPJSDeferredAcknowledgement validation={validation} />}
       >
         {showBPJSNumber && (
           <div>
@@ -171,7 +175,6 @@ export function CoachDocumentsSection({
           </div>
         )}
       </DocumentUploadCard>
-      <BPJSDeferredAcknowledgement validation={validation} />
     </FormSectionCard>
   );
 }
