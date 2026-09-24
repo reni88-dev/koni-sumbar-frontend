@@ -107,13 +107,13 @@ function buildKpiGrid(data, totalOrganizations) {
     {
       label: 'Total Cabor Induk',
       value: formatNumber(overview.total_parent_cabors),
-      detail: 'Mengikuti scope akses dan filter aktif',
+      detail: 'Master SatuData sesuai scope dan filter',
       tone: 'amber',
     },
     {
       label: 'Total Organisasi',
       value: formatNumber(totalOrganizations),
-      detail: 'Tidak termasuk kategori Tidak diketahui',
+      detail: 'Master SatuData sesuai scope dan filter',
       tone: 'violet',
     },
     {
@@ -166,7 +166,7 @@ function buildSportContingentDistributionSection(distribution) {
     <div class="section-heading avoid-break">
       <div>
         <h3>Kelompok Cabor berdasarkan Kontingen</h3>
-        <p>Cabor Besar memiliki minimal ${escapeHtml(formatNumber(threshold))} kontingen kab/kota; Cabor Kecil memiliki maksimal ${escapeHtml(formatNumber(Math.max(0, threshold - 1)))} kontingen. Data mengikuti filter SatuData yang aktif.</p>
+        <p>Cabor Besar memiliki minimal ${escapeHtml(formatNumber(threshold))} kontingen kab/kota; Cabor Kecil memiliki maksimal ${escapeHtml(formatNumber(Math.max(0, threshold - 1)))} kontingen. Data berasal dari atlet SatuData; kontingen adalah kab/kota dari organisasi atlet sesuai filter aktif.</p>
       </div>
     </div>
     <div class="sport-contingent-kpi-grid">
