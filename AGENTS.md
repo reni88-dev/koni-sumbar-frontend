@@ -166,6 +166,7 @@ Frontend memakai `user.permissions`, wildcard `*`, helper `usePermission`, role 
 - Saat menambah aksi, gunakan permission string yang sama dengan backend dan tempatkan check sedekat mungkin dengan UI aksi.
 - Tangani `403` dengan benar walaupun UI diperkirakan telah menyembunyikan aksi.
 - Halaman `/master/roles` menampilkan `access_enabled`; hanya actor dengan `user.role.name === 'super_admin'` yang melihat toggle untuk role non-superadmin. Ini kontrol UI saja; endpoint backend tetap menjadi enforcement dan `super_admin` tidak boleh menjadi target.
+- Penjadwalan akses role memakai aturan visibilitas yang sama: `RoleAccessScheduleDialog` dan `useRoleAccessSchedules` hanya aktif untuk superadmin. Waktu dikirim sebagai `datetime-local` WIB yang dikonversi ke RFC3339 `+07:00`.
 
 Jika requirement meminta route-level authorization, implementasikan secara eksplisit dan tetap pertahankan enforcement backend; jangan menyamarkannya sebagai perubahan sidebar saja.
 

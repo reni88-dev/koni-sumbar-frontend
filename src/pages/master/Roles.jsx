@@ -16,8 +16,11 @@ import {
   Power,
   PowerOff,
   MessageSquareText,
+  CalendarClock,
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
+import { formatJakartaDateTime } from '../../components/announcements/announcementUtils';
+import { RoleAccessScheduleDialog } from '../../components/roles/RoleAccessScheduleDialog';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermission } from '../../hooks/usePermission';
 import {
@@ -29,16 +32,21 @@ import {
   useUpdateRolePermissions,
   useSetRoleAccess,
   useSetRolesAccess,
+  useRoleAccessSchedules,
 } from '../../hooks/queries/useMasterData';
 import {
   ROLE_ACCESS_DISABLED_MESSAGE,
   ROLE_ACCESS_MESSAGE_MAX_LENGTH,
   filterRolesBySearch,
+  getRoleAccessScheduleLabel,
   getRoleDisabledMessageLabel,
   getSelectableRoles,
+  groupPendingSchedulesByRole,
   isRoleAccessEnabled,
   pruneSelectedRoleIds,
 } from '../../lib/roleAccess';
+
+const NO_SCHEDULES = [];
 
 function RoleAccessBadge({ role }) {
   if (role.name === 'super_admin') {
@@ -64,9 +72,13 @@ function RoleAccessBadge({ role }) {
   );
 }
 
-function RoleAccessStatus({ role, align = 'center' }) {
+function RoleAccessStatus({ role, schedules = NO_SCHEDULES, align = 'center' }) {
   const disabled = role.name !== 'super_admin' && !isRoleAccessEnabled(role);
   const messageLabel = disabled ? getRoleDisabledMessageLabel(role) : '';
+  const nextSchedule = schedules[0];
+  const nextScheduleLabel = nextSchedule
+    ? `${getRoleAccessScheduleLabel(nextSchedule)} · ${formatJakartaDateTime(nextSchedule.run_at)}`
+    : '';
 
   return (
     <div className={align === 'left' ? 'text-left' : 'text-center'}>
@@ -79,15 +91,42 @@ function RoleAccessStatus({ role, align = 'center' }) {
           {messageLabel}
         </p>
       )}
+      {nextSchedule && (
+        <p
+          className={`mt-1 flex max-w-64 items-center gap-1 text-xs font-medium text-blue-700 ${align === 'left' ? '' : 'justify-center'}`}
+          title={schedules.map((schedule) => (
+            `${getRoleAccessScheduleLabel(schedule)} · ${formatJakartaDateTime(schedule.run_at)}`
+          )).join('\n')}
+        >
+          <CalendarClock className="h-3.5 w-3.5 flex-shrink-0" />
+          <span className="truncate">{nextScheduleLabel}</span>
+          {schedules.length > 1 && (
+            <span className="flex-shrink-0 text-slate-500">+{schedules.length - 1}</span>
+          )}
+        </p>
+      )}
     </div>
   );
 }
 
-function RoleAccessActions({ role, pending, disabled, onToggle, onEditMessage }) {
+function RoleAccessActions({ role, pending, disabled, scheduleCount = 0, onToggle, onEditMessage, onSchedule }) {
   const enabled = isRoleAccessEnabled(role);
 
   return (
     <>
+      <button
+        type="button"
+        onClick={() => onSchedule(role)}
+        disabled={disabled}
+        className="relative p-2 rounded-lg text-slate-500 transition-colors hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+        title={scheduleCount > 0 ? `Jadwalkan akses (${scheduleCount} jadwal pending)` : 'Jadwalkan akses'}
+        aria-label={`Jadwalkan akses ${role.display_name}${scheduleCount > 0 ? `, ${scheduleCount} jadwal pending` : ''}`}
+      >
+        <CalendarClock className="w-4 h-4" />
+        {scheduleCount > 0 && (
+          <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-blue-600" aria-hidden="true" />
+        )}
+      </button>
       <button
         type="button"
         onClick={() => onToggle(role)}
@@ -140,6 +179,7 @@ export function RolesPage() {
   const [roleAccessDialog, setRoleAccessDialog] = useState(null);
   const [roleAccessMessage, setRoleAccessMessage] = useState('');
   const [roleAccessError, setRoleAccessError] = useState('');
+  const [scheduleDialogTarget, setScheduleDialogTarget] = useState(null);
 
   // Permission editor
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
@@ -151,6 +191,8 @@ export function RolesPage() {
   const [formErrors, setFormErrors] = useState({});
 
   // TanStack Query hooks
+  const isSuperAdmin = user?.role?.name === 'super_admin';
+  const { data: accessSchedules = NO_SCHEDULES } = useRoleAccessSchedules({ enabled: isSuperAdmin });
   const { data: roles = [], isLoading: loading } = useRoles();
   const { data: permissions = {} } = usePermissionsGrouped({ enabled: canManagePermissions });
   const createRoleMutation = useCreateRole();
@@ -159,7 +201,7 @@ export function RolesPage() {
   const updatePermissionsMutation = useUpdateRolePermissions();
   const setRoleAccessMutation = useSetRoleAccess();
   const setRolesAccessMutation = useSetRolesAccess();
-  const isSuperAdmin = user?.role?.name === 'super_admin';
+  const pendingSchedulesByRole = groupPendingSchedulesByRole(accessSchedules);
 
   const filteredRoles = filterRolesBySearch(roles, search);
   const selectableVisibleRoles = getSelectableRoles(filteredRoles);
@@ -314,6 +356,23 @@ export function RolesPage() {
     setRoleAccessError('');
   };
 
+  const openRoleScheduleDialog = (role) => {
+    setScheduleDialogTarget({ type: 'individual', role });
+  };
+
+  const openBulkScheduleDialog = () => {
+    if (selectedRoles.length === 0) return;
+    setScheduleDialogTarget({
+      type: 'bulk',
+      roleIds: selectedRoles.map((role) => role.id),
+      roleCount: selectedRoles.length,
+    });
+  };
+
+  const handleScheduleCreated = (target) => {
+    if (target.type === 'bulk') setSelectedRoleIds([]);
+  };
+
   const handleRoleAccessChange = async () => {
     if (!roleAccessDialog || accessMutationPending) return;
     setRoleAccessError('');
@@ -353,6 +412,10 @@ export function RolesPage() {
   const accessDialogRoleCount = roleAccessDialog?.type === 'bulk'
     ? roleAccessDialog.roleCount
     : 1;
+  const accessDialogScheduledRoleCount = roleAccessDialog
+    ? (roleAccessDialog.type === 'bulk' ? roleAccessDialog.roleIds : [roleAccessDialog.role.id])
+      .filter((roleId) => pendingSchedulesByRole.has(roleId)).length
+    : 0;
   const accessDialogTitle = roleAccessDialog?.editMessage
     ? 'Ubah Pesan Penonaktifan?'
     : `${targetWillBeEnabled ? 'Aktifkan' : 'Nonaktifkan'} Akses ${
@@ -425,6 +488,15 @@ export function RolesPage() {
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
+              onClick={openBulkScheduleDialog}
+              disabled={selectedRoles.length === 0 || accessMutationPending}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <CalendarClock className="h-4 w-4" />
+              Jadwalkan Terpilih
+            </button>
+            <button
+              type="button"
               onClick={() => openBulkAccessDialog(true)}
               disabled={selectedRoles.length === 0 || accessMutationPending}
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
@@ -492,8 +564,10 @@ export function RolesPage() {
                           role={role}
                           pending={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
                           disabled={accessMutationPending}
+                          scheduleCount={pendingSchedulesByRole.get(role.id)?.length || 0}
                           onToggle={openRoleAccessDialog}
                           onEditMessage={openRoleMessageDialog}
+                          onSchedule={openRoleScheduleDialog}
                         />
                       )}
                       <button
@@ -516,7 +590,7 @@ export function RolesPage() {
                 <h3 className="font-bold text-slate-800 text-lg mb-1">{role.display_name}</h3>
                 <p className="text-sm text-slate-500 mb-3">{role.description || '-'}</p>
                 <div className="mb-4">
-                  <RoleAccessStatus role={role} align="left" />
+                  <RoleAccessStatus role={role} schedules={pendingSchedulesByRole.get(role.id)} align="left" />
                 </div>
                 
                 <div className="flex items-center justify-between">
@@ -610,7 +684,7 @@ export function RolesPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-slate-500 max-w-xs truncate">{role.description || '-'}</td>
                       <td className="px-6 py-4 text-center">
-                        <RoleAccessStatus role={role} />
+                        <RoleAccessStatus role={role} schedules={pendingSchedulesByRole.get(role.id)} />
                       </td>
                       <td className="px-6 py-4 text-center">
                         {role.name === 'super_admin' ? (
@@ -637,8 +711,10 @@ export function RolesPage() {
                                   role={role}
                                   pending={setRoleAccessMutation.isPending && setRoleAccessMutation.variables?.roleId === role.id}
                                   disabled={accessMutationPending}
+                                  scheduleCount={pendingSchedulesByRole.get(role.id)?.length || 0}
                                   onToggle={openRoleAccessDialog}
                                   onEditMessage={openRoleMessageDialog}
+                                  onSchedule={openRoleScheduleDialog}
                                 />
                               )}
                               <button
@@ -909,6 +985,18 @@ export function RolesPage() {
                       : 'Pengguna tidak dapat login dan sesi aktif akan dihentikan pada permintaan API berikutnya.'}
                 </p>
 
+                {accessDialogScheduledRoleCount > 0 && (
+                  <div className="mb-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    <CalendarClock className="mt-0.5 h-4 w-4 flex-shrink-0" />
+                    <span>
+                      {roleAccessDialog.type === 'bulk'
+                        ? `${accessDialogScheduledRoleCount} role terpilih masih memiliki jadwal akses pending.`
+                        : 'Role ini masih memiliki jadwal akses pending.'}{' '}
+                      Jadwal tersebut tetap dijalankan sesuai waktunya kecuali dibatalkan.
+                    </span>
+                  </div>
+                )}
+
                 {showAccessMessageField && (
                   <div className="mb-5">
                     <div className="mb-1 flex items-center justify-between gap-3">
@@ -970,6 +1058,18 @@ export function RolesPage() {
           </>
         )}
       </AnimatePresence>
+
+      {/* Role Access Schedule Modal */}
+      <RoleAccessScheduleDialog
+        target={scheduleDialogTarget}
+        pendingSchedules={
+          scheduleDialogTarget?.type === 'individual'
+            ? pendingSchedulesByRole.get(scheduleDialogTarget.role.id)
+            : undefined
+        }
+        onClose={() => setScheduleDialogTarget(null)}
+        onCreated={handleScheduleCreated}
+      />
       {/* Delete Modal */}
       <AnimatePresence>
         {isDeleteModalOpen && (

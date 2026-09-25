@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axios';
-import { buildRolesAccessRequest } from '../../lib/roleAccess';
+import { buildRoleAccessScheduleRequest, buildRolesAccessRequest } from '../../lib/roleAccess';
 
 // ==================== EDUCATION LEVELS ====================
 export const educationLevelKeys = {
@@ -77,6 +77,7 @@ export const roleKeys = {
   lists: () => [...roleKeys.all, 'list'],
   list: (filters) => [...roleKeys.lists(), filters],
   allDropdown: () => [...roleKeys.all, 'dropdown'],
+  accessSchedules: () => [...roleKeys.all, 'access-schedules'],
 };
 
 export function useRoles({ page = 1, search = '' } = {}) {
@@ -87,6 +88,59 @@ export function useRoles({ page = 1, search = '' } = {}) {
         params: { page, search: search || undefined }
       });
       return response.data;
+    },
+  });
+}
+
+// Pending schedules are polled while any exist so the page notices when the server applies them.
+export function useRoleAccessSchedules({ enabled = true } = {}) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: roleKeys.accessSchedules(),
+    queryFn: async () => {
+      const response = await api.get('/api/master/roles/access-schedules');
+      const schedules = Array.isArray(response.data) ? response.data : [];
+      const previous = queryClient.getQueryData(roleKeys.accessSchedules()) || [];
+      const pendingIds = new Set(schedules.map((schedule) => schedule.id));
+      // A schedule that left the pending list may have changed role access, so refresh role badges.
+      if (previous.some((schedule) => !pendingIds.has(schedule.id))) {
+        queryClient.invalidateQueries({ queryKey: roleKeys.lists() }, { cancelRefetch: false });
+      }
+      return schedules;
+    },
+    refetchInterval: (query) => (query.state.data?.length ? 60 * 1000 : false),
+    enabled,
+  });
+}
+
+export function useCreateRoleAccessSchedules() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ roleIds, disableAt, enableAt, accessDisabledMessage = '' }) => {
+      const response = await api.post('/api/master/roles/access-schedules', buildRoleAccessScheduleRequest({
+        roleIds,
+        disableAt,
+        enableAt,
+        accessDisabledMessage,
+      }));
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: roleKeys.all });
+    },
+  });
+}
+
+export function useCancelRoleAccessSchedule() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (scheduleId) => {
+      const response = await api.delete(`/api/master/roles/access-schedules/${scheduleId}`);
+      return response.data;
+    },
+    // Also refresh after 404/409 so a schedule the worker already applied disappears from the list.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: roleKeys.all });
     },
   });
 }

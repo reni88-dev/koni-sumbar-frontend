@@ -189,6 +189,11 @@ Seluruh route selain tiga route publik dibungkus `ProtectedRoute`. Route `/atlet
 
 Pada halaman Data Role, field backend `access_enabled` yang belum ada diperlakukan aktif untuk rollout kompatibel. Badge menampilkan `Aktif`, `Dinonaktifkan`, atau `Selalu Aktif`; hanya superadmin melihat toggle role non-superadmin. Mutation memakai `PUT /api/master/roles/{id}/access` dan meng-invalidasi seluruh `roleKeys.all`.
 
+Jadwal akses role sekali jalan dikelola di [`RoleAccessScheduleDialog`](./src/components/roles/RoleAccessScheduleDialog.jsx):
+- Endpoint: `GET`, `POST`, `DELETE /api/master/roles/access-schedules`, dengan key `roleKeys.accessSchedules()` di bawah `roleKeys.all`.
+- Query jadwal di-poll setiap 60 detik selama ada jadwal pending. Bila ada jadwal yang keluar dari daftar pending, daftar role di-invalidasi agar badge mengikuti perubahan yang diterapkan server.
+- Helper validasi dan payload (`validateRoleAccessScheduleInput`, `buildRoleAccessScheduleRequest`, `groupPendingSchedulesByRole`) ada di `src/lib/roleAccess.js` dan dites di `tests/roleAccess.test.js`.
+
 ## Sidebar dan Permission Flow
 
 `src/components/Sidebar.jsx` membentuk navigasi dinamis dari user aktif.
