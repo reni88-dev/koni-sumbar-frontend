@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import {
   AlertCircle,
   Bell,
   CheckCircle2,
+  Database,
   Info,
   KeyRound,
   Loader2,
@@ -22,6 +23,7 @@ const tabs = [
   { id: 'preferences', label: 'Preferensi', icon: Monitor },
   { id: 'notifications', label: 'Notifikasi', icon: Bell },
   { id: 'app', label: 'Aplikasi', icon: Info },
+  { id: 'database', label: 'Backup Database', icon: Database },
 ];
 
 const landingOptions = [
@@ -75,11 +77,13 @@ function Toggle({ checked, onChange, title, description }) {
 }
 
 export function SettingsPage() {
-  const { fetchUser } = useAuth();
+  const { user: authUser, fetchUser } = useAuth();
+  const isSuperAdmin = authUser?.role?.name === 'super_admin';
   const [activeTab, setActiveTab] = useState('account');
   const [loading, setLoading] = useState(true);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [downloadingDatabase, setDownloadingDatabase] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [settings, setSettings] = useState(null);
@@ -155,6 +159,50 @@ export function SettingsPage() {
     }
   };
 
+  const handleDownloadDatabase = async () => {
+    if (downloadingDatabase || !isSuperAdmin) return;
+    setDownloadingDatabase(true);
+    setError('');
+    setSuccess('');
+    try {
+      const response = await api.get('/api/settings/database-backup', {
+        responseType: 'blob',
+        headers: { Accept: 'application/sql' },
+      });
+      const fallback = `koni_sumbar_backup_${new Date().toISOString().slice(0, 10).replaceAll('-', '')}.sql`;
+      const disposition = response.headers['content-disposition'] || '';
+      const filename = disposition.match(/filename="?(koni_sumbar_backup_\d{8}_\d{6}\.sql)"?/i)?.[1] || fallback;
+      const url = window.URL.createObjectURL(response.data);
+      try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        try {
+          link.click();
+        } finally {
+          link.remove();
+        }
+      } finally {
+        window.URL.revokeObjectURL(url);
+      }
+      setSuccess('Backup database berhasil diunduh. Simpan file di tempat yang aman.');
+    } catch (err) {
+      let message = 'Gagal mengunduh backup database';
+      if (err.response?.data instanceof Blob) {
+        try {
+          const data = JSON.parse(await err.response.data.text());
+          if (typeof data.error === 'string') message = data.error;
+        } catch {
+          // Response is not a JSON error envelope.
+        }
+      }
+      setError(message);
+    } finally {
+      setDownloadingDatabase(false);
+    }
+  };
+
   const user = settings?.user;
 
   return (
@@ -169,7 +217,7 @@ export function SettingsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
           <aside className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 h-fit">
-            {tabs.map(tab => (
+            {tabs.filter(tab => tab.id !== 'database' || isSuperAdmin).map(tab => (
               <button
                 key={tab.id}
                 type="button"
@@ -182,7 +230,7 @@ export function SettingsPage() {
             ))}
           </aside>
 
-          <motion.section
+          <Motion.section
             key={activeTab}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -228,7 +276,8 @@ export function SettingsPage() {
               />
             )}
             {activeTab === 'app' && <AppTab />}
-          </motion.section>
+            {activeTab === 'database' && isSuperAdmin && <DatabaseTab downloading={downloadingDatabase} onDownload={handleDownloadDatabase} />}
+          </Motion.section>
         </div>
       )}
     </DashboardLayout>
@@ -377,6 +426,26 @@ function AppTab() {
   );
 }
 
+function DatabaseTab({ downloading, onDownload }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 max-w-3xl">
+      <div className="flex items-start gap-3">
+        <div className="p-2.5 bg-red-50 text-red-600 rounded-xl"><Database className="w-5 h-5" /></div>
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Backup Database</h2>
+          <p className="text-sm text-slate-500">Unduh seluruh database PostgreSQL dalam format .sql.</p>
+        </div>
+      </div>
+      <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-4">
+        File backup memuat seluruh data sensitif, termasuk data pribadi dan hash password. Simpan di tempat yang aman dan jangan bagikan kepada pihak yang tidak berwenang.
+      </p>
+      <button type="button" onClick={onDownload} disabled={downloading} className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed">
+        {downloading && <Loader2 className="w-4 h-4 animate-spin" />}
+        {downloading ? 'Menyiapkan backup...' : 'Download Database (.sql)'}
+      </button>
+    </div>
+  );
+}
 function InfoCard({ label, value }) {
   return (
     <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
