@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Download,
   Filter,
+  HelpCircle,
   LoaderCircle,
   RefreshCw,
   RotateCcw,
@@ -19,8 +20,10 @@ import {
   formatQualityDate,
   formatQualityDateTime,
   qualityLabel,
+  qualityTone,
 } from '../../features/data-quality-report/formatters.js';
 import { buildQualityFilterChips, QUALITY_SCOPE_FILTERS } from '../../features/data-quality-report/filterChips.js';
+import { QUALITY_METADATA_GUIDE, QUALITY_READING_GUIDE, QUALITY_SCORE_GUIDE } from '../../features/data-quality-report/presentation.js';
 import { QUALITY_REPORT_PER_PAGE_OPTIONS } from '../../features/data-quality-report/queryParams.js';
 
 const PROFILE_CATEGORY_OPTIONS = [
@@ -393,6 +396,77 @@ export function QualityReportNavigation({ reports, currentKey }) {
         ))}
       </div>
     </nav>
+  );
+}
+
+function GuideTerms({ terms }) {
+  return (
+    <dl className="mt-2 grid gap-2 lg:grid-cols-2">
+      {terms.map(([term, meaning]) => (
+        <div key={term} className="rounded-xl bg-slate-50 p-3">
+          <dt className="text-sm font-bold text-slate-800">{term}</dt>
+          <dd className="mt-1 text-sm leading-6 text-slate-600">{meaning}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+export function QualityReadingGuide({ reportKey }) {
+  const guide = QUALITY_READING_GUIDE[reportKey];
+  if (!guide) return null;
+  return (
+    <details className="group rounded-2xl border border-blue-100 bg-white shadow-sm">
+      <summary className="flex cursor-pointer list-none items-center gap-3 p-4 [&::-webkit-details-marker]:hidden">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><HelpCircle className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold text-slate-800">Cara membaca laporan ini</span>
+          <span className="block text-sm text-slate-500">Penjelasan singkat arti kolom, label, dan langkah yang perlu dilakukan.</span>
+        </span>
+        <ChevronDown className="h-5 w-5 shrink-0 text-slate-400 transition group-open:rotate-180" />
+      </summary>
+      <div className="space-y-5 border-t border-slate-100 p-4 sm:p-5">
+        <section>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-400">Apa isi halaman ini</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-700">{guide.intro}</p>
+        </section>
+        <section>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-400">Arti kolom dan label</h3>
+          <GuideTerms terms={guide.terms} />
+        </section>
+        {guide.showScoreGuide && (
+          <section>
+            <h3 className="text-sm font-bold uppercase tracking-wide text-slate-400">Arti skor</h3>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {QUALITY_SCORE_GUIDE.map(([category, range, meaning]) => (
+                <div key={category} className="flex items-start gap-3 rounded-xl bg-slate-50 p-3">
+                  <span className={`inline-flex shrink-0 rounded-full border px-2.5 py-1 text-xs font-bold ${qualityTone(category)}`}>{qualityLabel(category)}</span>
+                  <p className="text-sm leading-6 text-slate-600"><strong className="text-slate-800">{range}</strong> — {meaning}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        <section>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-400">Langkah yang disarankan</h3>
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm leading-6 text-slate-700">
+            {guide.steps.map((step) => <li key={step}>{step}</li>)}
+          </ol>
+        </section>
+        {guide.notes?.length > 0 && (
+          <section className="rounded-xl border border-amber-100 bg-amber-50 p-4">
+            <h3 className="text-sm font-bold text-amber-800">Perlu diingat</h3>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-amber-800">
+              {guide.notes.map((note) => <li key={note}>{note}</li>)}
+            </ul>
+          </section>
+        )}
+        <section>
+          <h3 className="text-sm font-bold uppercase tracking-wide text-slate-400">Kotak informasi laporan</h3>
+          <GuideTerms terms={QUALITY_METADATA_GUIDE} />
+        </section>
+      </div>
+    </details>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   QualityLoadingState,
   QualityMetadata,
   QualityPagination,
+  QualityReadingGuide,
   QualityReportNavigation,
   QualityScanControl,
   QualitySortControls,
@@ -253,6 +254,8 @@ export function DataQualityReportPage({ reportKey }) {
         </header>
 
         <QualityReportNavigation reports={allowedReports} currentKey={reportKey} />
+
+        <QualityReadingGuide reportKey={reportKey} />
 
         {canStartManualScan && (
           <QualityScanControl
