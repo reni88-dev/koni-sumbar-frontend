@@ -140,7 +140,9 @@ export function validateAthleteProfile(formData, context = {}) {
   if (!text('district')) add('district', 'Kecamatan/Distrik wajib dipilih');
   if (!text('village')) add('village', 'Kelurahan/Desa wajib dipilih');
 
-  if (ageGroup && !isIdentityTypeValidForAge(formData.identity_document_type, ageGroup)) {
+  // KTP/BPJS data cannot be changed while locked, so its completeness is not enforced here.
+  const documentsLocked = Boolean(context.documentsLocked);
+  if (!documentsLocked && ageGroup && !isIdentityTypeValidForAge(formData.identity_document_type, ageGroup)) {
     add(
       'identity_document_type',
       ageGroup === 'adult'
@@ -159,7 +161,7 @@ export function validateAthleteProfile(formData, context = {}) {
   const awaitingLegacyTypeConfirmation = storedIdentityExists &&
     !storedIdentityType &&
     originalAgeGroup === ageGroup;
-  if (!context.identityDocumentFile && !canReuseIdentity && !awaitingLegacyTypeConfirmation) {
+  if (!documentsLocked && !context.identityDocumentFile && !canReuseIdentity && !awaitingLegacyTypeConfirmation) {
     add(
       'identity_document',
       storedIdentityExists

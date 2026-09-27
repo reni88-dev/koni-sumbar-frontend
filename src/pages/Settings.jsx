@@ -7,6 +7,7 @@ import {
   Database,
   Info,
   KeyRound,
+  Lock,
   Loader2,
   Monitor,
   Settings as SettingsIcon,
@@ -16,6 +17,9 @@ import {
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../hooks/useAuth';
 import api from '../api/axios';
+import { useSystemSettings, useUpdateSystemSettings } from '../hooks/queries/useSystemSettings';
+
+const superAdminTabs = new Set(['system', 'database']);
 
 const tabs = [
   { id: 'account', label: 'Akun', icon: User },
@@ -23,6 +27,7 @@ const tabs = [
   { id: 'preferences', label: 'Preferensi', icon: Monitor },
   { id: 'notifications', label: 'Notifikasi', icon: Bell },
   { id: 'app', label: 'Aplikasi', icon: Info },
+  { id: 'system', label: 'Pengaturan Sistem', icon: Lock },
   { id: 'database', label: 'Backup Database', icon: Database },
 ];
 
@@ -217,7 +222,7 @@ export function SettingsPage() {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
           <aside className="bg-white rounded-2xl border border-slate-100 shadow-sm p-3 h-fit">
-            {tabs.filter(tab => tab.id !== 'database' || isSuperAdmin).map(tab => (
+            {tabs.filter(tab => !superAdminTabs.has(tab.id) || isSuperAdmin).map(tab => (
               <button
                 key={tab.id}
                 type="button"
@@ -276,6 +281,7 @@ export function SettingsPage() {
               />
             )}
             {activeTab === 'app' && <AppTab />}
+            {activeTab === 'system' && isSuperAdmin && <SystemTab onError={setError} onSuccess={setSuccess} />}
             {activeTab === 'database' && isSuperAdmin && <DatabaseTab downloading={downloadingDatabase} onDownload={handleDownloadDatabase} />}
           </Motion.section>
         </div>
@@ -422,6 +428,70 @@ function AppTab() {
         <InfoCard label="Backend" value="KONI API 2.0.0" />
         <InfoCard label="Bantuan" value="Hubungi administrator sistem" />
       </div>
+    </div>
+  );
+}
+
+function SystemTab({ onError, onSuccess }) {
+  const { data, isLoading, isError } = useSystemSettings();
+  const updateSettings = useUpdateSystemSettings();
+  const [draftEnabled, setDraftEnabled] = useState(null);
+  const savedEnabled = data?.document_edit_enabled ?? true;
+  const documentEditEnabled = draftEnabled ?? savedEnabled;
+
+  const handleSave = async () => {
+    if (updateSettings.isPending) return;
+    onError('');
+    onSuccess('');
+    try {
+      await updateSettings.mutateAsync({ document_edit_enabled: documentEditEnabled });
+      setDraftEnabled(null);
+      onSuccess(documentEditEnabled
+        ? 'Edit dokumen KTP dan BPJS diaktifkan.'
+        : 'Edit dokumen KTP dan BPJS dinonaktifkan untuk semua pengguna selain Super Admin.');
+    } catch (err) {
+      onError(err.response?.data?.error || 'Gagal menyimpan pengaturan sistem');
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 max-w-3xl">
+      <div className="flex items-start gap-3">
+        <div className="p-2.5 bg-red-50 text-red-600 rounded-xl"><Lock className="w-5 h-5" /></div>
+        <div>
+          <h2 className="text-lg font-bold text-slate-800">Pengaturan Sistem</h2>
+          <p className="text-sm text-slate-500">Pengaturan global yang berlaku untuk seluruh pengguna. Hanya dapat diubah oleh Super Admin.</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center h-24"><Loader2 className="w-6 h-6 text-red-600 animate-spin" /></div>
+      ) : isError ? (
+        <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl p-4">Gagal memuat pengaturan sistem.</p>
+      ) : (
+        <>
+          <Toggle
+            checked={documentEditEnabled}
+            onChange={setDraftEnabled}
+            title="Izinkan edit dokumen KTP & BPJS"
+            description="Jika dinonaktifkan, atlet dan pelatih (melalui portal) serta admin lain tidak dapat mengunggah atau mengganti dokumen KTP/identitas, dokumen BPJS, dan nomor BPJS pada data yang sudah ada. NIK dan data lain tetap dapat diubah."
+          />
+          {!documentEditEnabled && (
+            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl p-4">
+              Pendaftaran atlet/pelatih baru tetap dapat melampirkan KTP dan BPJS. Super Admin tetap dapat mengedit dokumen.
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={updateSettings.isPending || documentEditEnabled === savedEnabled}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {updateSettings.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+            Simpan Pengaturan
+          </button>
+        </>
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ export function useCoachSubmission({
   onSuccess,
   mode = 'admin',
   submitRequest,
+  documentsLocked = false,
 }) {
   const [loading, setLoading] = useState(false);
   const submitInFlightRef = useRef(false);
@@ -56,8 +57,15 @@ export function useCoachSubmission({
     setErrorMessage('');
 
     try {
-      const data = buildCoachFormData(formData, achievementsList, files, normalizedPhone, {
-        excludedFields: mode === 'portal' ? ['is_active', 'bpjs_number'] : [],
+      // While locked, KTP/BPJS fields are omitted so the backend keeps the stored values.
+      const excludedFields = mode === 'portal'
+        ? ['is_active', 'bpjs_number']
+        : documentsLocked ? ['bpjs_number'] : [];
+      const uploadFiles = documentsLocked
+        ? { ...files, identityDocumentFile: null, bpjsDocumentFile: null }
+        : files;
+      const data = buildCoachFormData(formData, achievementsList, uploadFiles, normalizedPhone, {
+        excludedFields,
         includeEmptyFields: mode === 'portal',
       });
       if (submitRequest) {

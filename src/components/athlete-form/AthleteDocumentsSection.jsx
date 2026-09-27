@@ -1,4 +1,5 @@
 import { CheckCircle2, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
+import { DocumentEditLockedNotice } from '../form-validation/DocumentEditLockedNotice';
 import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
@@ -29,6 +30,7 @@ export function AthleteDocumentsSection({
     canReuseStoredBPJS,
     bpjsNumberRequired,
     storedIdentityType,
+    documentsLocked = false,
   } = validation;
   const handleDocumentChange = (kind) => files.handleDocumentChange(kind, formData.birth_date);
   const storedIdentityNeedsConfirmation = Boolean(athlete?.identity_document) && !storedIdentityType;
@@ -44,6 +46,7 @@ export function AthleteDocumentsSection({
       title="Dokumen Verifikasi"
       subtitle="Dokumen identitas wajib diunggah; dokumen BPJS dapat dilampirkan bila tersedia"
     >
+      {documentsLocked && <DocumentEditLockedNotice />}
       <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
         <div className="flex items-center justify-between gap-2">
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">
@@ -63,7 +66,8 @@ export function AthleteDocumentsSection({
             {...getFieldControlProps('identity_document_type', errors)}
             value={formData.identity_document_type}
             onChange={(event) => updateField('identity_document_type', event.target.value)}
-            className={`w-full rounded-xl border bg-white px-3.5 py-2 text-xs outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 ${
+            disabled={documentsLocked}
+            className={`w-full rounded-xl border bg-white px-3.5 py-2 text-xs outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${
               errors.identity_document_type ? 'border-red-400 bg-red-50' : 'border-slate-200'
             }`}
           >
@@ -100,7 +104,7 @@ export function AthleteDocumentsSection({
           aria-invalid={Boolean(documentErrors.identity || errors.identity_document) || undefined}
           aria-describedby={(documentErrors.identity || errors.identity_document) ? getFieldErrorId('identity_document') : undefined}
           className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 outline-none transition-all focus:ring-2 focus:ring-red-300 ${
-            !ageGroup || documentProcessing.identity
+            documentsLocked || !ageGroup || documentProcessing.identity
               ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
               : 'cursor-pointer border-slate-300 bg-white shadow-2xs hover:border-red-400 hover:bg-red-50/50'
           }`}
@@ -114,7 +118,7 @@ export function AthleteDocumentsSection({
             type="file"
             accept={DOCUMENT_ACCEPT}
             onChange={handleDocumentChange('identity')}
-            disabled={!ageGroup || documentProcessing.identity}
+            disabled={documentsLocked || !ageGroup || documentProcessing.identity}
             className="hidden"
           />
         </label>
@@ -181,7 +185,8 @@ export function AthleteDocumentsSection({
               aria-required={bpjsNumberRequired}
               value={formData.bpjs_number}
               onChange={(event) => updateField('bpjs_number', event.target.value)}
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 ${
+              disabled={documentsLocked}
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${
                 errors.bpjs_number ? 'border-red-400 bg-red-50' : 'border-slate-200'
               }`}
               placeholder="Masukkan nomor kepesertaan BPJS"
@@ -201,14 +206,14 @@ export function AthleteDocumentsSection({
           aria-invalid={Boolean(documentErrors.bpjs || errors.bpjs_document) || undefined}
           aria-describedby={(documentErrors.bpjs || errors.bpjs_document) ? getFieldErrorId('bpjs_document') : undefined}
           className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 outline-none transition-all focus:ring-2 focus:ring-red-300 ${
-            documentProcessing.bpjs
-              ? 'cursor-wait border-slate-200 bg-slate-100 text-slate-400'
+            documentsLocked || documentProcessing.bpjs
+              ? `${documentsLocked ? 'cursor-not-allowed' : 'cursor-wait'} border-slate-200 bg-slate-100 text-slate-400`
               : 'cursor-pointer border-slate-300 bg-white shadow-2xs hover:border-red-400 hover:bg-red-50/50'
           }`}
         >
           {documentProcessing.bpjs ? <Loader2 className="h-4 w-4 animate-spin text-red-600" /> : <Upload className="h-4 w-4 text-slate-500" />}
           <span className="text-xs font-bold text-slate-700">{documentProcessing.bpjs ? 'Memproses dokumen...' : 'Pilih Dokumen BPJS'}</span>
-          <input name="bpjs_document" type="file" accept={DOCUMENT_ACCEPT} onChange={form.handleBPJSDocumentChange} disabled={documentProcessing.bpjs} className="hidden" />
+          <input name="bpjs_document" type="file" accept={DOCUMENT_ACCEPT} onChange={form.handleBPJSDocumentChange} disabled={documentsLocked || documentProcessing.bpjs} className="hidden" />
         </label>
 
         {showStoredDocumentButtons && athlete?.bpjs_document && (

@@ -70,7 +70,8 @@ export function validateCoachProfile(formData, context = {}) {
   if (!text('province')) add('province', 'Provinsi wajib dipilih');
   if (!text('city')) add('city', 'Kota/Kabupaten wajib dipilih');
   if (!text('district')) add('district', 'Kecamatan/Distrik wajib dipilih');
-  if (!context.identityDocumentFile && !context.canReuseStoredIdentity) {
+  // KTP/BPJS data cannot be changed while locked, so its completeness is not enforced here.
+  if (!context.documentsLocked && !context.identityDocumentFile && !context.canReuseStoredIdentity) {
     add(
       'identity_document',
       context.isEdit

@@ -4,6 +4,7 @@ import { firstFieldError } from '../form-modal/formUtils';
 import { BPJSDeferredAcknowledgement } from '../form-validation/BPJSDeferredAcknowledgement';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { DOCUMENT_ACCEPT } from '../form-modal/mediaUtils';
+import { DocumentEditLockedNotice } from '../form-validation/DocumentEditLockedNotice';
 
 function DocumentUploadCard({
   field,
@@ -18,6 +19,7 @@ function DocumentUploadCard({
   opening = false,
   onOpenStored,
   required = true,
+  disabled = false,
   children,
   footer,
 }) {
@@ -40,13 +42,15 @@ function DocumentUploadCard({
         aria-invalid={hasError || undefined}
         aria-describedby={hasError ? getFieldErrorId(field) : undefined}
         className={`flex w-full items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-3 outline-none transition-all focus:ring-2 focus:ring-red-300 ${
-          processing
-            ? 'cursor-wait border-slate-200 bg-slate-100 text-slate-400'
-            : hasError
-              ? 'cursor-pointer border-red-300 bg-red-50/60 hover:border-red-400'
-              : hasDocument
-                ? 'cursor-pointer border-emerald-300 bg-emerald-50/50 hover:border-emerald-400'
-                : 'cursor-pointer border-slate-300 bg-white shadow-2xs hover:border-red-400 hover:bg-red-50/50'
+          disabled
+            ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
+            : processing
+              ? 'cursor-wait border-slate-200 bg-slate-100 text-slate-400'
+              : hasError
+                ? 'cursor-pointer border-red-300 bg-red-50/60 hover:border-red-400'
+                : hasDocument
+                  ? 'cursor-pointer border-emerald-300 bg-emerald-50/50 hover:border-emerald-400'
+                  : 'cursor-pointer border-slate-300 bg-white shadow-2xs hover:border-red-400 hover:bg-red-50/50'
         }`}
       >
         {processing ? (
@@ -62,10 +66,10 @@ function DocumentUploadCard({
             : file
               ? `Ganti file: ${file.name}`
               : stored
-                ? 'Dokumen tersimpan siap digunakan kembali (klik untuk ganti)'
+                ? (disabled ? 'Dokumen tersimpan' : 'Dokumen tersimpan siap digunakan kembali (klik untuk ganti)')
                 : 'Pilih dokumen'}
         </span>
-        <input name={field} type="file" accept={DOCUMENT_ACCEPT} onChange={onChange} disabled={processing} className="hidden" />
+        <input name={field} type="file" accept={DOCUMENT_ACCEPT} onChange={onChange} disabled={disabled || processing} className="hidden" />
       </label>
 
       {stored && onOpenStored && (
@@ -111,7 +115,7 @@ export function CoachDocumentsSection({
   showBPJSNumber = false,
 }) {
   const { data: formData, updateField } = form;
-  const { errors, bpjsNumberRequired } = validation;
+  const { errors, bpjsNumberRequired, documentsLocked = false } = validation;
   return (
     <FormSectionCard
       icon={FileText}
@@ -120,6 +124,7 @@ export function CoachDocumentsSection({
       title="Dokumen Verifikasi"
       subtitle="KTP wajib diunggah; dokumen BPJS dapat dilampirkan bila tersedia"
     >
+      {documentsLocked && <DocumentEditLockedNotice />}
       <DocumentUploadCard
         field="identity_document"
         title="KTP Pelatih"
@@ -130,6 +135,7 @@ export function CoachDocumentsSection({
         error={files.documentErrors.identity}
         fieldError={errors.identity_document}
         onChange={files.handleDocumentChange('identity')}
+        disabled={documentsLocked}
         opening={files.documentOpening.identity}
         onOpenStored={() => files.handleOpenStoredDocument('identity')}
       />
@@ -144,6 +150,7 @@ export function CoachDocumentsSection({
         error={files.documentErrors.bpjs}
         fieldError={errors.bpjs_document}
         onChange={form.handleBPJSDocumentChange}
+        disabled={documentsLocked}
         opening={files.documentOpening.bpjs}
         onOpenStored={() => files.handleOpenStoredDocument('bpjs')}
         footer={<BPJSDeferredAcknowledgement validation={validation} />}
@@ -161,7 +168,8 @@ export function CoachDocumentsSection({
               aria-required={bpjsNumberRequired}
               value={formData.bpjs_number}
               onChange={(event) => updateField('bpjs_number', event.target.value)}
-              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 ${
+              disabled={documentsLocked}
+              className={`w-full rounded-xl border bg-white px-3.5 py-2.5 font-mono text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 ${
                 errors.bpjs_number ? 'border-red-400 bg-red-50' : 'border-slate-200'
               }`}
               placeholder="Masukkan nomor kepesertaan BPJS"

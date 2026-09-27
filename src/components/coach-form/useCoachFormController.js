@@ -26,6 +26,12 @@ import {
 import { useCoachLookups } from './useCoachLookups';
 import { useCoachMedia } from './useCoachMedia';
 import { useCoachSubmission } from './useCoachSubmission';
+import { useDocumentEditLock } from '../../hooks/useDocumentEditLock';
+
+const LOCKED_BPJS_REQUIREMENTS = {
+  numberRequired: false,
+  deferredAcknowledgementRequired: false,
+};
 
 export function useCoachFormController({
   isOpen,
@@ -62,7 +68,12 @@ export function useCoachFormController({
 
   const lookups = useCoachLookups();
   const media = useCoachMedia({ coach, setErrors, setErrorMessage });
-  const bpjsRequirements = getBPJSRequirements({
+  const documentsLocked = useDocumentEditLock(Boolean(coach?.id));
+  const documentsLockedRef = useRef(documentsLocked);
+  useEffect(() => {
+    documentsLockedRef.current = documentsLocked;
+  }, [documentsLocked]);
+  const bpjsRequirements = documentsLocked ? LOCKED_BPJS_REQUIREMENTS : getBPJSRequirements({
     mode,
     bpjsDocumentFile: media.bpjsDocumentFile,
     storedBPJSDocument: coach?.bpjs_document,
@@ -78,6 +89,7 @@ export function useCoachFormController({
 
   const validateProfile = useCallback(() => validateCoachProfile(formData, {
     isEdit: Boolean(coach),
+    documentsLocked,
     identityDocumentFile: media.identityDocumentFile,
     canReuseStoredIdentity: media.canReuseStoredIdentity,
     documentErrors: media.documentErrors,
@@ -92,6 +104,7 @@ export function useCoachFormController({
     bpjsRequirements.deferredAcknowledgementRequired,
     bpjsRequirements.numberRequired,
     coach,
+    documentsLocked,
     formData,
     media.canReuseStoredIdentity,
     media.certificateError,
@@ -133,6 +146,7 @@ export function useCoachFormController({
     onSuccess,
     mode,
     submitRequest,
+    documentsLocked,
   });
 
   const { fetchLookups } = lookups;
@@ -158,7 +172,9 @@ export function useCoachFormController({
     fetchLookups();
     if (coach) {
       const mapped = mapCoachToForm(coach);
-      const initialBPJSRequirements = getBPJSRequirements({
+      // Read through a ref so a late settings response does not reset the open form.
+      const initiallyLocked = documentsLockedRef.current;
+      const initialBPJSRequirements = initiallyLocked ? LOCKED_BPJS_REQUIREMENTS : getBPJSRequirements({
         mode,
         storedBPJSDocument: coach.bpjs_document,
       });
@@ -167,6 +183,7 @@ export function useCoachFormController({
       setAchievementsList(mapped.achievements);
       setInitialIncompleteCount(Object.keys(validateCoachProfile(mapped.formData, {
         isEdit: true,
+        documentsLocked: initiallyLocked,
         canReuseStoredIdentity: Boolean(coach.identity_document),
         bpjsNumberRequired: initialBPJSRequirements.numberRequired,
         bpjsDeferredAcknowledgementRequired: initialBPJSRequirements.deferredAcknowledgementRequired,
@@ -301,6 +318,7 @@ export function useCoachFormController({
       bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
       bpjsDeferredAcknowledged,
       handleBPJSDeferredAcknowledgementChange,
+      documentsLocked,
       nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik)),
     },
     navigation: {

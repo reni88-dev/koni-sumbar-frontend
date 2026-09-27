@@ -31,6 +31,8 @@ import {
   usePortalDevelopmentFunds,
 } from '../hooks/queries/usePortal';
 import { hasShownBPJSReminder, markBPJSReminderShown } from '../lib/bpjsReminderSession';
+import { useSystemSettings } from '../hooks/queries/useSystemSettings';
+import { useDocumentEditLock } from '../hooks/useDocumentEditLock';
 import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
 
 const MotionDiv = motion.div;
@@ -99,12 +101,15 @@ export function AthletePortal() {
   const { data: educationLevels = [], isLoading: educationLevelsLoading } = useEducationLevelsAll();
 
   const athlete = useMemo(() => getAthlete(profile), [profile]);
+  const { isFetched: systemSettingsReady } = useSystemSettings();
+  const documentsLocked = useDocumentEditLock(true);
 
   useEffect(() => {
-    if (!profileReady || athlete?.bpjs_document || hasShownBPJSReminder()) return;
+    // No BPJS reminder while uploads are locked by super_admin.
+    if (!profileReady || !systemSettingsReady || documentsLocked || athlete?.bpjs_document || hasShownBPJSReminder()) return;
     markBPJSReminderShown();
     setShowBPJSReminder(true);
-  }, [athlete?.bpjs_document, profileReady]);
+  }, [athlete?.bpjs_document, documentsLocked, profileReady, systemSettingsReady]);
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
   const educationLevelName = athlete?.education_level?.name

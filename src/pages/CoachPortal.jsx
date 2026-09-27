@@ -46,6 +46,8 @@ import {
   useUpdatePortalProfile,
 } from '../hooks/queries/usePortal';
 import { hasShownBPJSReminder, markBPJSReminderShown } from '../lib/bpjsReminderSession';
+import { useSystemSettings } from '../hooks/queries/useSystemSettings';
+import { useDocumentEditLock } from '../hooks/useDocumentEditLock';
 
 const MotionDiv = motion.div;
 const currentYear = new Date().getFullYear();
@@ -129,12 +131,15 @@ export function CoachPortal() {
   );
 
   const coach = useMemo(() => getCoach(profile), [profile]);
+  const { isFetched: systemSettingsReady } = useSystemSettings();
+  const documentsLocked = useDocumentEditLock(true);
 
   useEffect(() => {
-    if (!profileReady || coach?.bpjs_document || hasShownBPJSReminder()) return;
+    // No BPJS reminder while uploads are locked by super_admin.
+    if (!profileReady || !systemSettingsReady || documentsLocked || coach?.bpjs_document || hasShownBPJSReminder()) return;
     markBPJSReminderShown();
     setShowBPJSReminder(true);
-  }, [coach?.bpjs_document, profileReady]);
+  }, [coach?.bpjs_document, documentsLocked, profileReady, systemSettingsReady]);
   const clusters = clustersData?.data || [];
   const funds = fundsData?.data || [];
   const isPrintDataLoading = clustersLoading || fundsLoading;
