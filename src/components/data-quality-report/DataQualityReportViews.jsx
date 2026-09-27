@@ -1,8 +1,6 @@
 import { createElement, useEffect, useState } from 'react';
 import {
-  AlertTriangle,
   Building2,
-  CheckCircle2,
   FileWarning,
   ShieldAlert,
   TrendingUp,
@@ -213,16 +211,27 @@ function DuplicateReport({ rows }) {
   );
 }
 
+function ValidityProfiles({ item }) {
+  const entities = parseQualityJSON(item.entity_ids, []);
+  if (!entities.length) return <p className="font-semibold text-slate-700">{entityLabel({ type: item.entity_type })}</p>;
+  return entities.map((entity, index) => (
+    <div key={`${entity?.type}-${entity?.id}-${index}`}>
+      <p className="font-semibold text-slate-800">{entity?.name || entityLabel(entity)}</p>
+      {entity?.name && <p className="text-xs text-slate-400">{entityLabel(entity)}</p>}
+    </div>
+  ));
+}
+
 function ValidityReport({ rows }) {
   return (
     <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block">
-      <table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Jenis masalah</th><th className="px-4 py-3">Profil terkait</th><th className="px-4 py-3">Prioritas</th><th className="px-4 py-3">Judul</th><th className="px-4 py-3">Organisasi / Cabor</th><th className="px-4 py-3">Terakhir terdeteksi</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((item) => { const entities = parseQualityJSON(item.entity_ids, []); return <tr key={item.id}><td className="px-4 py-4"><Badge value={item.finding_type} /></td><td className="px-4 py-4 font-semibold text-slate-700">{entities.map(entityLabel).join(', ') || entityLabel({ type: item.entity_type })}</td><td className="px-4 py-4"><Badge value={item.priority} /></td><td className="px-4 py-4 text-slate-700">{item.title}</td><td className="px-4 py-4"><p>{item.organization_name || '-'}</p><p className="text-xs text-slate-500">{item.cabor_name || '-'}</p></td><td className="px-4 py-4 text-xs text-slate-500">{formatQualityDateTime(item.last_seen_at)}</td></tr>; })}</tbody></table>
+      <table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Jenis masalah</th><th className="px-4 py-3">Profil terkait</th><th className="px-4 py-3">Prioritas</th><th className="px-4 py-3">Judul</th><th className="px-4 py-3">Organisasi / Cabor</th><th className="px-4 py-3">Terakhir terdeteksi</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((item) => <tr key={item.id}><td className="px-4 py-4"><Badge value={item.finding_type} /></td><td className="px-4 py-4"><ValidityProfiles item={item} /></td><td className="px-4 py-4"><Badge value={item.priority} /></td><td className="px-4 py-4 text-slate-700">{item.title}</td><td className="px-4 py-4"><p>{item.organization_name || '-'}</p><p className="text-xs text-slate-500">{item.cabor_name || '-'}</p></td><td className="px-4 py-4 text-xs text-slate-500">{formatQualityDateTime(item.last_seen_at)}</td></tr>)}</tbody></table>
     </div>
   );
 }
 
 function ValidityMobile({ rows }) {
-  return <div className="space-y-3 md:hidden">{rows.map((item) => { const entities = parseQualityJSON(item.entity_ids, []); return <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap gap-2"><Badge value={item.finding_type} /><Badge value={item.priority} /></div><h3 className="mt-3 font-bold text-slate-800">{item.title}</h3><p className="mt-2 text-sm text-slate-600">{entities.map(entityLabel).join(', ') || entityLabel({ type: item.entity_type })}</p><p className="mt-2 text-xs text-slate-500">{item.organization_name || '-'} · {item.cabor_name || '-'}</p><p className="mt-1 text-xs text-slate-400">Terdeteksi {formatQualityDateTime(item.last_seen_at)}</p></article>; })}</div>;
+  return <div className="space-y-3 md:hidden">{rows.map((item) => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-wrap gap-2"><Badge value={item.finding_type} /><Badge value={item.priority} /></div><h3 className="mt-3 font-bold text-slate-800">{item.title}</h3><div className="mt-2 text-sm"><ValidityProfiles item={item} /></div><p className="mt-2 text-xs text-slate-500">{item.organization_name || '-'} · {item.cabor_name || '-'}</p><p className="mt-1 text-xs text-slate-400">Terdeteksi {formatQualityDateTime(item.last_seen_at)}</p></article>)}</div>;
 }
 
 function DocumentReport({ rows }) {
@@ -233,7 +242,7 @@ function DocumentReport({ rows }) {
 
 function DistributionReport({ rows }) {
   return (
-    <><div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block"><table className="w-full min-w-[1000px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Wilayah</th><th className="px-4 py-3">Organisasi</th><th className="px-4 py-3">Pengcab</th><th className="px-4 py-3">Cabor</th><th className="px-4 py-3 text-right">Profil</th><th className="px-4 py-3 text-right">Skor rata-rata</th><th className="px-4 py-3 text-right">Masalah</th><th className="px-4 py-3">Hubungan dengan pengcab</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((item, index) => <tr key={`${item.organization_id}-${item.cabor_id}-${index}`}><td className="px-4 py-4">{item.region_name || '-'}</td><td className="px-4 py-4 font-semibold text-slate-800">{item.organization_name || '-'}</td><td className="px-4 py-4">{item.pengcab_name || '-'}</td><td className="px-4 py-4">{item.cabor_name || '-'}</td><td className="px-4 py-4 text-right">{formatQualityNumber(item.profiles)}</td><td className="px-4 py-4 text-right font-bold">{formatQualityScore(item.average_score)}%</td><td className="px-4 py-4 text-right">{formatQualityNumber(item.issues)}</td><td className="px-4 py-4">{item.unmapped_pengcab ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700"><AlertTriangle className="h-4 w-4" /> Belum terhubung</span> : <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" /> Terpetakan</span>}</td></tr>)}</tbody></table></div><div className="grid gap-3 md:hidden">{rows.map((item, index) => <article key={`${item.organization_id}-${item.cabor_id}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-slate-800">{item.organization_name || '-'}</p><p className="text-xs text-slate-500">{item.region_name || '-'} · {item.cabor_name || '-'}</p></div><strong className="text-red-600">{formatQualityScore(item.average_score)}%</strong></div><div className="mt-3 grid grid-cols-2 gap-3"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Profil</p><p className="font-bold">{formatQualityNumber(item.profiles)}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Masalah</p><p className="font-bold">{formatQualityNumber(item.issues)}</p></div></div><p className="mt-3 text-xs text-slate-500">Pengcab: {item.pengcab_name || '-'}</p>{item.unmapped_pengcab && <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-amber-700"><AlertTriangle className="h-4 w-4" /> Profil belum terhubung dengan pengcab</p>}</article>)}</div></>
+    <><div className="hidden overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm md:block"><table className="w-full min-w-[800px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr><th className="px-4 py-3">Wilayah</th><th className="px-4 py-3">Organisasi</th><th className="px-4 py-3">Cabor</th><th className="px-4 py-3 text-right">Profil</th><th className="px-4 py-3 text-right">Skor rata-rata</th><th className="px-4 py-3 text-right">Masalah</th></tr></thead><tbody className="divide-y divide-slate-100">{rows.map((item, index) => <tr key={`${item.organization_id}-${item.cabor_id}-${index}`}><td className="px-4 py-4">{item.region_name || '-'}</td><td className="px-4 py-4 font-semibold text-slate-800">{item.organization_name || '-'}</td><td className="px-4 py-4">{item.cabor_name || '-'}</td><td className="px-4 py-4 text-right">{formatQualityNumber(item.profiles)}</td><td className="px-4 py-4 text-right font-bold">{formatQualityScore(item.average_score)}%</td><td className="px-4 py-4 text-right">{formatQualityNumber(item.issues)}</td></tr>)}</tbody></table></div><div className="grid gap-3 md:hidden">{rows.map((item, index) => <article key={`${item.organization_id}-${item.cabor_id}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-slate-800">{item.organization_name || '-'}</p><p className="text-xs text-slate-500">{item.region_name || '-'} · {item.cabor_name || '-'}</p></div><strong className="text-red-600">{formatQualityScore(item.average_score)}%</strong></div><div className="mt-3 grid grid-cols-2 gap-3"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Profil</p><p className="font-bold">{formatQualityNumber(item.profiles)}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-400">Masalah</p><p className="font-bold">{formatQualityNumber(item.issues)}</p></div></div></article>)}</div></>
   );
 }
 

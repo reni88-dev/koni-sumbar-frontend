@@ -101,12 +101,10 @@ const TABLE_COLUMNS = {
   distribution: [
     { label: 'Wilayah', render: (item) => item.region_name || '-' },
     { label: 'Organisasi', render: (item) => item.organization_name || '-' },
-    { label: 'Pengcab', render: (item) => item.pengcab_name || '-' },
     { label: 'Cabor', render: (item) => item.cabor_name || '-' },
     { label: 'Profil', num: true, render: (item) => formatQualityNumber(item.profiles) },
     { label: 'Skor rata-rata', num: true, render: (item) => `${formatQualityScore(item.average_score)}%` },
     { label: 'Masalah', num: true, render: (item) => formatQualityNumber(item.issues) },
-    { label: 'Hubungan dengan pengcab', render: (item) => (item.unmapped_pengcab ? 'Belum terhubung' : 'Terpetakan') },
   ],
 };
 
