@@ -185,6 +185,7 @@ export function RolesPage() {
   const [isPermissionModalOpen, setIsPermissionModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
+  const [permissionError, setPermissionError] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({ name: '', display_name: '', description: '' });
@@ -234,6 +235,7 @@ export function RolesPage() {
     if (!canManagePermissions) return;
     setEditingRole(role);
     setSelectedPermissions(role.permissions?.map(p => p.id) || []);
+    setPermissionError('');
     setIsPermissionModalOpen(true);
   };
 
@@ -257,14 +259,20 @@ export function RolesPage() {
 
   const handlePermissionUpdate = async () => {
     if (!canManagePermissions) return;
+    setPermissionError('');
     try {
-      await updatePermissionsMutation.mutateAsync({ 
-        roleId: editingRole.id, 
-        permissions: selectedPermissions 
+      await updatePermissionsMutation.mutateAsync({
+        roleId: editingRole.id,
+        permissions: selectedPermissions
       });
       setIsPermissionModalOpen(false);
     } catch (error) {
-      console.error('Failed to update permissions:', error);
+      // Keep the modal and selection open so the user can fix the rejected permissions.
+      setPermissionError(
+        error.response?.data?.message
+          || error.response?.data?.error
+          || 'Gagal menyimpan permission. Silakan coba lagi.',
+      );
     }
   };
 
@@ -906,6 +914,13 @@ export function RolesPage() {
                   </div>
                 </div>
                 
+                {permissionError && (
+                  <div role="alert" className="mx-6 mt-4 flex flex-shrink-0 items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span className="break-words">{permissionError}</span>
+                  </div>
+                )}
+
                 <div className="p-6 border-t border-slate-100 flex gap-3 flex-shrink-0">
                   <button
                     onClick={() => setIsPermissionModalOpen(false)}
