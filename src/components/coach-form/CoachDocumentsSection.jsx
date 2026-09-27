@@ -4,7 +4,7 @@ import { firstFieldError } from '../form-modal/formUtils';
 import { BPJSDeferredAcknowledgement } from '../form-validation/BPJSDeferredAcknowledgement';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 import { DOCUMENT_ACCEPT } from '../form-modal/mediaUtils';
-import { DocumentEditLockedNotice } from '../form-validation/DocumentEditLockedNotice';
+import { DocumentEditLockedNotice, DocumentEditRevisionNotice } from '../form-validation/DocumentEditLockedNotice';
 
 function DocumentUploadCard({
   field,
@@ -115,7 +115,7 @@ export function CoachDocumentsSection({
   showBPJSNumber = false,
 }) {
   const { data: formData, updateField } = form;
-  const { errors, bpjsNumberRequired, documentsLocked = false } = validation;
+  const { errors, bpjsNumberRequired, documentsLocked = false, documentsUnlockedForRevision = false } = validation;
   return (
     <FormSectionCard
       icon={FileText}
@@ -125,6 +125,7 @@ export function CoachDocumentsSection({
       subtitle="KTP wajib diunggah; dokumen BPJS dapat dilampirkan bila tersedia"
     >
       {documentsLocked && <DocumentEditLockedNotice />}
+      {documentsUnlockedForRevision && <DocumentEditRevisionNotice />}
       <DocumentUploadCard
         field="identity_document"
         title="KTP Pelatih"

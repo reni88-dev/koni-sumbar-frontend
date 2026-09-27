@@ -1,5 +1,5 @@
 import { CheckCircle2, ExternalLink, FileText, Loader2, Upload } from 'lucide-react';
-import { DocumentEditLockedNotice } from '../form-validation/DocumentEditLockedNotice';
+import { DocumentEditLockedNotice, DocumentEditRevisionNotice } from '../form-validation/DocumentEditLockedNotice';
 import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
 import { firstFieldError } from '../form-modal/formUtils';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
@@ -31,6 +31,7 @@ export function AthleteDocumentsSection({
     bpjsNumberRequired,
     storedIdentityType,
     documentsLocked = false,
+    documentsUnlockedForRevision = false,
   } = validation;
   const handleDocumentChange = (kind) => files.handleDocumentChange(kind, formData.birth_date);
   const storedIdentityNeedsConfirmation = Boolean(athlete?.identity_document) && !storedIdentityType;
@@ -47,6 +48,7 @@ export function AthleteDocumentsSection({
       subtitle="Dokumen identitas wajib diunggah; dokumen BPJS dapat dilampirkan bila tersedia"
     >
       {documentsLocked && <DocumentEditLockedNotice />}
+      {documentsUnlockedForRevision && <DocumentEditRevisionNotice />}
       <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
         <div className="flex items-center justify-between gap-2">
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-800">

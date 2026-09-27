@@ -29,7 +29,7 @@ import { useAthleteEmailValidation } from './useAthleteEmailValidation';
 import { useAthleteLookups } from './useAthleteLookups';
 import { useAthleteMedia } from './useAthleteMedia';
 import { useAthleteSubmission } from './useAthleteSubmission';
-import { useDocumentEditLock } from '../../hooks/useDocumentEditLock';
+import { useDocumentEditAccess } from '../../hooks/useDocumentEditLock';
 
 const LOCKED_BPJS_REQUIREMENTS = {
   numberRequired: false,
@@ -110,7 +110,7 @@ export function useAthleteFormController({
     initialValue: initialPhoneValues.mother_phone,
     onNormalize: normalizeMotherPhone,
   });
-  const documentsLocked = useDocumentEditLock(Boolean(athlete?.id));
+  const { locked: documentsLocked, revisionPending: documentsUnlockedForRevision } = useDocumentEditAccess('athletes', athlete?.id);
   const documentsLockedRef = useRef(documentsLocked);
   useEffect(() => {
     documentsLockedRef.current = documentsLocked;
@@ -431,6 +431,7 @@ export function useAthleteFormController({
       bpjsDeferredAcknowledged,
       handleBPJSDeferredAcknowledgementChange,
       documentsLocked,
+      documentsUnlockedForRevision,
       storedIdentityType,
       nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik)),
       noKKInvalid: Boolean(errors.no_kk) || (formData.no_kk !== '' && !IDENTITY_PATTERN.test(formData.no_kk)),

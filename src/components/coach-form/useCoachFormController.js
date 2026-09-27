@@ -26,7 +26,7 @@ import {
 import { useCoachLookups } from './useCoachLookups';
 import { useCoachMedia } from './useCoachMedia';
 import { useCoachSubmission } from './useCoachSubmission';
-import { useDocumentEditLock } from '../../hooks/useDocumentEditLock';
+import { useDocumentEditAccess } from '../../hooks/useDocumentEditLock';
 
 const LOCKED_BPJS_REQUIREMENTS = {
   numberRequired: false,
@@ -68,7 +68,7 @@ export function useCoachFormController({
 
   const lookups = useCoachLookups();
   const media = useCoachMedia({ coach, setErrors, setErrorMessage });
-  const documentsLocked = useDocumentEditLock(Boolean(coach?.id));
+  const { locked: documentsLocked, revisionPending: documentsUnlockedForRevision } = useDocumentEditAccess('coaches', coach?.id);
   const documentsLockedRef = useRef(documentsLocked);
   useEffect(() => {
     documentsLockedRef.current = documentsLocked;
@@ -319,6 +319,7 @@ export function useCoachFormController({
       bpjsDeferredAcknowledged,
       handleBPJSDeferredAcknowledgementChange,
       documentsLocked,
+      documentsUnlockedForRevision,
       nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik)),
     },
     navigation: {
