@@ -136,14 +136,18 @@ test('cleanup me-revoke seluruh object URL dokumen yang tersimpan', () => {
   assert.deepEqual(revoked, ['blob:athlete-identity', 'blob:athlete-bpjs']);
 });
 
-test('pesan pembukaan dokumen atlet membedakan 404 dan kegagalan lain', () => {
+test('pesan pembukaan dokumen atlet membedakan 404, 503, dan kegagalan lain', () => {
   assert.equal(
     getAthleteStoredDocumentOpenError('identity', 404),
-    'Dokumen identitas tersimpan tidak ditemukan.',
+    'File dokumen identitas tidak ditemukan di penyimpanan server. Unggah ulang dokumen melalui form edit.',
   );
   assert.equal(
     getAthleteStoredDocumentOpenError('bpjs', 404),
-    'Dokumen BPJS tersimpan tidak ditemukan.',
+    'File dokumen BPJS tidak ditemukan di penyimpanan server. Unggah ulang dokumen melalui form edit.',
+  );
+  assert.equal(
+    getAthleteStoredDocumentOpenError('bpjs', 503),
+    'Penyimpanan dokumen sedang tidak dapat diakses. Coba lagi nanti.',
   );
   assert.equal(
     getAthleteStoredDocumentOpenError('identity', 500),

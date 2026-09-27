@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api/axios';
 import { getCoachPhotoUrl } from '../../lib/coachPhoto';
 import { compressImageForUpload, prepareDocumentForUpload, validateSourceFile } from '../form-modal/mediaUtils';
+import { getStoredDocumentOpenErrorMessage } from '../form-modal/storedDocumentError';
 
 export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
   const photoProcessingIdRef = useRef(0);
@@ -249,9 +250,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
       ) {
         return;
       }
-      setCertificateError(error.response?.status === 404
-        ? 'Sertifikat tersimpan tidak ditemukan.'
-        : 'Gagal membuka sertifikat tersimpan.');
+      setCertificateError(getStoredDocumentOpenErrorMessage('sertifikat', error.response?.status));
     } finally {
       if (requestId === certificateOpenRequestIdRef.current) {
         certificateOpenControllerRef.current = null;
@@ -319,9 +318,7 @@ export function useCoachMedia({ coach, setErrors, setErrorMessage }) {
       const label = kind === 'identity' ? 'KTP' : 'dokumen BPJS';
       setDocumentErrors((previous) => ({
         ...previous,
-        [kind]: error.response?.status === 404
-          ? `${label} tersimpan tidak ditemukan.`
-          : `Gagal membuka ${label} tersimpan.`
+        [kind]: getStoredDocumentOpenErrorMessage(label, error.response?.status),
       }));
     } finally {
       if (requestId === documentOpenRequestIdsRef.current[kind]) {

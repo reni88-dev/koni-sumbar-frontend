@@ -26,6 +26,7 @@ import {
 import api from '../api/axios';
 import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import { ProtectedImage } from './ProtectedImage';
+import { getStoredDocumentOpenErrorMessage } from './form-modal/storedDocumentError';
 import {
   openCoachProfilePrintWindow,
   parseCoachAchievements,
@@ -226,10 +227,7 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
       ) {
         return;
       }
-      const message = error.response?.status === 404
-        ? `Dokumen ${label} tidak ditemukan.`
-        : `Gagal membuka dokumen ${label}. Silakan coba lagi.`;
-      window.alert(message);
+      window.alert(getStoredDocumentOpenErrorMessage(`dokumen ${label}`, error.response?.status));
     } finally {
       if (requestId === documentRequestIdRef.current) {
         documentControllerRef.current = null;

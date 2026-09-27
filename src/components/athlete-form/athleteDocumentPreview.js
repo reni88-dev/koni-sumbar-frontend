@@ -1,3 +1,5 @@
+import { getStoredDocumentOpenErrorMessage } from '../form-modal/storedDocumentError.js';
+
 export async function fetchAndOpenStoredDocument({
   apiClient,
   documentUrl,
@@ -39,7 +41,5 @@ export function revokeStoredDocumentObjectUrls(urls, revokeObjectURL) {
 
 export function getAthleteStoredDocumentOpenError(kind, status) {
   const label = kind === 'identity' ? 'dokumen identitas' : 'dokumen BPJS';
-  return status === 404
-    ? `${label[0].toUpperCase()}${label.slice(1)} tersimpan tidak ditemukan.`
-    : `Gagal membuka ${label} tersimpan.`;
+  return getStoredDocumentOpenErrorMessage(label, status);
 }
