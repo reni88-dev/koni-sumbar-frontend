@@ -1,6 +1,6 @@
 import { User } from 'lucide-react';
 import { firstFieldError } from '../form-modal/formUtils';
-import { getFieldControlProps, getFieldErrorId } from '../form-validation/profileValidation';
+import { getFieldControlProps, getFieldErrorId, sanitizeProfileNameInput } from '../form-validation/profileValidation';
 import { FormSectionCard } from '../form-modal/FormSectionCard';
 
 export function AthleteIdentitySection({ form, validation }) {
@@ -22,13 +22,13 @@ export function AthleteIdentitySection({ form, validation }) {
           {...getFieldControlProps('name', errors)}
           type="text"
           value={formData.name}
-          onChange={e => updateField('name', e.target.value)}
+          onChange={e => updateField('name', sanitizeProfileNameInput(e.target.value))}
           className={`w-full px-3.5 py-2.5 border rounded-xl focus:ring-2 outline-none text-sm transition-colors ${
             errors.name ? 'border-red-400 bg-red-50 focus:ring-red-100 focus:border-red-500' : 'border-slate-200 focus:ring-red-100 focus:border-red-500'
           }`}
           placeholder="Masukkan nama lengkap sesuai KTP/KK"
         />
-        {errors.name && <p id={getFieldErrorId('name')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.name)}</p>}
+        {errors.name ? <p id={getFieldErrorId('name')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.name)}</p> : <p className="mt-1 text-xs text-slate-400">Hanya huruf dan spasi.</p>}
       </div>
 
       <div>

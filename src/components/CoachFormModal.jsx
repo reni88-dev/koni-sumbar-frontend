@@ -70,6 +70,7 @@ export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
     >
       {navigation.step === 1 && (
         <CoachPersonalStep
+          coach={coach}
           form={form}
           lookups={lookups}
           files={files}

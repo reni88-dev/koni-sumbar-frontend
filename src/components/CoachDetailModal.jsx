@@ -10,6 +10,9 @@ import {
   Heart,
   Layers,
   Wallet,
+  ArrowLeftRight,
+  History as HistoryIcon,
+  Clock,
   Printer,
   Loader2,
   Sparkles,
@@ -23,12 +26,15 @@ import {
 import api from '../api/axios';
 import { getCoachPhotoUrl } from '../lib/coachPhoto';
 import { ProtectedImage } from './ProtectedImage';
+import { getStoredDocumentOpenErrorMessage } from './form-modal/storedDocumentError';
 import {
   openCoachProfilePrintWindow,
   parseCoachAchievements,
   printCoachProfile,
 } from './coaches/coachProfilePrint';
 import { CoachClusterHistoryTab, CoachDevelopmentFundsTab } from './coach-clusters';
+import { CoachTransferHistory } from './coach-transfers/CoachTransferHistory';
+import { usePermission } from '../hooks/usePermission';
 
 const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 
@@ -40,6 +46,17 @@ function display(value) {
 function formatDate(dateStr) {
   if (!dateStr) return '-';
   return new Date(dateStr).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatDateTime(dateStr) {
+  if (!dateStr) return '-';
+  return new Date(dateStr).toLocaleString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 
@@ -134,11 +151,13 @@ function TabButton(props) {
   );
 }
 
-export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = false }) {
+export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = false, onTransfer }) {
   const [activeTab, setActiveTab] = useState('profile');
   const [isPrinting, setIsPrinting] = useState(false);
   const printingRef = useRef(false);
   const [openingDocument, setOpeningDocument] = useState('');
+  const { can } = usePermission();
+  const canViewTransfers = can('coach_transfers.view');
   const documentRequestIdRef = useRef(0);
   const documentControllerRef = useRef(null);
   const documentPreviewWindowRef = useRef(null);
@@ -208,10 +227,7 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
       ) {
         return;
       }
-      const message = error.response?.status === 404
-        ? `Dokumen ${label} tidak ditemukan.`
-        : `Gagal membuka dokumen ${label}. Silakan coba lagi.`;
-      window.alert(message);
+      window.alert(getStoredDocumentOpenErrorMessage(`dokumen ${label}`, error.response?.status));
     } finally {
       if (requestId === documentRequestIdRef.current) {
         documentControllerRef.current = null;
@@ -231,6 +247,7 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
   const achievementsList = parseCoachAchievements(coach.achievements);
   const photoUrl = getCoachPhotoUrl(coach);
+  const coachEverEdited = Boolean(coach.created_at && coach.updated_at && coach.created_at !== coach.updated_at);
 
   const handlePrintDetail = async () => {
     if (!canViewSensitive || isPrinting || printingRef.current) return;
@@ -317,6 +334,16 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
               </div>
 
               <div className="flex items-center gap-2">
+                {onTransfer && coach.is_active && (
+                  <button
+                    type="button"
+                    onClick={() => onTransfer(coach)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-1.5 text-xs font-semibold text-white border border-white/20 hover:bg-white/25"
+                  >
+                    <ArrowLeftRight className="h-4 w-4" />
+                    <span className="hidden sm:inline">Ajukan Transfer</span>
+                  </button>
+                )}
                 {canViewSensitive && (
                   <button
                     type="button"
@@ -531,6 +558,11 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
               <TabButton id="funds" activeTab={activeTab} onSelect={setActiveTab} icon={Wallet}>
                 Biaya Pembinaan
               </TabButton>
+              {canViewTransfers && (
+                <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={HistoryIcon}>
+                  Riwayat Transfer
+                </TabButton>
+              )}
             </div>
 
             {/* Tab 1: Profil Lengkap */}
@@ -664,6 +696,25 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
                     <p className="text-xs text-slate-500 italic">Belum ada riwayat prestasi yang dicatat.</p>
                   )}
                 </div>
+
+                {/* 6. Riwayat Data */}
+                <ProfileSection
+                  title="Riwayat Data"
+                  icon={Clock}
+                  iconColor="text-slate-600"
+                  iconBg="bg-slate-100"
+                >
+                  <ProfileField label="Dibuat Pada" value={formatDateTime(coach.created_at)} />
+                  <ProfileField label="Dibuat Oleh" value={coach.created_by_name || 'Tidak diketahui'} />
+                  <ProfileField
+                    label="Terakhir Diedit Pada"
+                    value={coachEverEdited ? formatDateTime(coach.updated_at) : 'Belum pernah diedit'}
+                  />
+                  <ProfileField
+                    label="Terakhir Diedit Oleh"
+                    value={coachEverEdited ? (coach.updated_by_name || 'Tidak diketahui') : '-'}
+                  />
+                </ProfileSection>
               </div>
             )}
 
@@ -672,6 +723,8 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
 
             {/* Tab 3: Biaya Pembinaan */}
             {activeTab === 'funds' && <CoachDevelopmentFundsTab coach={coach} onOpenClusterHistory={() => setActiveTab('clusters')} />}
+
+            {activeTab === 'transfers' && canViewTransfers && <CoachTransferHistory coachId={coach.id} />}
           </div>
         </div>
       </Motion.div>

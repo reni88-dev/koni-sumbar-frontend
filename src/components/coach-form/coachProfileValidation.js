@@ -1,7 +1,9 @@
 import {
+  isProfileNameValid,
   normalizeProfilePhone,
   PROFILE_EMAIL_PATTERN,
   PROFILE_IDENTITY_PATTERN,
+  PROFILE_NAME_VALIDATION_MESSAGE,
 } from '../form-validation/profileValidation.js';
 
 export const COACH_IDENTITY_PATTERN = PROFILE_IDENTITY_PATTERN;
@@ -56,7 +58,11 @@ export function validateCoachProfile(formData, context = {}) {
   };
   const text = (field) => String(formData[field] || '').trim();
 
-  if (!text('name')) add('name', 'Nama lengkap wajib diisi');
+  if (!text('name')) {
+    add('name', 'Nama lengkap wajib diisi');
+  } else if (!isProfileNameValid(text('name'))) {
+    add('name', PROFILE_NAME_VALIDATION_MESSAGE);
+  }
   if (!COACH_IDENTITY_PATTERN.test(text('nik'))) {
     add('nik', text('nik') ? 'NIK harus tepat 16 digit angka' : 'NIK wajib diisi dengan 16 digit angka');
   }
@@ -64,7 +70,8 @@ export function validateCoachProfile(formData, context = {}) {
   if (!text('province')) add('province', 'Provinsi wajib dipilih');
   if (!text('city')) add('city', 'Kota/Kabupaten wajib dipilih');
   if (!text('district')) add('district', 'Kecamatan/Distrik wajib dipilih');
-  if (!context.identityDocumentFile && !context.canReuseStoredIdentity) {
+  // KTP/BPJS data cannot be changed while locked, so its completeness is not enforced here.
+  if (!context.documentsLocked && !context.identityDocumentFile && !context.canReuseStoredIdentity) {
     add(
       'identity_document',
       context.isEdit

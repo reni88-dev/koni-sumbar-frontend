@@ -23,6 +23,7 @@ import { EventsPage } from './pages/Events';
 import { EventDetailPage } from './pages/EventDetail';
 import { AthletesPage } from './pages/Athletes';
 import { AthleteTransfersPage } from './pages/AthleteTransfers';
+import { CoachTransfersPage } from './pages/CoachTransfers';
 import { CoachesPage } from './pages/Coaches';
 import { FormBuilderPage } from './pages/FormBuilder';
 import { FormBuilderCreatePage } from './pages/FormBuilderCreate';
@@ -47,6 +48,8 @@ import { ComplaintDetailPage } from './pages/ComplaintDetail';
 import { CoachPhotoCheckPage } from './pages/CoachPhotoCheck';
 import { DataSummaryPage } from './pages/DataSummary';
 import { DataDuplicatesPage } from './pages/DataDuplicates';
+import { DataQualityReportIndex, DataQualityReportPage } from './pages/DataQualityReport';
+import { QUALITY_REPORTS, QUALITY_REPORT_BASE_PATH } from './features/data-quality-report/reportConfig.js';
 import { SystemAnnouncementsPage } from './pages/SystemAnnouncements';
 import { EmailBroadcastsPage } from './pages/EmailBroadcasts';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -140,12 +143,45 @@ function App() {
           </ProtectedRoute>
         }
       />
+      {/* Read-only Data Quality Report Routes */}
+      <Route
+        path={QUALITY_REPORT_BASE_PATH}
+        element={
+          <ProtectedRoute>
+            <DataQualityReportIndex />
+          </ProtectedRoute>
+        }
+      />
+      {QUALITY_REPORTS.map((report) => (
+        <Route
+          key={report.key}
+          path={report.path}
+          element={
+            <ProtectedRoute>
+              <PermissionRoute permission={report.permission}>
+                <DataQualityReportPage reportKey={report.key} />
+              </PermissionRoute>
+            </ProtectedRoute>
+          }
+        />
+      ))}
+
       <Route
         path="/transfer-atlet"
         element={
           <ProtectedRoute>
             <PermissionRoute permission="athlete_transfers.view">
               <AthleteTransfersPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transfer-pelatih"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="coach_transfers.view">
+              <CoachTransfersPage />
             </PermissionRoute>
           </ProtectedRoute>
         }

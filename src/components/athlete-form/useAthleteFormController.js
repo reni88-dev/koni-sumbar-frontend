@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { normalizeValidationErrors } from '../form-modal/formUtils';
 import {
@@ -30,12 +29,20 @@ import { useAthleteEmailValidation } from './useAthleteEmailValidation';
 import { useAthleteLookups } from './useAthleteLookups';
 import { useAthleteMedia } from './useAthleteMedia';
 import { useAthleteSubmission } from './useAthleteSubmission';
+import { useDocumentEditAccess } from '../../hooks/useDocumentEditLock';
+
+const LOCKED_BPJS_REQUIREMENTS = {
+  numberRequired: false,
+  documentRequired: false,
+  deferredAcknowledgementRequired: false,
+};
 
 export function useAthleteFormController({
   isOpen,
   athlete,
   onSuccess,
   mode = 'admin',
+  useAdminBPJSRules = mode === 'admin',
   submitRequest,
 }) {
   const formContainerRef = useRef(null);
@@ -103,8 +110,14 @@ export function useAthleteFormController({
     initialValue: initialPhoneValues.mother_phone,
     onNormalize: normalizeMotherPhone,
   });
-  const bpjsRequirements = getBPJSRequirements({
+  const { locked: documentsLocked, revisionPending: documentsUnlockedForRevision } = useDocumentEditAccess('athletes', athlete?.id);
+  const documentsLockedRef = useRef(documentsLocked);
+  useEffect(() => {
+    documentsLockedRef.current = documentsLocked;
+  }, [documentsLocked]);
+  const bpjsRequirements = documentsLocked ? LOCKED_BPJS_REQUIREMENTS : getBPJSRequirements({
     mode,
+    useAdminRules: useAdminBPJSRules,
     bpjsNumber: formData.bpjs_number,
     bpjsDocumentFile: media.bpjsDocumentFile,
     storedBPJSDocument: athlete?.bpjs_document,
@@ -120,6 +133,7 @@ export function useAthleteFormController({
 
   const validateProfile = useCallback(() => validateAthleteProfile(formData, {
     athlete,
+    documentsLocked,
     identityDocumentFile: media.identityDocumentFile,
     documentErrors: media.documentErrors,
     bpjsNumberRequired: bpjsRequirements.numberRequired,
@@ -140,6 +154,7 @@ export function useAthleteFormController({
     bpjsRequirements.deferredAcknowledgementRequired,
     bpjsRequirements.documentRequired,
     bpjsRequirements.numberRequired,
+    documentsLocked,
     emailValidation.message,
     emailValidation.status,
     fatherPhoneValidation.message,
@@ -187,6 +202,7 @@ export function useAthleteFormController({
     onSuccess,
     mode,
     submitRequest,
+    documentsLocked,
     bpjsDeferredAcknowledged: bpjsRequirements.deferredAcknowledgementRequired && bpjsDeferredAcknowledged,
   });
 
@@ -217,8 +233,11 @@ export function useAthleteFormController({
       const mapped = mapAthleteToForm(athlete);
       lastValidAgeGroupRef.current = mapped.ageGroup;
       const initialDeferredAcknowledged = getInitialBPJSDeferredAcknowledgement(athlete);
-      const initialBPJSRequirements = getBPJSRequirements({
+      // Read through a ref so a late settings response does not reset the open form.
+      const initiallyLocked = documentsLockedRef.current;
+      const initialBPJSRequirements = initiallyLocked ? LOCKED_BPJS_REQUIREMENTS : getBPJSRequirements({
         mode,
+        useAdminRules: useAdminBPJSRules,
         bpjsNumber: mapped.formData.bpjs_number,
         storedBPJSDocument: athlete.bpjs_document,
         deferredAcknowledged: initialDeferredAcknowledged,
@@ -229,6 +248,7 @@ export function useAthleteFormController({
       setFormData(mapped.formData);
       setInitialIncompleteCount(Object.keys(validateAthleteProfile(mapped.formData, {
         athlete,
+        documentsLocked: initiallyLocked,
         bpjsNumberRequired: initialBPJSRequirements.numberRequired,
         bpjsDocumentRequired: initialBPJSRequirements.documentRequired,
         bpjsDeferredAcknowledgementRequired: initialBPJSRequirements.deferredAcknowledgementRequired,
@@ -255,6 +275,7 @@ export function useAthleteFormController({
     isOpen,
     mode,
     resetMedia,
+    useAdminBPJSRules,
     setLoading,
   ]);
 
@@ -409,6 +430,8 @@ export function useAthleteFormController({
       bpjsDeferredAcknowledgementRequired: bpjsRequirements.deferredAcknowledgementRequired,
       bpjsDeferredAcknowledged,
       handleBPJSDeferredAcknowledgementChange,
+      documentsLocked,
+      documentsUnlockedForRevision,
       storedIdentityType,
       nikInvalid: Boolean(errors.nik) || (formData.nik !== '' && !IDENTITY_PATTERN.test(formData.nik)),
       noKKInvalid: Boolean(errors.no_kk) || (formData.no_kk !== '' && !IDENTITY_PATTERN.test(formData.no_kk)),

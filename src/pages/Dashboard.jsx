@@ -17,7 +17,7 @@ export function Dashboard() {
   const [stats, setStats] = useState([
     { label: 'Total Atlet', value: '-', change: '', icon: Users, color: 'bg-blue-500' },
     { label: 'Total Pelatih', value: '-', change: '', icon: UserCheck, color: 'bg-purple-500' },
-    { label: 'Cabang Olahraga', value: '-', change: '', icon: Trophy, color: 'bg-yellow-500' },
+    { label: 'Cabor Induk / Disiplin', value: '-', change: '', icon: Trophy, color: 'bg-yellow-500' },
     { label: 'Organisasi', value: '-', change: '', icon: Building2, color: 'bg-teal-500' },
     { label: 'Medali Emas', value: '-', change: '', icon: Medal, color: 'bg-red-500' },
     { label: 'Event Aktif', value: '-', change: '', icon: Calendar, color: 'bg-green-500' },
@@ -33,7 +33,7 @@ export function Dashboard() {
         setStats([
           { label: 'Total Atlet', value: (data.total_athletes ?? 0).toLocaleString('id-ID'), change: 'Aktif', icon: Users, color: 'bg-blue-500' },
           { label: 'Total Pelatih', value: (data.total_coaches ?? 0).toLocaleString('id-ID'), change: 'Aktif', icon: UserCheck, color: 'bg-purple-500' },
-          { label: 'Cabang Olahraga', value: (data.total_cabor ?? 0).toString(), change: 'Cabor', icon: Trophy, color: 'bg-yellow-500' },
+          { label: 'Cabor Induk / Disiplin', value: `${data.total_cabor_sport ?? 0} / ${data.total_cabor_discipline ?? 0}`, change: 'Cabor', icon: Trophy, color: 'bg-yellow-500' },
           { label: 'Organisasi', value: (data.total_organizations ?? 0).toString(), change: 'Terdaftar', icon: Building2, color: 'bg-teal-500' },
           { label: 'Medali Emas', value: (data.gold_medals ?? 0).toString(), change: '-', icon: Medal, color: 'bg-red-500' },
           { label: 'Event Aktif', value: (data.active_events ?? 0).toString(), change: 'Running', icon: Calendar, color: 'bg-green-500' },

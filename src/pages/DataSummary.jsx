@@ -42,14 +42,6 @@ function percentage(value) {
   return `${Number(value || 0).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`;
 }
 
-function knownCategoryCount(items = []) {
-  return new Set(
-    items
-      .filter((item) => item?.key && item.key !== 'unknown')
-      .map((item) => String(item.key)),
-  ).size;
-}
-
 function KpiCard({ label, value, detail, icon, tone = 'red' }) {
   const IconComponent = icon;
   const tones = {
@@ -593,7 +585,7 @@ export function DataSummaryPage() {
   const athletes = data?.overview?.athletes || {};
   const coaches = data?.overview?.coaches || {};
   const totalParentCabors = data?.overview?.total_parent_cabors || 0;
-  const totalOrganizations = knownCategoryCount(data?.distributions?.organizations);
+  const totalOrganizations = data?.overview?.total_organizations || 0;
   const duplicate = data?.duplicate_summary || {};
   const activeTrendGranularity = data?.filters?.trend_granularity || filters.trendGranularity;
   const trendChartKey = `${filters.trendGranularity}:${filters.trendStartDate}:${filters.trendEndDate}`;
@@ -778,8 +770,8 @@ export function DataSummaryPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
               <KpiCard label="Total atlet" value={number(athletes.total)} detail={`${number(athletes.active)} aktif · ${number(athletes.inactive)} tidak aktif`} icon={Users} tone="red" />
               <KpiCard label="Total pelatih" value={number(coaches.total)} detail={`${number(coaches.active)} aktif · ${number(coaches.inactive)} tidak aktif`} icon={UserCheck} tone="blue" />
-              <KpiCard label="Total Cabor Induk" value={number(totalParentCabors)} detail="Mengikuti scope akses dan filter aktif" icon={Trophy} tone="amber" />
-              <KpiCard label="Total Organisasi" value={number(totalOrganizations)} detail="Berdasarkan hasil filter saat ini" icon={Building2} tone="violet" />
+              <KpiCard label="Total Cabor Induk" value={number(totalParentCabors)} detail="Master SatuData sesuai scope dan filter" icon={Trophy} tone="amber" />
+              <KpiCard label="Total Organisasi" value={number(totalOrganizations)} detail="Master SatuData sesuai scope dan filter" icon={Building2} tone="violet" />
               <KpiCard label="Akun terhubung" value={number((athletes.linked_users || 0) + (coaches.linked_users || 0))} detail={`Atlet ${number(athletes.linked_users)} · Pelatih ${number(coaches.linked_users)}`} icon={ShieldCheck} tone="emerald" />
               <KpiCard label="Rata-rata umur" value={`${athletes.average_age || 0} / ${coaches.average_age || 0}`} detail="Atlet / Pelatih (tahun)" icon={TrendingUp} tone="amber" />
           </div>

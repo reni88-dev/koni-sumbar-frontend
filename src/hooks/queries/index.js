@@ -33,3 +33,9 @@ export * from './useDataAnalysis';
 
 // System announcements
 export * from './useAnnouncements';
+
+// Data quality reports and permission-gated manual scan
+export * from './useDataQualityReports';
+
+// Global system settings (KTP/BPJS edit lock)
+export * from './useSystemSettings';

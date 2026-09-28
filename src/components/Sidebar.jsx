@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useComplaintSummary } from '../hooks/queries/useComplaints';
 import { useAccountEmailRecoverySummary } from '../hooks/queries/useAccountEmailRecovery';
 import { useAthleteTransferSummary } from '../hooks/queries/useAthleteTransfers';
+import { useCoachTransferSummary } from '../hooks/queries/useCoachTransfers';
 import { 
   LayoutDashboard, 
   Users, 
@@ -33,9 +34,11 @@ import {
   ChartPie,
   ScanSearch,
   Megaphone,
-  ArrowLeftRight
+  ArrowLeftRight,
+  BarChart3
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
+import { QUALITY_REPORTS } from '../features/data-quality-report/reportConfig.js';
 
 export function Sidebar({ isOpen, onClose }) {
   return (
@@ -102,6 +105,8 @@ function SidebarContent({ onNavigate }) {
   const { data: recoverySummary } = useAccountEmailRecoverySummary(Boolean(hasRecoveryPermission));
   const hasTransferPermission = hasSuperAdminAccess || user?.permissions?.includes('athlete_transfers.view');
   const { data: transferSummary } = useAthleteTransferSummary(Boolean(hasTransferPermission));
+  const hasCoachTransferPermission = hasSuperAdminAccess || user?.permissions?.includes('coach_transfers.view');
+  const { data: coachTransferSummary } = useCoachTransferSummary(Boolean(hasCoachTransferPermission));
 
   const isActive = (path) => location.pathname === path || (path === '/pengaduan' && location.pathname.startsWith('/pengaduan/'));
   const isChildActive = (children) => children?.some(child => location.pathname === child.path);
@@ -177,6 +182,7 @@ function SidebarContent({ onNavigate }) {
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
     { icon: ArrowLeftRight, label: 'Transfer Atlet', path: '/transfer-atlet', permission: 'athlete_transfers.view', badge: transferSummary?.pending_action_count || 0 },
     { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
+    { icon: ArrowLeftRight, label: 'Transfer Pelatih', path: '/transfer-pelatih', permission: 'coach_transfers.view', badge: coachTransferSummary?.pending_action_count || 0 },
     { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },
     ...(hasPermission('training.view') || isCoach()
       ? [{
@@ -209,6 +215,25 @@ function SidebarContent({ onNavigate }) {
         }]
       : []),
   ]);
+  const qualityReportChildren = QUALITY_REPORTS
+    .filter((report) => hasPermission(report.permission))
+    .map((report) => ({
+      icon: BarChart3,
+      label: report.label,
+      path: report.path,
+    }));
+
+  const reportItems = filterVisibleItems([
+    ...(qualityReportChildren.length
+      ? [{
+          icon: BarChart3,
+          label: 'Laporan',
+          path: '#',
+          children: qualityReportChildren,
+        }]
+      : []),
+  ]);
+
   const masterDataChildren = filterVisibleItems([
     { icon: Users, label: 'Data User', path: '/master/users', permission: 'users.view' },
     { icon: Shield, label: 'Data Role', path: '/master/roles', permission: 'roles.view' },
@@ -253,6 +278,7 @@ function SidebarContent({ onNavigate }) {
     ...createSection('Pembinaan', pembinaanItems),
     ...createSection('Kegiatan', kegiatanItems),
     ...createSection('Analisis Data', analysisItems),
+    ...createSection('Laporan', reportItems),
     ...createSection('Master Data', masterDataItems),
     ...createSection('Sistem', systemItems),
   ];

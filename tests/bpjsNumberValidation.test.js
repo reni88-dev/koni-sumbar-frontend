@@ -6,6 +6,7 @@ import { validateCoachProfile } from '../src/components/coach-form/coachProfileV
 import {
   getBPJSRequirements,
   getInitialBPJSDeferredAcknowledgement,
+  getInitialBPJSNumber,
   nextBPJSDeferredAcknowledgement,
   serializeBPJSDeferredAcknowledgement,
 } from '../src/components/form-validation/bpjsValidation.js';
@@ -30,10 +31,14 @@ function validateBPJS(validateProfile, options = {}) {
   return { errors, requirements };
 }
 
-const athleteOptions = { mode: 'admin', requireMatchingPair: true };
+const athletePortalOptions = {
+  mode: 'portal',
+  useAdminRules: true,
+  requireMatchingPair: true,
+};
 
 test('atlet: nomor dan dokumen kosong wajib memakai pernyataan penundaan', () => {
-  const { errors, requirements } = validateBPJS(validateAthleteProfile, athleteOptions);
+  const { errors, requirements } = validateBPJS(validateAthleteProfile, athletePortalOptions);
 
   assert.equal(requirements.documentRequired, false);
   assert.equal(requirements.numberRequired, false);
@@ -47,7 +52,7 @@ test('atlet: nomor dan dokumen kosong wajib memakai pernyataan penundaan', () =>
 
 test('atlet: pernyataan penundaan menerima nomor dan dokumen yang sama-sama kosong', () => {
   const { errors, requirements } = validateBPJS(validateAthleteProfile, {
-    ...athleteOptions,
+    ...athletePortalOptions,
     deferredAcknowledged: true,
   });
 
@@ -59,7 +64,7 @@ test('atlet: pernyataan penundaan menerima nomor dan dokumen yang sama-sama koso
 
 test('atlet: nomor tanpa dokumen ditolak sebagai state BPJS parsial', () => {
   const { errors, requirements } = validateBPJS(validateAthleteProfile, {
-    ...athleteOptions,
+    ...athletePortalOptions,
     bpjsNumber: '0001234567890',
     deferredAcknowledged: true,
   });
@@ -74,7 +79,7 @@ test('atlet: nomor tanpa dokumen ditolak sebagai state BPJS parsial', () => {
 
 test('atlet: dokumen tanpa nomor ditolak sebagai state BPJS parsial', () => {
   const { errors, requirements } = validateBPJS(validateAthleteProfile, {
-    ...athleteOptions,
+    ...athletePortalOptions,
     bpjsDocumentFile: { name: 'bpjs.pdf' },
   });
 
@@ -86,9 +91,24 @@ test('atlet: dokumen tanpa nomor ditolak sebagai state BPJS parsial', () => {
   assert.equal(Object.hasOwn(errors, 'bpjs_deferred_acknowledged'), false);
 });
 
+test('atlet: dokumen tersimpan tanpa nomor tetap mewajibkan nomor BPJS', () => {
+  const { errors, requirements } = validateBPJS(validateAthleteProfile, {
+    ...athletePortalOptions,
+    storedBPJSDocument: '/documents/bpjs-lama.pdf',
+    deferredAcknowledged: true,
+  });
+
+  assert.equal(requirements.numberRequired, true);
+  assert.equal(requirements.documentRequired, false);
+  assert.equal(requirements.deferredAcknowledgementRequired, false);
+  assert.deepEqual(errors.bpjs_number, [
+    'Nomor BPJS wajib diisi ketika dokumen BPJS tersedia',
+  ]);
+});
+
 test('atlet: nomor dan dokumen lengkap tidak memerlukan pernyataan', () => {
   const { errors, requirements } = validateBPJS(validateAthleteProfile, {
-    ...athleteOptions,
+    ...athletePortalOptions,
     bpjsNumber: '0001234567890',
     storedBPJSDocument: '/documents/bpjs.pdf',
     deferredAcknowledged: true,
@@ -102,8 +122,8 @@ test('atlet: nomor dan dokumen lengkap tidak memerlukan pernyataan', () => {
   assert.equal(Object.hasOwn(errors, 'bpjs_deferred_acknowledged'), false);
 });
 
-test('atlet: mode portal tidak menerapkan kontrol pernyataan admin', () => {
-  const { errors, requirements } = validateBPJS(validateAthleteProfile, {
+test('Portal Pelatih tetap tidak mengaktifkan aturan BPJS admin', () => {
+  const { errors, requirements } = validateBPJS(validateCoachProfile, {
     mode: 'portal',
     requireMatchingPair: true,
     bpjsNumber: '0001234567890',
@@ -114,7 +134,13 @@ test('atlet: mode portal tidak menerapkan kontrol pernyataan admin', () => {
   assert.equal(requirements.deferredAcknowledgementRequired, false);
   assert.equal(Object.hasOwn(errors, 'bpjs_number'), false);
   assert.equal(Object.hasOwn(errors, 'bpjs_document'), false);
-  assert.equal(Object.hasOwn(errors, 'bpjs_deferred_acknowledged'), false);
+  assert.equal(Object.hasOwn(errors, 'bpjs_deferred_acknowledgement'), false);
+});
+
+test('atlet: nilai awal nomor BPJS dimuat dari profil', () => {
+  assert.equal(getInitialBPJSNumber({
+    bpjs_number: '0001234567890',
+  }), '0001234567890');
 });
 
 test('atlet: state edit menginisialisasi pernyataan dari response backend', () => {

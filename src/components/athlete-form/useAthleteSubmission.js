@@ -24,6 +24,7 @@ export function useAthleteSubmission({
   onSuccess,
   mode = 'admin',
   submitRequest,
+  documentsLocked = false,
   bpjsDeferredAcknowledged = false,
 }) {
   const [loading, setLoading] = useState(false);
@@ -55,8 +56,16 @@ export function useAthleteSubmission({
     setErrorMessage('');
 
     try {
-      const data = buildAthleteFormData(submissionData, files, {
-        excludedFields: mode === 'portal' ? ['is_active', 'bpjs_number', 'bpjs_deferred_acknowledged'] : [],
+      // While locked, KTP/BPJS fields are omitted so the backend keeps the stored values.
+      const excludedFields = [
+        ...(mode === 'portal' ? ['is_active'] : []),
+        ...(documentsLocked ? ['bpjs_number', 'bpjs_deferred_acknowledged', 'identity_document_type'] : []),
+      ];
+      const uploadFiles = documentsLocked
+        ? { ...files, identityDocumentFile: null, bpjsDocumentFile: null }
+        : files;
+      const data = buildAthleteFormData(submissionData, uploadFiles, {
+        excludedFields,
         includeEmptyFields: mode === 'portal',
       });
       if (submitRequest) {

@@ -78,6 +78,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
           files={files}
           validation={validation}
           showBPJSNumber
+          showStoredDocumentButtons
         />
       )}
       {navigation.step === 2 && (

@@ -1,6 +1,19 @@
 export const PROFILE_IDENTITY_PATTERN = /^[0-9]{16}$/;
 export const PROFILE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export const PROFILE_NAME_PATTERN = /^\p{L}+(?: \p{L}+)*$/u;
+export const PROFILE_NAME_VALIDATION_MESSAGE = 'Nama lengkap hanya boleh berisi huruf dan spasi';
 export const PROFILE_PHONE_INPUT_PATTERN = /^\+?[0-9\s().-]+$/;
+
+export function sanitizeProfileNameInput(value) {
+  return String(value || '')
+    .replace(/[^\p{L}\s]/gu, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^ +/, '');
+}
+
+export function isProfileNameValid(value) {
+  return PROFILE_NAME_PATTERN.test(String(value || '').trim());
+}
 export const PROFILE_PHONE_PATTERN = /^628[0-9]{8,11}$/;
 
 export function normalizeProfilePhone(value) {

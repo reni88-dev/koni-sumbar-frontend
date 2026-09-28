@@ -7,8 +7,105 @@ import koniLogo from '../assets/koni-sumbar.jpg';
 
 const steps = ['Identitas', 'Konfirmasi', 'Email Baru', 'Verifikasi'];
 
-function recoveryError(error, fallback) {
-  return error.response?.data?.message || error.response?.data?.error || fallback;
+const CONTACT_ADMIN_HINT = 'Jika Anda yakin data sudah benar, hubungi admin cabor/pengcab Anda untuk memeriksa data pendaftaran.';
+
+const capitalize = (text) => (text ? text.charAt(0).toUpperCase() + text.slice(1) : text);
+
+function commonErrorNotice(error) {
+  const status = error.response?.status;
+  if (!error.response) {
+    return { title: 'Tidak dapat terhubung ke server', message: 'Periksa koneksi internet Anda lalu coba lagi.' };
+  }
+  if (status === 429) {
+    return { title: 'Terlalu banyak percobaan', message: 'Demi keamanan, tunggu sekitar 15 menit sebelum mencoba lagi.' };
+  }
+  if (status === 503) {
+    return { title: 'Fitur sedang tidak tersedia', message: 'Pemulihan email belum dapat digunakan saat ini. Silakan coba lagi nanti.' };
+  }
+  if (status >= 500) {
+    return { title: 'Terjadi gangguan pada sistem', message: 'Ini bukan kesalahan Anda. Silakan coba lagi beberapa saat lagi.' };
+  }
+  return null;
+}
+
+function lookupErrorNotice(error) {
+  const common = commonErrorNotice(error);
+  if (common) return common;
+  switch (error.response?.data?.code) {
+    case 'ACCOUNT_ACTIVE':
+      return {
+        tone: 'warning',
+        title: 'Akun ini sudah aktif',
+        message: 'Anda sudah pernah masuk dan mengganti password, jadi pemulihan email tidak diperlukan. Silakan masuk ke akun Anda.',
+        hint: 'Jika lupa password, gunakan "Lupa password" di halaman login.',
+        link: { to: '/login', label: 'Ke halaman login' },
+      };
+    case 'REQUEST_PENDING':
+      return {
+        tone: 'warning',
+        title: 'Permintaan Anda sedang diproses',
+        message: 'Sudah ada permintaan pemulihan email untuk akun ini yang belum selesai, jadi Anda tidak perlu mengajukan lagi.',
+        hint: 'Periksa email baru yang Anda daftarkan (termasuk folder spam) dan tunggu peninjauan admin, maksimal tujuh hari.',
+      };
+    case 'CREDENTIALS_SENT':
+      return {
+        tone: 'warning',
+        title: 'Kredensial sudah dikirim',
+        message: 'Kredensial sementara untuk akun ini baru saja dikirim ke email Anda.',
+        hint: 'Periksa kotak masuk dan folder spam, lalu gunakan kredensial tersebut untuk masuk.',
+        link: { to: '/login', label: 'Ke halaman login' },
+      };
+    default:
+      break;
+  }
+  if (error.response?.status === 422) {
+    return {
+      title: 'Data tidak sesuai',
+      message: 'Data yang Anda isi tidak cocok dengan data pendaftaran. Periksa kembali:',
+      items: [
+        'Jenis akun (Atlet atau Pelatih) sudah benar',
+        'NIK 16 digit sesuai KTP',
+        'No. KK 16 digit sesuai Kartu Keluarga (atlet) atau tanggal lahir sesuai KTP (pelatih)',
+      ],
+      hint: CONTACT_ADMIN_HINT,
+    };
+  }
+  return { title: 'Verifikasi identitas gagal', message: 'Silakan periksa data Anda lalu coba lagi.' };
+}
+
+function submitErrorNotice(error) {
+  const common = commonErrorNotice(error);
+  if (common) return common;
+  const status = error.response?.status;
+  const message = error.response?.data?.message || error.response?.data?.error;
+  if (status === 422) {
+    return {
+      title: 'Sesi verifikasi sudah berakhir',
+      message: 'Demi keamanan, sesi verifikasi identitas hanya berlaku 10 menit.',
+      hint: 'Kembali ke awal dan verifikasi identitas Anda sekali lagi.',
+    };
+  }
+  if (message?.includes('tidak dapat digunakan')) {
+    return { title: 'Email tidak dapat digunakan', message: 'Alamat email ini tidak bisa dipakai untuk akun Anda.', hint: 'Gunakan alamat email lain yang aktif dan berbeda dari email lama.' };
+  }
+  return { title: 'Email baru tidak dapat diproses', message: capitalize(message) || 'Silakan periksa kembali email yang Anda isi.' };
+}
+
+function ErrorNotice({ notice }) {
+  const isWarning = notice.tone === 'warning';
+  const palette = isWarning ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-red-100 bg-red-50 text-red-700';
+  return (
+    <div role="alert" className={`mb-5 flex items-start gap-3 rounded-2xl border p-4 text-sm ${palette}`}>
+      <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+      <div className="space-y-2 leading-6">
+        <p className="font-bold">{notice.title}</p>
+        {notice.message && <p>{notice.message}</p>}
+        {notice.items && <ul className="list-disc space-y-1 pl-5">{notice.items.map((item) => <li key={item}>{item}</li>)}</ul>}
+        {notice.hint && <p className="font-medium">{notice.hint}</p>}
+        {notice.link && <Link to={notice.link.to} className="inline-block font-bold underline">{notice.link.label}</Link>}
+      </div>
+    </div>
+  );
 }
 
 export function AccountEmailRecovery() {
@@ -24,7 +121,7 @@ export function AccountEmailRecovery() {
   const [recoveryToken, setRecoveryToken] = useState('');
   const [email, setEmail] = useState('');
   const [confirmEmail, setConfirmEmail] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetCaptcha = () => {
@@ -34,11 +131,23 @@ export function AccountEmailRecovery() {
 
   const handleLookup = async (event) => {
     event.preventDefault();
-    if (!turnstileToken) {
-      setError('Selesaikan verifikasi keamanan terlebih dahulu.');
+    if (nik.length !== 16) {
+      setError({ title: 'NIK belum lengkap', message: `NIK harus 16 digit angka. Yang Anda isi baru ${nik.length} digit.` });
       return;
     }
-    setError('');
+    if (accountType === 'athlete' && noKK.length !== 16) {
+      setError({ title: 'No. KK belum lengkap', message: `No. KK harus 16 digit angka. Yang Anda isi baru ${noKK.length} digit.` });
+      return;
+    }
+    if (accountType === 'coach' && !birthDate) {
+      setError({ title: 'Tanggal lahir belum diisi', message: 'Pilih tanggal lahir sesuai KTP.' });
+      return;
+    }
+    if (!turnstileToken) {
+      setError({ title: 'Verifikasi keamanan belum selesai', message: 'Tunggu kotak "Melakukan verifikasi..." selesai sebelum melanjutkan.' });
+      return;
+    }
+    setError(null);
     setIsSubmitting(true);
     try {
       const response = await api.post('/api/account-email-recovery/lookup', {
@@ -56,7 +165,7 @@ export function AccountEmailRecovery() {
       setTurnstileToken('');
       setStep(1);
     } catch (lookupError) {
-      setError(recoveryError(lookupError, 'Data tidak dapat diverifikasi atau akun tidak memenuhi syarat.'));
+      setError(lookupErrorNotice(lookupError));
       resetCaptcha();
     } finally {
       setIsSubmitting(false);
@@ -66,10 +175,10 @@ export function AccountEmailRecovery() {
   const handleEmailSubmit = async (event) => {
     event.preventDefault();
     if (email.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
-      setError('Konfirmasi email tidak sama.');
+      setError({ title: 'Konfirmasi email tidak sama', message: 'Isi kolom "Konfirmasi email baru" persis sama dengan email baru di atasnya.' });
       return;
     }
-    setError('');
+    setError(null);
     setIsSubmitting(true);
     try {
       await api.post('/api/account-email-recovery/submit', {
@@ -82,7 +191,7 @@ export function AccountEmailRecovery() {
       setConfirmEmail('');
       setStep(3);
     } catch (submitError) {
-      setError(recoveryError(submitError, 'Email baru tidak dapat diproses. Silakan periksa kembali.'));
+      setError(submitErrorNotice(submitError));
     } finally {
       setIsSubmitting(false);
     }
@@ -94,7 +203,7 @@ export function AccountEmailRecovery() {
     setRecoveryToken('');
     setEmail('');
     setConfirmEmail('');
-    setError('');
+    setError(null);
     setTurnstileError('');
     resetCaptcha();
   };
@@ -140,17 +249,17 @@ export function AccountEmailRecovery() {
           </div>
 
           <div className="p-5 sm:p-8">
-            {error && <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700"><AlertCircle className="mt-0.5 h-5 w-5 shrink-0" /><span>{error}</span></div>}
+            {error && <ErrorNotice notice={error} />}
 
             {step === 0 && (
-              <form onSubmit={handleLookup} className="space-y-6">
+              <form onSubmit={handleLookup} noValidate className="space-y-6">
                 <div>
                   <h2 className="text-xl font-bold text-slate-800">Verifikasi identitas</h2>
                   <p className="mt-1 text-sm text-slate-500">Pilih jenis akun dan isi data secara tepat.</p>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[['athlete', 'Atlet'], ['coach', 'Pelatih']].map(([value, label]) => (
-                    <button key={value} type="button" onClick={() => { setAccountType(value); setError(''); }} className={`rounded-2xl border px-4 py-4 text-sm font-bold transition ${accountType === value ? 'border-red-500 bg-red-50 text-red-700 ring-2 ring-red-100' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{label}</button>
+                    <button key={value} type="button" onClick={() => { setAccountType(value); setError(null); }} className={`rounded-2xl border px-4 py-4 text-sm font-bold transition ${accountType === value ? 'border-red-500 bg-red-50 text-red-700 ring-2 ring-red-100' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>{label}</button>
                   ))}
                 </div>
                 <label className="block space-y-2">
@@ -192,7 +301,7 @@ export function AccountEmailRecovery() {
                 <p className="rounded-xl bg-amber-50 p-4 text-sm leading-6 text-amber-800">Demi keamanan, email lama dan data identitas lainnya tidak ditampilkan.</p>
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                   <button type="button" onClick={restart} className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-600 hover:bg-slate-50">Bukan akun saya</button>
-                  <button type="button" onClick={() => { setError(''); setStep(2); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700">Lanjutkan <ArrowRight className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => { setError(null); setStep(2); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700">Lanjutkan <ArrowRight className="h-4 w-4" /></button>
                 </div>
               </div>
             )}
@@ -203,7 +312,7 @@ export function AccountEmailRecovery() {
                 <label className="block space-y-2"><span className="text-sm font-semibold text-slate-700">Email baru</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-red-500 focus:bg-white focus:ring-2 focus:ring-red-100" placeholder="nama@email.com" /></label>
                 <label className="block space-y-2"><span className="text-sm font-semibold text-slate-700">Konfirmasi email baru</span><input type="email" value={confirmEmail} onChange={(event) => setConfirmEmail(event.target.value)} autoComplete="off" required className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-red-500 focus:bg-white focus:ring-2 focus:ring-red-100" placeholder="Ulangi email baru" /></label>
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-                  <button type="button" onClick={() => { setError(''); setStep(1); }} className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-600 hover:bg-slate-50">Kembali</button>
+                  <button type="button" onClick={() => { setError(null); setStep(1); }} className="rounded-xl border border-slate-200 px-5 py-3 font-semibold text-slate-600 hover:bg-slate-50">Kembali</button>
                   <button disabled={isSubmitting} className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-3 font-bold text-white hover:bg-red-700 disabled:opacity-60">{isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <MailCheck className="h-5 w-5" />} Kirim tautan verifikasi</button>
                 </div>
               </form>

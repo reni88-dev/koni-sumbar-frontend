@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
   ACCESS_CODES,
   ROLE_ACCESS_DISABLED_MESSAGE,
+  USER_ACCESS_DISABLED_MESSAGE,
   getAccountBlock,
   persistAccountBlock,
 } from '../src/lib/authAccess.js';
@@ -16,6 +17,13 @@ test('disabled role account block uses neutral title and API message', () => {
 
   assert.equal(block.title, 'Akses Role Dinonaktifkan');
   assert.equal(block.message, 'Maintenance sampai pukul 18.00 WIB.');
+});
+
+test('disabled user account block uses user title and fallback message', () => {
+  const block = getAccountBlock({ code: ACCESS_CODES.USER_ACCESS_DISABLED, message: '' });
+
+  assert.equal(block.title, 'Akses Akun Dinonaktifkan');
+  assert.equal(block.message, USER_ACCESS_DISABLED_MESSAGE);
 });
 
 test('disabled role account block uses system fallback when API message is empty', () => {

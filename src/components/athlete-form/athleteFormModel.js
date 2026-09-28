@@ -1,4 +1,7 @@
-import { serializeBPJSDeferredAcknowledgement } from '../form-validation/bpjsValidation.js';
+import {
+  getInitialBPJSNumber,
+  serializeBPJSDeferredAcknowledgement,
+} from '../form-validation/bpjsValidation.js';
 import { formatDateForInput } from '../form-modal/formUtils';
 import { normalizeIndonesianMobile } from '../form-modal/phoneUtils';
 import {
@@ -86,7 +89,7 @@ export function mapAthleteToForm(athlete) {
       name: athlete.name || '',
       nik: athlete.nik || '',
       national_athlete_number: athlete.national_athlete_number || '',
-      bpjs_number: athlete.bpjs_number || '',
+      bpjs_number: getInitialBPJSNumber(athlete),
       no_kk: athlete.no_kk || '',
       birth_place: athlete.birth_place || '',
       birth_date: birthDate,

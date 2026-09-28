@@ -9,16 +9,25 @@ import {
   ChevronRight,
   X,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Power,
+  PowerOff,
+  MessageSquareText,
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { useAuth } from '../../hooks/useAuth';
 import { usePermission } from '../../hooks/usePermission';
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '../../hooks/queries/useMasterData';
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useSetUserAccess } from '../../hooks/queries/useMasterData';
 import { useRolesAll } from '../../hooks/queries/useMasterData';
 import { useOrganizationsAll } from '../../hooks/queries/useOrganizations';
 import { useCaborSports } from '../../hooks/queries/useCabors';
 import { PrintUserList } from '../../components/PrintUserList';
+import {
+  USER_ACCESS_DISABLED_MESSAGE,
+  USER_ACCESS_MESSAGE_MAX_LENGTH,
+  getUserDisabledMessageLabel,
+  isUserAccessEnabled,
+} from '../../lib/userAccess';
 
 const CABOR_REQUIRED_ROLES = new Set([
   'pengprov', 'admin_pengprov',
@@ -43,6 +52,81 @@ const ORGANIZATION_REQUIRED_ROLES = new Set([
   'porprov_admin_kabkota',
 ]);
 
+function UserAccessBadge({ user }) {
+  if (!isUserAccessEnabled(user)) {
+    return (
+      <span className="inline-flex rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700">
+        Dinonaktifkan
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+      Aktif
+    </span>
+  );
+}
+
+function UserAccessStatus({ user }) {
+  const disabled = !isUserAccessEnabled(user);
+  const messageLabel = disabled ? getUserDisabledMessageLabel(user) : '';
+
+  return (
+    <div>
+      <UserAccessBadge user={user} />
+      {disabled && (
+        <p className="mt-1 max-w-56 truncate text-xs text-slate-500" title={messageLabel}>
+          {messageLabel}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function UserAccessActions({ user, pending, disabled, isCurrentUser, onToggle, onEditMessage }) {
+  const enabled = isUserAccessEnabled(user);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => onToggle(user)}
+        disabled={disabled}
+        className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          enabled
+            ? 'text-slate-500 hover:bg-red-50 hover:text-red-600'
+            : 'text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700'
+        }`}
+        title={disabled && isCurrentUser
+          ? 'Akun Anda sendiri tidak dapat dinonaktifkan'
+          : enabled ? 'Nonaktifkan akses' : 'Aktifkan akses'}
+        aria-label={`${enabled ? 'Nonaktifkan' : 'Aktifkan'} akses ${user.name}`}
+      >
+        {pending ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : enabled ? (
+          <PowerOff className="w-4 h-4" />
+        ) : (
+          <Power className="w-4 h-4" />
+        )}
+      </button>
+      {!enabled && (
+        <button
+          type="button"
+          onClick={() => onEditMessage(user)}
+          disabled={disabled}
+          className="p-2 rounded-lg text-slate-500 transition-colors hover:bg-amber-50 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+          title="Ubah pesan penonaktifan"
+          aria-label={`Ubah pesan penonaktifan ${user.name}`}
+        >
+          <MessageSquareText className="w-4 h-4" />
+        </button>
+      )}
+    </>
+  );
+}
+
 export function UsersPage() {
   const { user: currentUser } = useAuth();
   const { can } = usePermission();
@@ -59,6 +143,9 @@ export function UsersPage() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
+  const [userAccessDialog, setUserAccessDialog] = useState(null);
+  const [userAccessMessage, setUserAccessMessage] = useState('');
+  const [userAccessError, setUserAccessError] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role_id: '', organization_id: '', cabor_id: '' });
@@ -87,6 +174,8 @@ export function UsersPage() {
   const createUserMutation = useCreateUser();
   const updateUserMutation = useUpdateUser();
   const deleteUserMutation = useDeleteUser();
+  const setUserAccessMutation = useSetUserAccess();
+  const isSuperAdmin = currentUser?.role?.name === 'super_admin';
 
   const users = usersData?.data || [];
   const pagination = {
@@ -173,7 +262,53 @@ export function UsersPage() {
     }
   };
 
+  const openUserAccessDialog = (user) => {
+    const accessEnabled = !isUserAccessEnabled(user);
+    if (!accessEnabled && user.id === currentUser?.id) return;
+    setUserAccessError('');
+    setUserAccessMessage(accessEnabled ? '' : (user.access_disabled_message || ''));
+    setUserAccessDialog({ user, accessEnabled, editMessage: false });
+  };
+
+  const openUserMessageDialog = (user) => {
+    setUserAccessError('');
+    setUserAccessMessage(user.access_disabled_message || '');
+    setUserAccessDialog({ user, accessEnabled: false, editMessage: true });
+  };
+
+  const closeUserAccessDialog = () => {
+    if (setUserAccessMutation.isPending) return;
+    setUserAccessDialog(null);
+    setUserAccessMessage('');
+    setUserAccessError('');
+  };
+
+  const handleUserAccessChange = async () => {
+    if (!userAccessDialog || setUserAccessMutation.isPending) return;
+    setUserAccessError('');
+
+    try {
+      await setUserAccessMutation.mutateAsync({
+        userId: userAccessDialog.user.id,
+        accessEnabled: userAccessDialog.accessEnabled,
+        accessDisabledMessage: userAccessDialog.accessEnabled ? '' : userAccessMessage,
+      });
+      setUserAccessDialog(null);
+      setUserAccessMessage('');
+    } catch (error) {
+      setUserAccessError(
+        error.response?.data?.message
+          || error.response?.data?.error
+          || 'Gagal memperbarui akses user. Silakan coba lagi.',
+      );
+    }
+  };
+
   const formLoading = createUserMutation.isPending || updateUserMutation.isPending;
+  const targetWillBeEnabled = userAccessDialog?.accessEnabled === true;
+  const accessDialogTitle = userAccessDialog?.editMessage
+    ? 'Ubah Pesan Penonaktifan?'
+    : `${targetWillBeEnabled ? 'Aktifkan' : 'Nonaktifkan'} Akses User?`;
 
   return (
     <DashboardLayout title="Master Users" subtitle="Kelola data pengguna sistem">
@@ -239,19 +374,20 @@ export function UsersPage() {
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Lembaga / Wilayah</th>
                 <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Cabor Penugasan</th>
+                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Akses</th>
                 <th className="text-right px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center">
+                  <td colSpan={7} className="px-6 py-12 text-center">
                     <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto" />
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                     Tidak ada data user
                   </td>
                 </tr>
@@ -284,7 +420,20 @@ export function UsersPage() {
                       {user.cabor?.name || '-'}
                     </td>
                     <td className="px-6 py-4">
+                      <UserAccessStatus user={user} />
+                    </td>
+                    <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
+                        {isSuperAdmin && (
+                          <UserAccessActions
+                            user={user}
+                            pending={setUserAccessMutation.isPending && setUserAccessMutation.variables?.userId === user.id}
+                            disabled={setUserAccessMutation.isPending || user.id === currentUser?.id}
+                            isCurrentUser={user.id === currentUser?.id}
+                            onToggle={openUserAccessDialog}
+                            onEditMessage={openUserMessageDialog}
+                          />
+                        )}
                         <button
                           onClick={() => openEditModal(user)}
                           className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"
@@ -496,6 +645,118 @@ export function UsersPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </Motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* User Access Confirmation Modal */}
+      <AnimatePresence>
+        {userAccessDialog && (
+          <>
+            <Motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50"
+              onClick={closeUserAccessDialog}
+            />
+            <Motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="user-access-dialog-title"
+                className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                  targetWillBeEnabled ? 'bg-emerald-100' : 'bg-red-100'
+                }`}>
+                  {targetWillBeEnabled ? (
+                    <Power className="w-8 h-8 text-emerald-600" />
+                  ) : (
+                    <PowerOff className="w-8 h-8 text-red-600" />
+                  )}
+                </div>
+                <h3 id="user-access-dialog-title" className="mb-2 text-center text-lg font-bold text-slate-800">
+                  {accessDialogTitle}
+                </h3>
+                <p className="mb-2 text-center text-sm text-slate-600">
+                  User <strong>{userAccessDialog.user.name}</strong> akan{' '}
+                  {targetWillBeEnabled
+                    ? 'diaktifkan kembali'
+                    : userAccessDialog.editMessage ? 'diperbarui pesannya' : 'dinonaktifkan'}.
+                </p>
+                <p className="mb-5 text-center text-sm text-slate-500">
+                  {userAccessDialog.editMessage
+                    ? 'Pesan terbaru akan diterima user ini pada login atau permintaan API berikutnya.'
+                    : targetWillBeEnabled
+                      ? 'Pesan penonaktifan lama akan dihapus dan user dapat mengakses sistem kembali.'
+                      : 'User tidak dapat login dan sesi aktif akan dihentikan pada permintaan API berikutnya.'}
+                </p>
+
+                {!targetWillBeEnabled && (
+                  <div className="mb-5">
+                    <div className="mb-1 flex items-center justify-between gap-3">
+                      <label htmlFor="user-access-message" className="text-sm font-semibold text-slate-700">
+                        Pesan untuk user (opsional)
+                      </label>
+                      <span className="text-xs text-slate-500">
+                        {userAccessMessage.length}/{USER_ACCESS_MESSAGE_MAX_LENGTH}
+                      </span>
+                    </div>
+                    <textarea
+                      id="user-access-message"
+                      value={userAccessMessage}
+                      onChange={(event) => setUserAccessMessage(event.target.value)}
+                      maxLength={USER_ACCESS_MESSAGE_MAX_LENGTH}
+                      rows={4}
+                      disabled={setUserAccessMutation.isPending}
+                      placeholder="Contoh: Akun sedang diverifikasi oleh administrator."
+                      className="w-full resize-y rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-50"
+                    />
+                    <div className="mt-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                      Jika dikosongkan, user menerima pesan bawaan: “{USER_ACCESS_DISABLED_MESSAGE}”
+                    </div>
+                  </div>
+                )}
+
+                {userAccessError && (
+                  <div className="mb-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{userAccessError}</span>
+                  </div>
+                )}
+
+                <div className="flex flex-col-reverse gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={closeUserAccessDialog}
+                    disabled={setUserAccessMutation.isPending}
+                    className="flex-1 rounded-xl border border-slate-200 px-4 py-2.5 text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleUserAccessChange}
+                    disabled={setUserAccessMutation.isPending}
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 font-semibold text-white transition-colors disabled:opacity-50 ${
+                      targetWillBeEnabled
+                        ? 'bg-emerald-600 hover:bg-emerald-700'
+                        : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                  >
+                    {setUserAccessMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {userAccessDialog.editMessage ? 'Simpan Pesan' : targetWillBeEnabled ? 'Aktifkan' : 'Nonaktifkan'}
+                  </button>
+                </div>
               </div>
             </Motion.div>
           </>

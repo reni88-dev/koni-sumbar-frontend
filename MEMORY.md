@@ -11,19 +11,19 @@ Jika branch, commit, dependency, backend sibling, atau source berubah, verifikas
 
 ## Snapshot Repository
 
-Snapshot diverifikasi ulang pada **2026-08-24** di Windows, timezone `Asia/Jakarta`.
+Snapshot diverifikasi ulang pada **2026-09-16** di Windows, timezone `Asia/Jakarta`.
 
 | Item | Nilai pada snapshot |
 | --- | --- |
 | Repository | `koni-sumbar-frontend` |
 | Package | `frontend@0.0.0`, private, ESM |
 | Branch | `coach-cluster`, tracking `origin/coach-cluster` |
-| Commit | `304701f4e041d1ed3d6ae3152e714dae9c55abd8` (`304701f`) |
-| Commit subject | `update accountemailrecovery.jsx` |
-| Waktu commit | `2026-08-24T06:51:41+07:00` |
-| Working tree awal task access hardening | Bersih |
+| Commit | `e3364db6e7f487ed20b6f75fced516cf100ddaf3` (`e3364db`) |
+| Commit subject | `update` |
+| Waktu commit | `2026-09-16T14:21:13+07:00` |
+| Working tree awal task akses user | Bersih |
 | Git line ending | `core.autocrlf=true` |
-| Backend sibling saat diperiksa | `../golang-koni-sumbar`, branch `refactor`, commit `b06682b01b133e0d8dd8269beb7e09e44514bd40` |
+| Backend sibling saat diperiksa | `../golang-koni-sumbar`, branch `refactor`, commit `41f17c0dc5d3072e4e91e010833e4cf9e9a4bd53` |
 
 Snapshot branch/commit bukan fakta permanen. Selalu mulai sesi baru dengan status, branch, dan commit terbaru.
 
@@ -148,6 +148,20 @@ Semua route berikut berasal dari `src/App.jsx` pada snapshot.
 - `/form-builder/:id/fill`
 - `/form-builder/:id/submissions`
 
+### Laporan Kualitas Data
+
+Route laporan read-only memakai namespace baru dan tidak menggantikan route legacy `/data-summary` atau `/data-analysis/duplicates`:
+
+- `/laporan/kualitas-data` mengarahkan ke laporan pertama yang diizinkan;
+- `/laporan/kualitas-data/ringkasan`;
+- `/laporan/kualitas-data/atlet`;
+- `/laporan/kualitas-data/pelatih`;
+- `/laporan/kualitas-data/duplikat`;
+- `/laporan/kualitas-data/validitas`;
+- `/laporan/kualitas-data/dokumen`;
+- `/laporan/kualitas-data/sebaran`.
+
+Masing-masing route detail dibungkus `PermissionRoute` dengan permission `reports.quality.<report>.view`. Data laporan dan ekspor tetap memakai GET serta tidak pernah mengirim `sensitive=full`. Pada Ringkasan, kontrol scan manual hanya tampil untuk `reports.quality.scan`, meminta konfirmasi, lalu memakai POST `/api/reports/quality/scans` dan polling GET `/api/reports/quality/scans/latest`; tombol ekspor tetap memerlukan `reports.quality.export`.
 ### Master Data
 
 - `/master/users`
@@ -162,6 +176,8 @@ Semua route berikut berasal dari `src/App.jsx` pada snapshot.
 - `/master/organizations`
 - `/master/venues`
 
+Pada `/master/users`, kolom **Akses** menampilkan status aktif/nonaktif dan pesan penonaktifan. Hanya `super_admin` yang mendapat aksi toggle/edit pesan; akun yang sedang login tidak dapat menonaktifkan dirinya sendiri. Mutation memakai `PUT /api/master/users/{id}/access`, pesan opsional maksimal 500 karakter, lalu menginvalidasi `userKeys.all`.
+
 ### Sistem dan Fallback
 
 - `/activity-logs`
@@ -169,9 +185,14 @@ Semua route berikut berasal dari `src/App.jsx` pada snapshot.
 - `/` diarahkan ke `/dashboard`.
 - `*` diarahkan ke `/dashboard`.
 
-Seluruh route selain tiga route publik dibungkus `ProtectedRoute`. Route `/atlet` mempunyai lapisan tambahan `PermissionRoute permission="athletes.view"`; user tanpa permission melihat halaman **Akses Ditolak** dan `AthletesPage` beserta query atlet/master tidak dimount. Route lain belum otomatis mempunyai permission guard per route.
+Seluruh route selain tiga route publik dibungkus `ProtectedRoute`. Route `/atlet` dan setiap route detail laporan kualitas data mempunyai lapisan `PermissionRoute`; user tanpa permission melihat halaman **Akses Ditolak** dan page/query terkait tidak dimount. Sejumlah route lama lain belum otomatis mempunyai permission guard per route.
 
 Pada halaman Data Role, field backend `access_enabled` yang belum ada diperlakukan aktif untuk rollout kompatibel. Badge menampilkan `Aktif`, `Dinonaktifkan`, atau `Selalu Aktif`; hanya superadmin melihat toggle role non-superadmin. Mutation memakai `PUT /api/master/roles/{id}/access` dan meng-invalidasi seluruh `roleKeys.all`.
+
+Jadwal akses role sekali jalan dikelola di [`RoleAccessScheduleDialog`](./src/components/roles/RoleAccessScheduleDialog.jsx):
+- Endpoint: `GET`, `POST`, `DELETE /api/master/roles/access-schedules`, dengan key `roleKeys.accessSchedules()` di bawah `roleKeys.all`.
+- Query jadwal di-poll setiap 60 detik selama ada jadwal pending. Bila ada jadwal yang keluar dari daftar pending, daftar role di-invalidasi agar badge mengikuti perubahan yang diterapkan server.
+- Helper validasi dan payload (`validateRoleAccessScheduleInput`, `buildRoleAccessScheduleRequest`, `groupPendingSchedulesByRole`) ada di `src/lib/roleAccess.js` dan dites di `tests/roleAccess.test.js`.
 
 ## Sidebar dan Permission Flow
 
@@ -183,6 +204,7 @@ Pada halaman Data Role, field backend `access_enabled` yang belum ada diperlakuk
 - Item pembinaan, kegiatan, master data, dan settings difilter berdasarkan permission string.
 - Activity Log dan AI Analytics hanya ditampilkan untuk super admin.
 - Submenu aktif dibuka berdasarkan exact pathname dan dapat ditutup manual.
+- Section `Laporan` berdiri sendiri dari `Analisis Data`; submenu `Laporan Kualitas Data` hanya memuat tujuh laporan yang permission view-nya dimiliki user.
 
 Permission yang dipakai UI mencakup antara lain:
 
@@ -215,9 +237,9 @@ Query `/api/master/roles/all` pada halaman User hanya aktif bila user memiliki `
 6. Saat aplikasi mount/refresh, `fetchUser` memeriksa token lalu memanggil `/api/user`.
 7. Bootstrap `/api/user` yang gagal karena network/5xx/`ACCESS_SERVICE_UNAVAILABLE` mempertahankan token dan menampilkan layar **Layanan Akses Tidak Tersedia** dengan tindakan **Coba Lagi** dan **Keluar**.
 8. `AUTH_REQUIRED`/`AUTH_SESSION_INVALID` pada protected request membersihkan user/token/cache dan menyimpan session-expired notice satu kali di session storage.
-9. `ROLE_ACCESS_DISABLED` dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape.
+9. `USER_ACCESS_DISABLED`, `ROLE_ACCESS_DISABLED`, dan `ORGANIZATION_ASSIGNMENT_REQUIRED` membersihkan sesi dan membuka account-blocking dialog global yang tidak dapat ditutup lewat backdrop/Escape. Blokir user memakai judul **Akses Akun Dinonaktifkan** dan pesan backend atau fallback sistem.
 10. `INSUFFICIENT_PERMISSION` tidak logout; event global menampilkan notice, me-refresh `/api/user` secara terdeduplikasi, lalu membersihkan cache setelah permission terbaru diterima.
-11. Login membedakan credential salah, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
+11. Login membedakan credential salah, user disabled, role disabled, organization assignment required, service unavailable/network, validation, dan rate limit tanpa mengungkap keberadaan email.
 
 ### Axios Interceptor
 
@@ -253,6 +275,7 @@ Root query key yang terverifikasi:
 - `regions`, `organizations`, `venues`;
 - `events`, `training`, `portal`;
 - `formBuilder` dan `formTemplates`.
+- `quality-reports`, dengan cabang `filters`, `report/<reportKey>`, dan `scans` yang terpisah dari key `data-summary`/`data-analysis`.
 
 Factory key menambahkan list/detail/filter/dropdown/report/session/schedule sesuai domain. Mutation umumnya menginvalidasi root domain atau key detail terkait. Mutation cluster juga menginvalidasi daftar atlet/pelatih yang terpengaruh.
 
@@ -367,14 +390,9 @@ Implementasi mencoba mengekstrak referensi asset dengan regex tertentu. Jika tid
 
 ## Test dan Automation
 
-Pada snapshot:
+Repository mempunyai suite helper berbasis Node test runner melalui script `npm test`. Pada 2026-09-16 suite mencakup 69 test, termasuk kontrak URL/request laporan kualitas data serta helper auth/user access. Repository belum mempunyai Vitest/Jest DOM, Playwright, Cypress, atau workflow CI yang membuktikan browser flow.
 
-- tidak ada script `test` di `package.json`;
-- tidak ditemukan file `*.test.*` atau `*.spec.*` di source repository;
-- tidak ditemukan konfigurasi Vitest, Jest, Playwright, atau Cypress;
-- tidak ditemukan workflow CI di `.github/workflows`.
-
-Karena itu repository **belum mempunyai automated test suite**. Jangan mengklaim test coverage atau regression suite yang belum ada. Validasi aktif mengandalkan targeted ESLint, full lint baseline, production build, review kontrak, dan browser/runtime check manual bila tersedia.
+Karena itu `npm test`, targeted ESLint, full lint baseline, dan production build tetap harus dilengkapi review kontrak serta browser/runtime check manual bila tersedia.
 
 ## Baseline Validasi
 
@@ -398,6 +416,12 @@ Pada **2026-08-25**, targeted ESLint untuk `App.jsx`, `PortalRoute.jsx`, `mediaU
 
 Pada **2026-08-25**, targeted ESLint untuk gating katalog dan UI sensitif atlet/pelatih berhasil tanpa output. `npm run build` juga berhasil: 2.672 module transformed, bundle JS utama `1,681.14 kB` minified/`423.24 kB` gzip, dengan warning chunk >500 kB yang tetap non-blocking. Browser flow dan runtime API tidak dijalankan dari workspace ini.
 
+Pada **2026-09-16**, implementasi laporan kualitas data beserta scan manual berbasis permission tervalidasi dengan targeted ESLint tanpa output, `npm test` lulus **63/63**, dan `npm run build` berhasil: 2.733 module transformed, bundle JS utama `2,172.01 kB` minified/`538.32 kB` gzip. Full `npm run lint` tetap nonzero dengan **55 problems (49 errors, 6 warnings)** pada file baseline lama di luar scope; file laporan baru/diubah bersih pada targeted lint. `git diff --check` bersih. Browser flow dan runtime API tidak dijalankan dari workspace ini.
+
+Pada **2026-09-16**, fitur penonaktifan akses per user di `/master/users` tervalidasi dengan targeted ESLint tanpa output, `npm test` lulus **66/66**, dan `npm run build` berhasil: 2.734 module transformed, bundle JS utama `2,178.82 kB` minified/`539.10 kB` gzip. Full `npm run lint` tetap nonzero dengan **55 problems (49 errors, 6 warnings)** pada file baseline lama di luar scope. Browser flow dan runtime API belum dijalankan dari workspace ini.
+
+Pada **2026-09-16**, input nama utama atlet dan pelatih pada modal admin serta portal dibatasi menjadi huruf Unicode dan spasi melalui komponen form bersama, dengan validasi yang konsisten sebelum submit. Dropdown pemilihan kelas pertandingan pada form atlet dikomentari agar tidak tampil namun mudah diaktifkan kembali. Targeted ESLint lulus tanpa output, `npm test` lulus **69/69**, dan `npm run build` berhasil: 2.734 module transformed, bundle JS utama `2,178.74 kB` minified/`539.15 kB` gzip; warning chunk >500 kB tetap non-blocking. Full lint tetap baseline merah **55 problems (49 errors, 6 warnings)** di luar scope, dan browser/runtime API belum diuji.
+
 ## Watchlist: Jangan Ikuti Asumsi Usang
 
 1. **README masih template Vite generik.** Ia tidak menjelaskan domain KONI, route, auth, API, Docker, atau baseline repository aktual.
@@ -405,7 +429,7 @@ Pada **2026-08-25**, targeted ESLint untuk gating katalog dan UI sensitif atlet/
 3. **Route permission belum menyeluruh.** `/atlet` sekarang memakai `PermissionRoute athletes.view`, tetapi route lain masih bergantung pada kombinasi sidebar/action gating dan enforcement backend.
 4. **Permission UI bukan boundary keamanan.** Sidebar/tombol yang tersembunyi tidak mencegah direct URL atau request manual. Backend harus tetap enforce.
 5. **Data fetching belum konsisten.** TanStack Query hidup berdampingan dengan Axios/state manual, terutama Monev, form/detail/dropdown/import/export, dan beberapa page besar.
-6. **Tidak ada automated test suite.** Build/lint tidak membuktikan seluruh browser flow, auth, upload, atau cache behavior.
+6. **Belum ada browser automation.** Suite Node menguji helper/kontrak tertentu, tetapi tidak membuktikan seluruh browser flow, auth, upload, cache, atau runtime API.
 7. **Full lint sudah merah.** Hasil terbaru tetap nonzero dan harus dipisahkan dari regresi baru; gunakan angka validasi bertanggal pada bagian baseline.
 8. **Bundle utama besar.** Build hijau tetapi menghasilkan warning chunk >500 kB; jangan menyatakan optimasi code splitting sudah aktif.
 9. **Version detection perlu dibuktikan.** Regex asset pada `VersionChecker` dapat jatuh ke fallback panjang HTML.

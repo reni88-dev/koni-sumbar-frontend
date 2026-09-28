@@ -4,6 +4,7 @@ import { CoachDocumentsSection } from './CoachDocumentsSection';
 import { CoachIdentitySection } from './CoachIdentitySection';
 
 export function CoachPersonalStep({
+  coach,
   form,
   lookups,
   files,
@@ -26,7 +27,7 @@ export function CoachPersonalStep({
         validation={validation}
         showBPJSNumber={showBPJSNumber}
       />
-      <CoachAffiliationSection form={form} lookups={lookups} validation={validation} />
+      <CoachAffiliationSection coach={coach} form={form} lookups={lookups} validation={validation} />
     </div>
   );
 }

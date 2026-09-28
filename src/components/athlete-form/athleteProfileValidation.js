@@ -1,7 +1,9 @@
 import {
+  isProfileNameValid,
   normalizeProfilePhone,
   PROFILE_EMAIL_PATTERN,
   PROFILE_IDENTITY_PATTERN,
+  PROFILE_NAME_VALIDATION_MESSAGE,
 } from '../form-validation/profileValidation.js';
 
 export const ATHLETE_IDENTITY_PATTERN = PROFILE_IDENTITY_PATTERN;
@@ -113,7 +115,11 @@ export function validateAthleteProfile(formData, context = {}) {
   };
   const text = (field) => String(formData[field] || '').trim();
 
-  if (!text('name')) add('name', 'Nama lengkap wajib diisi');
+  if (!text('name')) {
+    add('name', 'Nama lengkap wajib diisi');
+  } else if (!isProfileNameValid(text('name'))) {
+    add('name', PROFILE_NAME_VALIDATION_MESSAGE);
+  }
   if (!ATHLETE_IDENTITY_PATTERN.test(text('nik'))) {
     add('nik', text('nik') ? 'NIK harus tepat 16 digit angka' : 'NIK wajib diisi dengan 16 digit angka');
   }
@@ -134,7 +140,9 @@ export function validateAthleteProfile(formData, context = {}) {
   if (!text('district')) add('district', 'Kecamatan/Distrik wajib dipilih');
   if (!text('village')) add('village', 'Kelurahan/Desa wajib dipilih');
 
-  if (ageGroup && !isIdentityTypeValidForAge(formData.identity_document_type, ageGroup)) {
+  // KTP/BPJS data cannot be changed while locked, so its completeness is not enforced here.
+  const documentsLocked = Boolean(context.documentsLocked);
+  if (!documentsLocked && ageGroup && !isIdentityTypeValidForAge(formData.identity_document_type, ageGroup)) {
     add(
       'identity_document_type',
       ageGroup === 'adult'
@@ -153,7 +161,7 @@ export function validateAthleteProfile(formData, context = {}) {
   const awaitingLegacyTypeConfirmation = storedIdentityExists &&
     !storedIdentityType &&
     originalAgeGroup === ageGroup;
-  if (!context.identityDocumentFile && !canReuseIdentity && !awaitingLegacyTypeConfirmation) {
+  if (!documentsLocked && !context.identityDocumentFile && !canReuseIdentity && !awaitingLegacyTypeConfirmation) {
     add(
       'identity_document',
       storedIdentityExists
