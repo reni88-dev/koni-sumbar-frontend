@@ -164,7 +164,6 @@ export function CoachDocumentsSection({
             <input
               {...getFieldControlProps('bpjs_number', errors)}
               type="text"
-              inputMode="numeric"
               required={bpjsNumberRequired}
               aria-required={bpjsNumberRequired}
               value={formData.bpjs_number}
