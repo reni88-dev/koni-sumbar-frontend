@@ -35,7 +35,8 @@ import {
   ScanSearch,
   Megaphone,
   ArrowLeftRight,
-  BarChart3
+  BarChart3,
+  CreditCard
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 import { QUALITY_REPORTS } from '../features/data-quality-report/reportConfig.js';
@@ -181,6 +182,7 @@ function SidebarContent({ onNavigate }) {
   const pembinaanItems = filterVisibleItems([
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
     { icon: ArrowLeftRight, label: 'Transfer Atlet', path: '/transfer-atlet', permission: 'athlete_transfers.view', badge: transferSummary?.pending_action_count || 0 },
+    { icon: CreditCard, label: 'ID Card Atlet', path: '/id-card-atlet', permission: 'athlete_cards.manage' },
     { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
     { icon: ArrowLeftRight, label: 'Transfer Pelatih', path: '/transfer-pelatih', permission: 'coach_transfers.view', badge: coachTransferSummary?.pending_action_count || 0 },
     { icon: UserCheck, label: 'Pelatih-Atlet', path: '/coach-athletes', permission: 'coaching.view' },

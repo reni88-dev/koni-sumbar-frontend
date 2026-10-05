@@ -1,0 +1,54 @@
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap");
+/* Kartu anggota atlet KONI Sumbar (54x85,6 mm). Ukuran memakai cqw agar skala mengikuti lebar kartu. */
+.kic{container-type:inline-size;width:var(--kic-w,340px);max-width:100%;aspect-ratio:54/85.6;border-radius:6cqw;position:relative;overflow:hidden;background:#fff;color:#12263f;font-family:'Sora',system-ui,sans-serif;box-shadow:0 20px 44px rgba(10,20,40,.22);flex:none}
+.kic *{box-sizing:border-box}
+.kic .a{position:absolute}
+.kic .hole{left:50%;top:4.5cqw;width:14cqw;height:3cqw;margin-left:-7cqw;border-radius:2cqw;background:#f1f0ec;box-shadow:inset 0 .4cqw .8cqw rgba(0,0,0,.3)}
+.kic .strip{left:0;right:0;bottom:0;height:6cqw;background:#12263f}
+.kic .strip::before{content:"";position:absolute;left:0;top:0;bottom:0;width:22cqw;background:#bd110f}
+.kic .yel{left:0;right:0;top:0;height:70cqw;background:#f7cd0d;border-bottom-left-radius:22cqw}
+.kic .badge{border-radius:50%;background:#fff;overflow:hidden;flex:none;box-shadow:0 .6cqw 1.6cqw rgba(18,38,63,.18)}
+.kic .badge img{width:100%;height:100%;display:block;object-fit:contain;padding:6%}
+.kic .logo{left:9cqw;top:11cqw;display:flex;align-items:center;gap:3cqw;font-size:3.8cqw;font-weight:800;line-height:1.2}
+.kic .logo .badge{width:17cqw;height:17cqw}
+.kic .tier{right:9cqw;top:14.5cqw;background:#12263f;color:#f7cd0d;font-size:3cqw;font-weight:800;padding:1.3cqw 3.6cqw;border-radius:10cqw}
+.kic .photo{left:50%;top:30cqw;width:44cqw;height:54cqw;margin-left:-22cqw;border-radius:6cqw;overflow:hidden;background:#e8eef5;border:1.2cqw solid #fff}
+.kic .photo svg,.kic .photo img{width:100%;height:100%;display:block;object-fit:cover}
+.kic .name{left:4cqw;right:4cqw;top:89cqw;text-align:center;margin:0;font-size:7cqw;font-weight:800;line-height:1.1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.kic .name.md{font-size:5.4cqw}
+.kic .name.sm{font-size:4.4cqw}
+.kic .pair{left:7cqw;right:7cqw;top:101cqw;display:grid;grid-template-columns:1fr 1fr;gap:4cqw;text-align:center}
+.kic .pair p,.kic .grid p{margin:0}
+.kic .pair .val{font-size:3.4cqw;line-height:1.2}
+.kic .dv{left:50%;top:115cqw;width:10cqw;height:1cqw;margin-left:-5cqw;background:#f7cd0d;border-radius:1cqw}
+.kic .grid{left:10cqw;right:10cqw;top:119cqw;display:grid;grid-template-columns:1fr 1fr;gap:4cqw;text-align:center}
+.kic .span2{grid-column:1/-1}
+.kic .lbl{display:block;font-size:2.5cqw;color:#6b7a8d}
+.kic .val{display:block;font-size:3.3cqw;font-weight:800;margin-top:.6cqw}
+.kic .bar{left:50%;margin-left:-18cqw;width:36cqw;top:144.5cqw;height:6cqw}
+.kic .bar svg{width:100%;height:100%;display:block}
+.kic.back{background:#f7cd0d}
+.kic .b-logo{left:50%;top:10cqw;width:20cqw;height:20cqw;margin-left:-10cqw}
+.kic .panel{left:8cqw;right:8cqw;top:34cqw;height:92cqw;background:#fff;border-radius:5cqw}
+.kic .qr{left:50%;top:8cqw;width:44cqw;height:44cqw;margin-left:-22cqw}
+.kic .qr svg{width:100%;height:100%;display:block}
+.kic .cap{left:0;right:0;top:57cqw;text-align:center;margin:0;font-size:2.8cqw;color:#6b7a8d}
+.kic .pdv{left:7cqw;right:7cqw;top:65cqw;height:.3cqw;background:#e3e6ea}
+.kic .ci{left:7cqw;right:7cqw;margin:0;font-size:3cqw;display:flex;align-items:center;gap:3cqw;font-weight:600}
+.kic .ci i{width:2.2cqw;height:2.2cqw;border-radius:50%;background:#bd110f;flex:none}
+.kic .terms{left:9cqw;right:9cqw;top:132cqw;margin:0;font-size:2.6cqw;line-height:1.55}
+.kic .terms b{font-weight:800}
+
+/* Lembar cetak: A4 landscape, 2 atlet per baris (depan + belakang), 2 baris per halaman. */
+.kic-sheet{display:grid;grid-template-columns:repeat(2,max-content);gap:8mm 10mm;justify-content:center}
+.kic-pair{display:flex;gap:3mm;break-inside:avoid}
+.kic-sheet .kic{--kic-w:54mm;width:54mm;box-shadow:none;border:.2mm solid #cfd6de}
+
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body *{visibility:hidden}
+  .kic-print-root,.kic-print-root *{visibility:visible}
+  .kic-print-root{position:absolute;left:0;top:0;width:100%}
+  .kic-sheet{gap:6mm 8mm}
+  .kic{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
