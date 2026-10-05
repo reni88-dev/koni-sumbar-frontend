@@ -12,6 +12,10 @@ import { useCaborsAll } from '../hooks/queries/useCabors';
 import { useOrganizationsAll } from '../hooks/queries/useOrganizations';
 
 const MAX_BATCH = 500;
+const MEMBER_TYPES = [
+  { value: 'athlete', label: 'Atlet' },
+  { value: 'coach', label: 'Pelatih' },
+];
 const SELECT_CLASS =
   'w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:ring-2 focus:ring-red-500/20 focus:border-red-500 outline-none';
 
@@ -117,15 +121,14 @@ function batchErrorMessage(error) {
 
 export function AthleteCardsPage() {
   const [organizationId, setOrganizationId] = useState('');
+  const [memberType, setMemberType] = useState('athlete');
   const [sportId, setSportId] = useState('');
-  const [disciplineId, setDisciplineId] = useState('');
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(20);
   const [deselected, setDeselected] = useState(() => new Set());
 
   const { data: organizations = [] } = useOrganizationsAll();
   const { data: sports = [] } = useCaborsAll({ level: 'sport' });
-  const { data: disciplines = [] } = useCaborsAll({ level: 'discipline', parentId: sportId });
   const batchMutation = useAthleteCardBatch();
   const batch = batchMutation.data;
   const settingsQuery = useAthleteCardSettings();
@@ -133,7 +136,7 @@ export function AthleteCardsPage() {
   const validUntil = settingsQuery.data ? settingsQuery.data.valid_until : batch?.valid_until;
 
   const selectedItems = useMemo(
-    () => (batch?.items || []).filter((item) => !deselected.has(item.athlete_id)),
+    () => (batch?.items || []).filter((item) => !deselected.has(item.token)),
     [batch, deselected],
   );
 
@@ -144,8 +147,9 @@ export function AthleteCardsPage() {
     if (!limitValid) return;
     setDeselected(new Set());
     batchMutation.mutate({
+      member_type: memberType,
       organization_id: organizationId ? Number(organizationId) : 0,
-      cabor_id: Number(disciplineId || sportId || 0),
+      cabor_id: Number(sportId || 0),
       search: search.trim(),
       limit,
     });
@@ -162,14 +166,38 @@ export function AthleteCardsPage() {
 
   return (
     <DashboardLayout
-      title="ID Card Atlet"
-      subtitle="Cetak kartu anggota atlet dengan QR yang membuka halaman data atlet. Filter per organisasi, cabor, dan disiplin, lalu tentukan jumlah kartu."
+      title="ID Card Anggota"
+      subtitle="Cetak kartu anggota atlet atau pelatih dengan QR yang membuka halaman data anggota. Filter per jenis anggota, organisasi, dan cabor, lalu tentukan jumlah kartu."
     >
       <div className="space-y-5">
         <ValidUntilPanel settings={settingsQuery.data} isLoading={settingsQuery.isLoading} isError={settingsQuery.isError} />
 
         <form onSubmit={loadBatch} className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <span className="mb-1 block text-xs font-semibold text-slate-600">Jenis anggota</span>
+              <div role="radiogroup" aria-label="Jenis anggota" className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+                {MEMBER_TYPES.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={memberType === type.value}
+                    onClick={() => {
+                      if (type.value === memberType) return;
+                      setMemberType(type.value);
+                      setDeselected(new Set());
+                      batchMutation.reset();
+                    }}
+                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                      memberType === type.value ? 'bg-white text-red-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Field label="Organisasi (Asal KONI)">
               <select className={SELECT_CLASS} value={organizationId} onChange={(e) => setOrganizationId(e.target.value)}>
                 <option value="">Semua organisasi</option>
@@ -182,10 +210,7 @@ export function AthleteCardsPage() {
               <select
                 className={SELECT_CLASS}
                 value={sportId}
-                onChange={(e) => {
-                  setSportId(e.target.value);
-                  setDisciplineId('');
-                }}
+                onChange={(e) => setSportId(e.target.value)}
               >
                 <option value="">Semua cabor</option>
                 {sports.map((c) => (
@@ -193,27 +218,14 @@ export function AthleteCardsPage() {
                 ))}
               </select>
             </Field>
-            <Field label="Disiplin">
-              <select
-                className={SELECT_CLASS}
-                value={disciplineId}
-                disabled={!sportId}
-                onChange={(e) => setDisciplineId(e.target.value)}
-              >
-                <option value="">{sportId ? 'Semua disiplin' : 'Pilih cabor dahulu'}</option>
-                {disciplines.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Cari nama / ID nasional">
+            <Field label="Cari nama">
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
                 <input
                   className={`${SELECT_CLASS} pl-9`}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Nama atlet"
+                  placeholder="Nama anggota"
                 />
               </div>
             </Field>
@@ -257,7 +269,7 @@ export function AthleteCardsPage() {
                   {selectedItems.length} kartu siap dicetak
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Menampilkan {batch.items.length} dari {batch.total} atlet aktif sesuai filter.
+                  Menampilkan {batch.items.length} dari {batch.total} anggota aktif sesuai filter.
                   {validUntil ? '' : ' Tanggal berlaku belum diatur.'}
                 </p>
               </div>
@@ -272,17 +284,17 @@ export function AthleteCardsPage() {
             </div>
 
             {batch.items.length === 0 ? (
-              <p className="mt-6 text-center text-sm text-slate-500">Tidak ada atlet aktif yang cocok dengan filter.</p>
+              <p className="mt-6 text-center text-sm text-slate-500">Tidak ada anggota aktif yang cocok dengan filter.</p>
             ) : (
               <ul className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {batch.items.map((item) => (
-                  <li key={item.athlete_id}>
+                  <li key={item.token}>
                     <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-slate-100 p-2.5 hover:bg-slate-50">
                       <input
                         type="checkbox"
                         className="mt-1"
-                        checked={!deselected.has(item.athlete_id)}
-                        onChange={() => toggle(item.athlete_id)}
+                        checked={!deselected.has(item.token)}
+                        onChange={() => toggle(item.token)}
                       />
                       <span className="min-w-0 text-sm">
                         <span className="block truncate font-semibold text-slate-900">{item.name}</span>
@@ -300,11 +312,11 @@ export function AthleteCardsPage() {
 
         {selectedItems.length > 0 && (
           <section className="rounded-2xl border border-slate-200/80 bg-slate-100 p-4 sm:p-5">
-            <p className="mb-3 text-xs font-semibold text-slate-600">Pratinjau lembar cetak (A4 lanskap, 4 atlet per halaman)</p>
+            <p className="mb-3 text-xs font-semibold text-slate-600">Pratinjau lembar cetak (A4 lanskap, 4 anggota per halaman)</p>
             <div className="kic-print-root overflow-x-auto">
               <div className="kic-sheet">
                 {selectedItems.map((item) => (
-                  <div className="kic-pair" key={item.athlete_id}>
+                  <div className="kic-pair" key={item.token}>
                     <AthleteIdCardFront item={item} validUntil={validUntil} />
                     <AthleteIdCardBack item={item} />
                   </div>

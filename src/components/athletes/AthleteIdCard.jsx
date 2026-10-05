@@ -48,6 +48,7 @@ export function AthleteIdCardFront({ item, validUntil }) {
         <div className="badge"><img src={logo} alt="" /></div>
         <span>KONI<br />Sumatera Barat</span>
       </div>
+      <div className="a tier">{item.member_type_label || 'ATLET'}</div>
       <div className="a photo">
         {photo ? <img src={photo} alt={`Foto ${item.name}`} crossOrigin="anonymous" /> : <PhotoPlaceholder />}
       </div>
@@ -60,7 +61,7 @@ export function AthleteIdCardFront({ item, validUntil }) {
       <div className="a grid">
         <p><span className="lbl">No. anggota</span><span className="val">{item.member_number}</span></p>
         <p><span className="lbl">Berlaku s.d.</span><span className="val">{formatCardDate(validUntil)}</span></p>
-        <p className="span2"><span className="lbl">ID Nasional</span><span className="val">{item.national_athlete_number || '-'}</span></p>
+        <p className="span2"><span className="lbl">ID Nasional</span><span className="val">{item.national_number || '-'}</span></p>
       </div>
       <div className="a bar"><Barcode value={item.member_number} /></div>
       <div className="a strip" />

@@ -1,6 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&display=swap");
 /* Kartu anggota atlet KONI Sumbar (54x85,6 mm). Ukuran memakai cqw agar skala mengikuti lebar kartu. */
-.kic{container-type:inline-size;width:var(--kic-w,340px);max-width:100%;aspect-ratio:54/85.6;border-radius:6cqw;position:relative;overflow:hidden;background:#fff;color:#12263f;font-family:'Sora',system-ui,sans-serif;box-shadow:0 20px 44px rgba(10,20,40,.22);flex:none}
+.kic{container-type:inline-size;width:var(--kic-w,340px);max-width:100%;aspect-ratio:54/85.6;border-radius:0;position:relative;overflow:hidden;background:#fff;color:#12263f;font-family:'Sora',system-ui,sans-serif;box-shadow:0 20px 44px rgba(10,20,40,.22);flex:none}
 .kic *{box-sizing:border-box}
 .kic .a{position:absolute}
 .kic .hole{left:50%;top:4.5cqw;width:14cqw;height:3cqw;margin-left:-7cqw;border-radius:2cqw;background:#f1f0ec;box-shadow:inset 0 .4cqw .8cqw rgba(0,0,0,.3)}

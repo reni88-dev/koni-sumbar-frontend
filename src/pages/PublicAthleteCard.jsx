@@ -71,14 +71,19 @@ export function PublicAthleteCardPage() {
 
   const photo = athleteCardPhotoSrc(card.photo_url);
   const achievements = card.achievements || [];
+  // Medali Sirimau tercatat per atlet peserta; pelatih tidak punya bagian prestasi.
+  const isAthlete = card.member_type !== 'coach';
 
   return (
     <Shell>
       <div className="overflow-hidden rounded-2xl bg-white shadow">
-        <div className="bg-[#f7cd0d] px-5 pb-16 pt-5">
+        <div className="flex items-start justify-between gap-2 bg-[#f7cd0d] px-5 pb-16 pt-5">
           <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold ${card.expired ? 'bg-red-700 text-white' : 'bg-[#12263f] text-[#f7cd0d]'}`}>
             <BadgeCheck className="h-4 w-4" />
             {card.expired ? 'Kartu kedaluwarsa' : 'Anggota terdaftar'}
+          </span>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-extrabold tracking-wide text-[#12263f]">
+            {card.member_type_label || 'ATLET'}
           </span>
         </div>
         <div className="-mt-12 flex flex-col items-center px-5 pb-6">
@@ -99,6 +104,7 @@ export function PublicAthleteCardPage() {
         </div>
       </div>
 
+      {isAthlete && (
       <div className="mt-5 rounded-2xl bg-white p-5 shadow">
         <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
           <Medal className="h-5 w-5 text-red-600" /> Prestasi
@@ -123,6 +129,7 @@ export function PublicAthleteCardPage() {
           </ul>
         )}
       </div>
+      )}
     </Shell>
   );
 }
