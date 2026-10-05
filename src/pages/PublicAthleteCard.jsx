@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeCheck, Medal, ShieldAlert } from 'lucide-react';
+import { BadgeCheck, Medal, ShieldAlert, User } from 'lucide-react';
 import { usePublicAthleteCard } from '../hooks/queries/useAthleteCards';
 import { athleteCardPhotoSrc, formatCardDate } from '../components/athletes/athleteCardUtils';
 import logo from '../assets/koni-logo-card.png';
@@ -25,6 +26,21 @@ function Shell({ children }) {
       </div>
     </div>
   );
+}
+
+// Saat foto tidak ada atau gagal dimuat tampilkan siluet, bukan ikon gambar rusak.
+// Pemanggil memberi key={src} agar status gagal ter-reset.
+function PublicPhoto({ src, name }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-1 bg-slate-100 text-slate-400">
+        <User className="h-16 w-16" aria-hidden="true" />
+        <span className="text-[11px] text-slate-500">Foto belum tersedia</span>
+      </div>
+    );
+  }
+  return <img src={src} alt={`Foto ${name}`} className="h-full w-full object-cover" onError={() => setFailed(true)} />;
 }
 
 function Info({ label, value }) {
@@ -88,17 +104,13 @@ export function PublicAthleteCardPage() {
         </div>
         <div className="-mt-12 flex flex-col items-center px-5 pb-6">
           <div className="h-40 w-32 overflow-hidden rounded-2xl border-4 border-white bg-slate-200 shadow">
-            {photo ? (
-              <img src={photo} alt={`Foto ${card.name}`} className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xs text-slate-500">Tanpa foto</div>
-            )}
+            <PublicPhoto key={photo} src={photo} name={card.name} />
           </div>
           <h1 className="mt-3 text-center text-xl font-extrabold text-slate-900">{card.name}</h1>
           <div className="mt-4 grid w-full grid-cols-2 gap-4 border-t border-slate-100 pt-4">
             <Info label="Asal KONI" value={card.organization_name} />
             <Info label="Cabor" value={card.cabor_name} />
-            <Info label="No. anggota" value={card.member_number} />
+            <Info label="No. anggota" value="-" />
             <Info label="Berlaku s.d." value={card.valid_until ? formatCardDate(card.valid_until) : '-'} />
           </div>
         </div>

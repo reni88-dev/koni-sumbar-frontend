@@ -1,5 +1,4 @@
-import { useEffect, useRef } from 'react';
-import JsBarcode from 'jsbarcode';
+import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { athleteCardPhotoSrc, athleteCardPublicUrl, formatCardDate } from './athleteCardUtils';
 import logo from '../../assets/koni-logo-card.png';
@@ -11,22 +10,6 @@ function nameSizeClass(name) {
   return '';
 }
 
-function Barcode({ value }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    const svg = ref.current;
-    if (!svg || !value) return;
-    JsBarcode(svg, value, { format: 'CODE128', displayValue: false, margin: 0, height: 40, width: 2, background: 'transparent', lineColor: '#12263f' });
-    const width = svg.getAttribute('width');
-    const height = svg.getAttribute('height');
-    svg.setAttribute('viewBox', `0 0 ${parseFloat(width)} ${parseFloat(height)}`);
-    svg.setAttribute('preserveAspectRatio', 'none');
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
-  }, [value]);
-  return <svg ref={ref} aria-label={`Barcode ${value}`} shapeRendering="crispEdges" />;
-}
-
 function PhotoPlaceholder() {
   return (
     <svg viewBox="0 0 24 30" aria-label="Foto belum tersedia">
@@ -35,6 +18,14 @@ function PhotoPlaceholder() {
       <path d="M2 30c0-8 4-12 10-12s10 4 10 12z" fill="#8aa2bd" />
     </svg>
   );
+}
+
+// Foto bisa hilang dari storage meski record punya path; saat gambar gagal dimuat tampilkan
+// siluet, bukan ikon gambar rusak. Pemanggil memberi key={src} agar status gagal ter-reset.
+function CardPhoto({ src }) {
+  const [failed, setFailed] = useState(false);
+  if (!src || failed) return <PhotoPlaceholder />;
+  return <img src={src} alt="" crossOrigin="anonymous" onError={() => setFailed(true)} />;
 }
 
 /** Sisi depan kartu. `item` berasal dari POST /api/athlete-cards/render-data. */
@@ -50,7 +41,7 @@ export function AthleteIdCardFront({ item, validUntil }) {
       </div>
       <div className="a tier">{item.member_type_label || 'ATLET'}</div>
       <div className="a photo">
-        {photo ? <img src={photo} alt={`Foto ${item.name}`} crossOrigin="anonymous" /> : <PhotoPlaceholder />}
+        <CardPhoto key={photo} src={photo} />
       </div>
       <p className={`a name ${nameSizeClass(item.name)}`}>{item.name}</p>
       <div className="a pair">
@@ -59,11 +50,10 @@ export function AthleteIdCardFront({ item, validUntil }) {
       </div>
       <div className="a dv" />
       <div className="a grid">
-        <p><span className="lbl">No. anggota</span><span className="val">{item.member_number}</span></p>
+        <p><span className="lbl">No. anggota</span><span className="val">-</span></p>
         <p><span className="lbl">Berlaku s.d.</span><span className="val">{formatCardDate(validUntil)}</span></p>
         <p className="span2"><span className="lbl">ID Nasional</span><span className="val">{item.national_number || '-'}</span></p>
       </div>
-      <div className="a bar"><Barcode value={item.member_number} /></div>
       <div className="a strip" />
     </div>
   );
