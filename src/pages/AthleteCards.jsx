@@ -125,6 +125,9 @@ export function AthleteCardsPage() {
   const [sportId, setSportId] = useState('');
   const [search, setSearch] = useState('');
   const [limit, setLimit] = useState(20);
+  const [start, setStart] = useState(1);
+  // Urutan awal batch yang sedang ditampilkan (bukan isian form yang mungkin sudah diubah).
+  const [batchStart, setBatchStart] = useState(1);
   const [deselected, setDeselected] = useState(() => new Set());
 
   const { data: organizations = [] } = useOrganizationsAll();
@@ -141,17 +144,21 @@ export function AthleteCardsPage() {
   );
 
   const limitValid = Number.isInteger(limit) && limit >= 1 && limit <= MAX_BATCH;
+  const startValid = Number.isInteger(start) && start >= 1;
+  const batchEnd = batch ? batchStart + batch.items.length - 1 : 0;
 
   const loadBatch = (event) => {
     event.preventDefault();
-    if (!limitValid) return;
+    if (!limitValid || !startValid) return;
     setDeselected(new Set());
+    setBatchStart(start);
     batchMutation.mutate({
       member_type: memberType,
       organization_id: organizationId ? Number(organizationId) : 0,
       cabor_id: Number(sportId || 0),
       search: search.trim(),
       limit,
+      offset: start - 1,
     });
   };
 
@@ -239,10 +246,19 @@ export function AthleteCardsPage() {
                 onChange={(e) => setLimit(e.target.value === '' ? NaN : Number(e.target.value))}
               />
             </Field>
+            <Field label="Mulai dari urutan ke-">
+              <input
+                type="number"
+                min={1}
+                className={SELECT_CLASS}
+                value={Number.isNaN(start) ? '' : start}
+                onChange={(e) => setStart(e.target.value === '' ? NaN : Number(e.target.value))}
+              />
+            </Field>
             <div className="flex items-end">
               <button
                 type="submit"
-                disabled={!limitValid || batchMutation.isPending}
+                disabled={!limitValid || !startValid || batchMutation.isPending}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {batchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CreditCard className="h-4 w-4" aria-hidden="true" />}
@@ -253,6 +269,12 @@ export function AthleteCardsPage() {
           {!limitValid && (
             <p className="mt-2 text-xs text-red-600">Jumlah kartu harus bilangan bulat 1 sampai {MAX_BATCH}.</p>
           )}
+          {!startValid && (
+            <p className="mt-2 text-xs text-red-600">Urutan awal harus bilangan bulat mulai dari 1.</p>
+          )}
+          <p className="mt-2 text-xs text-slate-500">
+            Untuk lebih dari {MAX_BATCH} kartu, cetak bertahap: isi urutan awal 1 lalu {MAX_BATCH + 1}, {MAX_BATCH * 2 + 1}, dan seterusnya. Daftar selalu terurut berdasarkan nama.
+          </p>
         </form>
 
         {batchMutation.isError && (
@@ -269,7 +291,10 @@ export function AthleteCardsPage() {
                   {selectedItems.length} kartu siap dicetak
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Menampilkan {batch.items.length} dari {batch.total} anggota aktif sesuai filter.
+                  {batch.items.length > 0
+                    ? `Menampilkan urutan ${batchStart}-${batchEnd} dari ${batch.total} anggota aktif sesuai filter.`
+                    : `Tidak ada anggota pada urutan ${batchStart} (total ${batch.total} anggota aktif sesuai filter).`}
+                  {batchEnd < batch.total ? ` Batch berikutnya mulai dari urutan ${batchEnd + 1}.` : ''}
                   {validUntil ? '' : ' Tanggal berlaku belum diatur.'}
                 </p>
               </div>
