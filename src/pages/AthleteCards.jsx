@@ -183,7 +183,7 @@ export function AthleteCardsPage() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
               <span className="mb-1 block text-xs font-semibold text-slate-600">Jenis anggota</span>
-              <div role="radiogroup" aria-label="Jenis anggota" className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
+              <div role="radiogroup" aria-label="Jenis anggota" className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1">
                 {MEMBER_TYPES.map((type) => (
                   <button
                     key={type.value}
@@ -196,7 +196,7 @@ export function AthleteCardsPage() {
                       setDeselected(new Set());
                       batchMutation.reset();
                     }}
-                    className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                    className={`rounded-lg px-3 py-1 text-sm font-semibold transition ${
                       memberType === type.value ? 'bg-white text-red-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
@@ -255,26 +255,28 @@ export function AthleteCardsPage() {
                 onChange={(e) => setStart(e.target.value === '' ? NaN : Number(e.target.value))}
               />
             </Field>
-            <div className="flex items-end">
-              <button
-                type="submit"
-                disabled={!limitValid || !startValid || batchMutation.isPending}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {batchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CreditCard className="h-4 w-4" aria-hidden="true" />}
-                Siapkan kartu
-              </button>
-            </div>
           </div>
-          {!limitValid && (
-            <p className="mt-2 text-xs text-red-600">Jumlah kartu harus bilangan bulat 1 sampai {MAX_BATCH}.</p>
-          )}
-          {!startValid && (
-            <p className="mt-2 text-xs text-red-600">Urutan awal harus bilangan bulat mulai dari 1.</p>
-          )}
-          <p className="mt-2 text-xs text-slate-500">
-            Untuk lebih dari {MAX_BATCH} kartu, cetak bertahap: isi urutan awal 1 lalu {MAX_BATCH + 1}, {MAX_BATCH * 2 + 1}, dan seterusnya. Daftar selalu terurut berdasarkan nama.
-          </p>
+          <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1 text-xs">
+              {!limitValid && (
+                <p className="text-red-600">Jumlah kartu harus bilangan bulat 1 sampai {MAX_BATCH}.</p>
+              )}
+              {!startValid && (
+                <p className="text-red-600">Urutan awal harus bilangan bulat mulai dari 1.</p>
+              )}
+              <p className="text-slate-500">
+                Untuk lebih dari {MAX_BATCH} kartu, cetak bertahap: isi urutan awal 1 lalu {MAX_BATCH + 1}, {MAX_BATCH * 2 + 1}, dan seterusnya. Daftar selalu terurut berdasarkan nama.
+              </p>
+            </div>
+            <button
+              type="submit"
+              disabled={!limitValid || !startValid || batchMutation.isPending}
+              className="inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+            >
+              {batchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <CreditCard className="h-4 w-4" aria-hidden="true" />}
+              Siapkan kartu
+            </button>
+          </div>
         </form>
 
         {batchMutation.isError && (

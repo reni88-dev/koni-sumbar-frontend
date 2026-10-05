@@ -5,8 +5,8 @@ import logo from '../../assets/koni-logo-card.png';
 import './athleteIdCard.css';
 
 function nameSizeClass(name) {
-  if (name.length > 28) return 'sm';
-  if (name.length > 18) return 'md';
+  if (name.length > 24) return 'sm';
+  if (name.length > 16) return 'md';
   return '';
 }
 
@@ -31,6 +31,7 @@ function CardPhoto({ src }) {
 /** Sisi depan kartu. `item` berasal dari POST /api/athlete-cards/render-data. */
 export function AthleteIdCardFront({ item, validUntil }) {
   const photo = athleteCardPhotoSrc(item.photo_url);
+  const cardName = item.name.toLocaleUpperCase('id-ID');
   return (
     <div className="kic" aria-label="Kartu anggota bagian depan">
       <div className="a yel" />
@@ -43,7 +44,7 @@ export function AthleteIdCardFront({ item, validUntil }) {
       <div className="a photo">
         <CardPhoto key={photo} src={photo} />
       </div>
-      <p className={`a name ${nameSizeClass(item.name)}`}>{item.name}</p>
+      <p className={`a name ${nameSizeClass(cardName)}`}>{cardName}</p>
       <div className="a pair">
         <p><span className="lbl">Asal KONI</span><span className="val">{item.organization_name || '-'}</span></p>
         <p><span className="lbl">Cabor</span><span className="val">{item.cabor_name || '-'}</span></p>
