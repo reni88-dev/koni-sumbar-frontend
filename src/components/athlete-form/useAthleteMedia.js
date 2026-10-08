@@ -8,7 +8,31 @@ import {
 } from './athleteDocumentPreview';
 import { getAthleteAgeGroup } from './athleteFormModel';
 
-export function useAthleteMedia({ athlete, setErrors, setErrorMessage }) {
+const DOCUMENT_FIELD_ERROR_KEYS = {
+  identity: ['identity_document', 'identity_document_type'],
+  bpjs: ['bpjs_document', 'bpjs_number'],
+};
+
+// Maps a failed immediate document save to a short message for the document card.
+function getDocumentSaveErrorMessage(kind, error) {
+  if (error?.userMessage) return error.userMessage;
+  const status = error?.response?.status;
+  const data = error?.response?.data;
+  if (status === 422) {
+    const errors = data?.errors || {};
+    for (const key of DOCUMENT_FIELD_ERROR_KEYS[kind]) {
+      const message = Array.isArray(errors[key]) ? errors[key][0] : errors[key];
+      if (message) return message;
+    }
+  }
+  if (status === 403) return data?.error || data?.message || 'Perubahan dokumen sedang dikunci.';
+  if (status === 400 || status === 404) return data?.error || data?.message || 'Dokumen gagal disimpan.';
+  return 'Dokumen gagal disimpan. Silakan coba lagi.';
+}
+
+// `saveDocument(kind, file)` is optional: when given (edit mode), a picked document is saved right
+// away instead of being held until the form is submitted.
+export function useAthleteMedia({ athlete, setErrors, setErrorMessage, saveDocument }) {
   const photoProcessingIdRef = useRef(0);
   const identityProcessingIdRef = useRef(0);
   const bpjsProcessingIdRef = useRef(0);
@@ -136,7 +160,15 @@ export function useAthleteMedia({ athlete, setErrors, setErrorMessage }) {
     try {
       const processedFile = await prepareDocumentForUpload(file, { maxLongest: 1600 });
       if (processingId !== processingRef.current) return;
-      if (kind === 'identity') {
+      if (saveDocument) {
+        await saveDocument(kind, processedFile);
+        if (processingId !== processingRef.current) return;
+        setErrors((previous) => {
+          const next = { ...previous };
+          for (const key of DOCUMENT_FIELD_ERROR_KEYS[kind]) delete next[key];
+          return next;
+        });
+      } else if (kind === 'identity') {
         setIdentityDocumentFile(processedFile);
         setErrors((previous) => {
           const next = { ...previous };
@@ -155,14 +187,16 @@ export function useAthleteMedia({ athlete, setErrors, setErrorMessage }) {
       if (processingId !== processingRef.current) return;
       setDocumentErrors((previous) => ({
         ...previous,
-        [kind]: error.message || 'Dokumen gagal diproses. Silakan pilih file lain.'
+        [kind]: saveDocument && error.response
+          ? getDocumentSaveErrorMessage(kind, error)
+          : error.userMessage || error.message || 'Dokumen gagal diproses. Silakan pilih file lain.'
       }));
     } finally {
       if (processingId === processingRef.current) {
         setDocumentProcessing((previous) => ({ ...previous, [kind]: false }));
       }
     }
-  }, [setErrors]);
+  }, [saveDocument, setErrors]);
 
   const setDocumentError = useCallback((kind, message) => {
     setDocumentErrors((previous) => ({ ...previous, [kind]: message }));

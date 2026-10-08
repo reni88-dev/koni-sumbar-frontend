@@ -13,7 +13,7 @@ const STEPS = [
 ];
 
 export function CoachFormModal({ isOpen, onClose, coach, onSuccess }) {
-  const controller = useCoachFormController({ isOpen, coach, onSuccess });
+  const controller = useCoachFormController({ isOpen, coach, onSuccess, autoSaveDocuments: true });
   if (!isOpen) return null;
 
   const {
