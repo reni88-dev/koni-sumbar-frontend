@@ -31,6 +31,8 @@ import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
 import { ProtectedImage } from './ProtectedImage';
 import { AthleteClusterHistoryTab, AthleteDevelopmentFundsTab } from './athlete-clusters';
 import { AthleteTransferHistory } from './athlete-transfers/AthleteTransferHistory';
+import { PorprovAchievementsPanel } from './athletes/PorprovAchievementsPanel';
+import { useAthletePorprovAchievements } from '../hooks/queries/useAthletes';
 import { usePermission } from '../hooks/usePermission';
 import {
   fetchAndOpenStoredDocument,
@@ -171,6 +173,7 @@ function TabButton(props) {
 
 export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive = false, onTransfer }) {
   const [activeTab, setActiveTab] = useState('profile');
+  const porprovAchievementsQuery = useAthletePorprovAchievements(isOpen && activeTab === 'porprov' ? athlete?.id : null);
   const [isPrinting, setIsPrinting] = useState(false);
   const [documentOpening, setDocumentOpening] = useState({ identity: false, bpjs: false });
   const [documentErrors, setDocumentErrors] = useState({ identity: '', bpjs: '' });
@@ -597,6 +600,9 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
               <TabButton id="funds" activeTab={activeTab} onSelect={setActiveTab} icon={Wallet}>
                 Biaya Pembinaan
               </TabButton>
+              <TabButton id="porprov" activeTab={activeTab} onSelect={setActiveTab} icon={Trophy}>
+                Event Sirimau
+              </TabButton>
               {canViewTransfers && (
                 <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={HistoryIcon}>
                   Riwayat Transfer
@@ -777,6 +783,8 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
 
             {/* Tab 3: Biaya Pembinaan */}
             {activeTab === 'funds' && <AthleteDevelopmentFundsTab athlete={athlete} onOpenClusterHistory={() => setActiveTab('clusters')} />}
+
+            {activeTab === 'porprov' && <PorprovAchievementsPanel query={porprovAchievementsQuery} />}
 
             {activeTab === 'transfers' && canViewTransfers && <AthleteTransferHistory athleteId={athlete.id} />}
           </div>

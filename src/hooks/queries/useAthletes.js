@@ -92,6 +92,18 @@ export function useAthlete(id) {
   });
 }
 
+// Fetch Sirimau events and medals of an athlete
+export function useAthletePorprovAchievements(id) {
+  return useQuery({
+    queryKey: [...athleteKeys.detail(id), 'porprov-achievements'],
+    queryFn: async () => {
+      const response = await api.get(`/api/athletes/${id}/porprov-achievements`);
+      return response.data;
+    },
+    enabled: !!id,
+  });
+}
+
 // Delete athlete mutation
 export function useDeleteAthlete() {
   const queryClient = useQueryClient();

@@ -3,11 +3,12 @@ import { motion } from 'framer-motion';
 import {
   User, Calendar, FileText, Award, MapPin, Clock,
   Loader2, Edit2, Save, X, CheckCircle, AlertCircle,
-  Layers, Wallet, Printer, GraduationCap, Users, HeartPulse
+  Layers, Wallet, Printer, GraduationCap, Users, HeartPulse, Trophy
 } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { BPJSDocumentReminderDialog } from '../components/BPJSDocumentReminderDialog';
 import { ProtectedImage } from '../components/ProtectedImage';
+import { PorprovAchievementsPanel } from '../components/athletes/PorprovAchievementsPanel';
 import { SuccessToast } from '../components/SuccessToast';
 import {
   openAthleteProfilePrintWindow,
@@ -28,6 +29,7 @@ import {
   usePortalDashboard,
   useUpdatePortalProfile,
   usePortalClusterHistories,
+  usePortalPorprovAchievements,
   usePortalDevelopmentFunds,
 } from '../hooks/queries/usePortal';
 import { hasShownBPJSReminder, markBPJSReminderShown } from '../lib/bpjsReminderSession';
@@ -83,6 +85,7 @@ export function AthletePortal() {
   } = usePortalProfile();
   const profileReady = profile?.type === 'athlete';
   const { data: events, isLoading: eventsLoading } = usePortalEvents({ enabled: profileReady });
+  const porprovAchievementsQuery = usePortalPorprovAchievements({ enabled: profileReady });
   const { data: submissions, isLoading: submissionsLoading } = usePortalSubmissions({ enabled: profileReady });
   const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard({ enabled: profileReady });
   const {
@@ -124,6 +127,7 @@ export function AthletePortal() {
     { id: 'clusters', label: 'Kluster', icon: Layers },
     { id: 'funds', label: 'Uang Pembinaan', icon: Wallet },
     { id: 'events', label: 'Event Saya', icon: Calendar },
+    { id: 'porprov', label: 'Event Sirimau', icon: Trophy },
     { id: 'submissions', label: 'Form Submission', icon: FileText },
   ];
 
@@ -305,6 +309,7 @@ export function AthletePortal() {
           {activeTab === 'clusters' && <ClustersTab athlete={athlete} clusters={clusters} loading={clustersLoading} />}
           {activeTab === 'funds' && <FundsTab funds={funds} fundsData={fundsData} loading={fundsLoading} year={fundYear} setYear={setFundYear} />}
           {activeTab === 'events' && <EventsTab events={events} loading={eventsLoading} />}
+          {activeTab === 'porprov' && <PorprovAchievementsPanel query={porprovAchievementsQuery} />}
           {activeTab === 'submissions' && <SubmissionsTab submissions={submissions} loading={submissionsLoading} />}
         </div>
       </div>
