@@ -2,9 +2,20 @@ import { createElement, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, AlertTriangle, Check, ChevronLeft, ChevronRight, Clock3, Eye, Loader2, Mail, Search, Send, UserPlus, Users, X } from 'lucide-react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { usePermission } from '../hooks/usePermission';
-import { useEmailBroadcastDetail, useEmailBroadcastHistory, useEmailBroadcastRoles, useEmailBroadcastUsers, usePreviewEmailBroadcast, useSendEmailBroadcast } from '../hooks/queries/useEmailBroadcasts';
+import { useEmailBroadcastDetail, useEmailBroadcastHistory, useEmailBroadcastPorprovEvents, useEmailBroadcastRoles, useEmailBroadcastUsers, usePreviewEmailBroadcast, useSendEmailBroadcast } from '../hooks/queries/useEmailBroadcasts';
+import { MEDALS } from '../components/athletes/porprovMedals';
 
 const DEFAULT_DELAY = 2;
+const MEDAL_RANKS = [{ rank: 1, key: 'gold' }, { rank: 2, key: 'silver' }, { rank: 3, key: 'bronze' }];
+const TARGET_TYPE_LABELS = {
+  roles: 'Berdasarkan role',
+  users: 'User manual',
+  athletes_all: 'Semua atlet Satu Data',
+  porprov_event: 'Atlet per event Sirimau',
+  porprov_medal: 'Peraih medali Sirimau',
+};
+const isEventTarget = (type) => type === 'porprov_event' || type === 'porprov_medal';
+const medalNames = (ranks = []) => MEDAL_RANKS.filter(({ rank }) => ranks.includes(rank)).map(({ key }) => MEDALS[key].label).join(', ');
 const LARGE_DELIVERY_THRESHOLD = 10000;
 const apiError = (error, fallback) => error?.response?.data?.message || error?.response?.data?.error || fallback;
 
@@ -44,6 +55,11 @@ function formatDuration(seconds = 0) {
 
 function targetLabel(item) {
   if (item.target_type === 'roles') return (item.target_roles || []).map((role) => role.display_name).join(', ') || 'Role';
+  if (item.target_type === 'athletes_all') return 'Seluruh atlet aktif dengan email';
+  if (isEventTarget(item.target_type)) {
+    const medals = item.target_type === 'porprov_medal' ? ` · Medali ${medalNames(item.medal_ranks)}` : '';
+    return `${item.porprov_event_name || 'Event Sirimau'}${medals}`;
+  }
   return (item.target_users || []).map((user) => user.name).join(', ') || 'User terpilih';
 }
 
@@ -53,6 +69,8 @@ export function EmailBroadcastsPage() {
   const [targetType, setTargetType] = useState('roles');
   const [selectedRoleIDs, setSelectedRoleIDs] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [porprovEventID, setPorprovEventID] = useState('');
+  const [medalRanks, setMedalRanks] = useState([]);
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [delaySeconds, setDelaySeconds] = useState(DEFAULT_DELAY);
@@ -73,6 +91,8 @@ export function EmailBroadcastsPage() {
   const debouncedHistorySearch = useDebouncedValue(historySearch);
 
   const rolesQuery = useEmailBroadcastRoles(canSend);
+  const eventsQuery = useEmailBroadcastPorprovEvents(canSend && isEventTarget(targetType));
+  const selectedEvent = (eventsQuery.data || []).find((event) => String(event.id) === String(porprovEventID));
   const userFilters = useMemo(() => ({ search: debouncedUserSearch, roleId: userRoleID, page: userPage, perPage: 10 }), [debouncedUserSearch, userPage, userRoleID]);
   const usersQuery = useEmailBroadcastUsers(userFilters, canSend && targetType === 'users');
   const historyFilters = useMemo(() => ({ search: debouncedHistorySearch, targetType: historyTargetType, page: historyPage, perPage: 10 }), [debouncedHistorySearch, historyPage, historyTargetType]);
@@ -90,8 +110,18 @@ export function EmailBroadcastsPage() {
     setPreview(null);
     setConfirmOpen(false);
     setLargeConfirmed(false);
-    if (nextType === 'roles') setSelectedUsers([]);
-    else setSelectedRoleIDs([]);
+    setSelectedUsers([]);
+    setSelectedRoleIDs([]);
+    if (!isEventTarget(nextType)) setPorprovEventID('');
+    if (nextType !== 'porprov_medal') setMedalRanks([]);
+  };
+  const toggleMedal = (rank) => {
+    setPreview(null);
+    setMedalRanks((current) => current.includes(rank) ? current.filter((item) => item !== rank) : [...current, rank].sort());
+  };
+  const changeEvent = (value) => {
+    setPreview(null);
+    setPorprovEventID(value);
   };
   const toggleRole = (roleID) => setSelectedRoleIDs((current) => current.includes(roleID) ? current.filter((id) => id !== roleID) : [...current, roleID]);
   const toggleUser = (user) => setSelectedUsers((current) => current.some((item) => item.user_id === user.user_id) ? current.filter((item) => item.user_id !== user.user_id) : [...current, user]);
@@ -99,6 +129,8 @@ export function EmailBroadcastsPage() {
     target_type: targetType,
     role_ids: targetType === 'roles' ? selectedRoleIDs : [],
     user_ids: targetType === 'users' ? selectedUsers.map((user) => user.user_id) : [],
+    porprov_event_id: isEventTarget(targetType) ? Number(porprovEventID) : 0,
+    medal_ranks: targetType === 'porprov_medal' ? medalRanks : [],
     delay_seconds: Number(delaySeconds),
   });
   const validateForm = () => {
@@ -110,6 +142,8 @@ export function EmailBroadcastsPage() {
     if (!Number.isInteger(delay) || delay < 0 || delay > 300) return 'Jeda harus berupa angka bulat antara 0 dan 300 detik.';
     if (targetType === 'roles' && selectedRoleIDs.length === 0) return 'Pilih setidaknya satu role tujuan.';
     if (targetType === 'users' && selectedUsers.length === 0) return 'Pilih setidaknya satu user tujuan.';
+    if (isEventTarget(targetType) && !porprovEventID) return 'Pilih event Sirimau terlebih dahulu.';
+    if (targetType === 'porprov_medal' && medalRanks.length === 0) return 'Pilih setidaknya satu jenis medali.';
     return '';
   };
   const openPreview = async () => {
@@ -125,7 +159,7 @@ export function EmailBroadcastsPage() {
     }
   };
   const resetForm = () => {
-    setTargetType('roles'); setSelectedRoleIDs([]); setSelectedUsers([]); setSubject(''); setMessage('');
+    setTargetType('roles'); setSelectedRoleIDs([]); setSelectedUsers([]); setPorprovEventID(''); setMedalRanks([]); setSubject(''); setMessage('');
     setDelaySeconds(DEFAULT_DELAY); setUserSearch(''); setUserRoleID(''); setUserPage(1);
     setPreview(null); setConfirmOpen(false); setLargeConfirmed(false);
   };
@@ -148,6 +182,9 @@ export function EmailBroadcastsPage() {
     }
   };
   const previewOversized = preview && preview.payload_size_bytes > preview.max_payload_size_bytes;
+  const audienceDescription = targetType === 'athletes_all'
+    ? 'seluruh atlet aktif di Satu Data'
+    : `${targetType === 'porprov_medal' ? `peraih medali ${medalNames(medalRanks)}` : 'seluruh atlet'} pada ${selectedEvent?.name || 'event Sirimau'}`;
 
   return (
     <DashboardLayout title="Pengiriman Email" subtitle="Kirim satu kampanye email ke beberapa role atau user yang dipilih.">
@@ -158,12 +195,19 @@ export function EmailBroadcastsPage() {
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-5 sm:px-6"><div className="flex items-center gap-3"><div className="rounded-xl bg-red-50 p-2.5 text-red-600"><Send className="h-5 w-5" /></div><div><h2 className="font-bold text-slate-900">Buat Pengiriman Baru</h2><p className="mt-0.5 text-sm text-slate-500">Penerima diproses bertahap sesuai jeda yang ditentukan.</p></div></div></div>
             <div className="space-y-6 p-5 sm:p-6">
-              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+              <div className="grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1 lg:grid-cols-5">
                 <Tab active={targetType === 'roles'} onClick={() => switchTargetType('roles')}>Berdasarkan Role</Tab>
                 <Tab active={targetType === 'users'} onClick={() => switchTargetType('users')}>Pilih User Manual</Tab>
+                <Tab active={targetType === 'athletes_all'} onClick={() => switchTargetType('athletes_all')}>Semua Atlet</Tab>
+                <Tab active={targetType === 'porprov_event'} onClick={() => switchTargetType('porprov_event')}>Atlet per Event Sirimau</Tab>
+                <Tab active={targetType === 'porprov_medal'} onClick={() => switchTargetType('porprov_medal')}>Peraih Medali Sirimau</Tab>
               </div>
               {targetType === 'roles' ? (
                 <RoleSelector roles={rolesQuery.data || []} selectedRoleIDs={selectedRoleIDs} onToggle={toggleRole} loading={rolesQuery.isLoading} error={rolesQuery.isError ? apiError(rolesQuery.error, 'Daftar role tidak dapat dimuat.') : ''} />
+              ) : targetType === 'athletes_all' ? (
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">Email dikirim ke seluruh atlet aktif di Satu Data yang memiliki alamat email valid, termasuk atlet tanpa akun login. Satu alamat email hanya menerima satu kali. Jumlah penerima ditampilkan pada langkah pratinjau.</div>
+              ) : isEventTarget(targetType) ? (
+                <AthleteAudienceSelector targetType={targetType} events={eventsQuery.data || []} loading={eventsQuery.isLoading} error={eventsQuery.isError ? apiError(eventsQuery.error, 'Daftar event Sirimau tidak dapat dimuat.') : ''} eventID={porprovEventID} onEventChange={changeEvent} medalRanks={medalRanks} onToggleMedal={toggleMedal} selectedEvent={selectedEvent} />
               ) : (
                 <UserSelector roles={rolesQuery.data || []} usersResponse={usersQuery.data} loading={usersQuery.isLoading || usersQuery.isFetching} error={usersQuery.isError ? apiError(usersQuery.error, 'Daftar user tidak dapat dimuat.') : ''} search={userSearch} onSearch={setUserSearch} roleID={userRoleID} onRoleChange={setUserRoleID} page={userPage} onPageChange={setUserPage} selectedUsers={selectedUsers} selectedUserIDs={selectedUserIDs} onToggle={toggleUser} />
               )}
@@ -178,7 +222,7 @@ export function EmailBroadcastsPage() {
         )}
         <HistorySection query={historyQuery} search={historySearch} onSearch={setHistorySearch} targetType={historyTargetType} onTargetType={setHistoryTargetType} page={historyPage} onPage={setHistoryPage} onDetail={setDetailID} />
       </div>
-      {preview && !confirmOpen && <PreviewDialog preview={preview} targetType={targetType} selectedRoleCount={selectedRoleIDs.length} selectedUserCount={selectedUsers.length} oversized={previewOversized} onClose={() => setPreview(null)} onContinue={() => setConfirmOpen(true)} />}
+      {preview && !confirmOpen && <PreviewDialog preview={preview} targetType={targetType} selectedRoleCount={selectedRoleIDs.length} selectedUserCount={selectedUsers.length} targetDescription={audienceDescription} oversized={previewOversized} onClose={() => setPreview(null)} onContinue={() => setConfirmOpen(true)} />}
       {preview && confirmOpen && <ConfirmationDialog preview={preview} subject={subject} pending={sendMutation.isPending} largeConfirmed={largeConfirmed} onLargeConfirmed={setLargeConfirmed} onBack={() => setConfirmOpen(false)} onConfirm={sendBroadcast} />}
       {detailID && <HistoryDetailDialog id={detailID} onClose={() => setDetailID(null)} />}
     </DashboardLayout>
@@ -211,6 +255,41 @@ function RoleSelector({ roles, selectedRoleIDs, onToggle, loading, error }) {
           {roles.length === 0 && <p className="col-span-full py-6 text-center text-sm text-slate-500">Belum ada role aktif.</p>}
         </div>
       )}
+    </div>
+  );
+}
+
+function AthleteAudienceSelector({ targetType, events, loading, error, eventID, onEventChange, medalRanks, onToggleMedal, selectedEvent }) {
+  const isMedal = targetType === 'porprov_medal';
+  return (
+    <div className="space-y-4">
+      <label className="block">
+        <span className="mb-2 block text-sm font-semibold text-slate-700">Event Sirimau</span>
+        {loading ? <Loading text="Memuat event Sirimau..." /> : error ? <InlineError>{error}</InlineError> : (
+          <select value={eventID} onChange={(event) => onEventChange(event.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-50">
+            <option value="">Pilih event...</option>
+            {events.map((event) => <option key={event.id} value={event.id}>{event.name} ({event.year}){isMedal && !event.results_published ? ' - hasil belum dipublikasikan' : ''}</option>)}
+          </select>
+        )}
+      </label>
+      {isMedal && (
+        <div>
+          <div className="mb-2 flex items-center justify-between"><span className="text-sm font-semibold text-slate-700">Jenis medali</span><span className="text-xs text-slate-400">{medalRanks.length} dipilih</span></div>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {MEDAL_RANKS.map(({ rank, key }) => {
+              const checked = medalRanks.includes(rank);
+              return (
+                <button key={rank} type="button" onClick={() => onToggleMedal(rank)} aria-pressed={checked} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left text-sm font-semibold transition ${checked ? 'border-red-300 bg-red-50 text-slate-800' : 'border-slate-100 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs ring-1 ${MEDALS[key].className}`}>{MEDALS[key].label}</span>
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${checked ? 'border-red-600 bg-red-600 text-white' : 'border-slate-300 bg-white'}`}>{checked && <Check className="h-3.5 w-3.5" />}</span>
+                </button>
+              );
+            })}
+          </div>
+          {selectedEvent && !selectedEvent.results_published && <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-800">Hasil event ini belum dipublikasikan, sehingga belum ada peraih medali yang dapat dikirimi email. Publikasikan hasil di aplikasi Sirimau terlebih dahulu.</p>}
+        </div>
+      )}
+      <p className="text-sm leading-6 text-slate-500">{isMedal ? 'Penerima: atlet peraih medali terpilih yang pendaftarannya telah disahkan, pada hasil yang tidak ditolak. ' : 'Penerima: atlet dengan pendaftaran yang telah disahkan pada event ini. '}Atlet tanpa akun login ikut dikirimi selama email di data atlet valid.</p>
     </div>
   );
 }
@@ -254,11 +333,11 @@ function UserSelector({ roles, usersResponse, loading, error, search, onSearch, 
   );
 }
 
-function PreviewDialog({ preview, targetType, selectedRoleCount, selectedUserCount, oversized, onClose, onContinue }) {
+function PreviewDialog({ preview, targetType, selectedRoleCount, selectedUserCount, targetDescription, oversized, onClose, onContinue }) {
   return (
     <ModalShell title="Pratinjau Pengiriman" onClose={onClose}>
       <div className="space-y-5">
-        <p className="text-sm leading-6 text-slate-600">Target dipilih melalui {targetType === 'roles' ? `${selectedRoleCount} role` : `${selectedUserCount} user manual`}.</p>
+        <p className="text-sm leading-6 text-slate-600">Target: {targetType === 'roles' ? `${selectedRoleCount} role` : targetType === 'users' ? `${selectedUserCount} user manual` : targetDescription}.</p>
         <div className="grid gap-3 sm:grid-cols-2">
           <Metric icon={Users} label="Penerima valid" value={preview.recipient_count.toLocaleString('id-ID')} />
           <Metric icon={AlertTriangle} label="Data dilewati" value={preview.skipped_count.toLocaleString('id-ID')} />
@@ -300,7 +379,7 @@ function HistorySection({ query, search, onSearch, targetType, onTargetType, pag
       <div className="border-b border-slate-100 px-5 py-5 sm:px-6"><h2 className="font-bold text-slate-900">Riwayat Pengiriman</h2><p className="mt-1 text-sm text-slate-500">Daftar pengiriman email terdahulu.</p></div>
       <div className="grid gap-3 border-b border-slate-100 p-4 sm:grid-cols-[1fr_220px] sm:px-6">
         <label className="relative block"><Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" /><input value={search} onChange={(event) => onSearch(event.target.value)} placeholder="Cari subjek, pesan, atau pengirim..." className="w-full rounded-xl border border-slate-200 py-3 pl-10 pr-4 text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-50" /></label>
-        <select value={targetType} onChange={(event) => onTargetType(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-50"><option value="">Semua target</option><option value="roles">Berdasarkan role</option><option value="users">User manual</option></select>
+        <select value={targetType} onChange={(event) => onTargetType(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-50"><option value="">Semua target</option>{Object.entries(TARGET_TYPE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
       </div>
       {query.isLoading ? <Loading text="Memuat riwayat..." large /> : query.isError ? <div className="m-5"><InlineError>{apiError(query.error, 'Riwayat pengiriman tidak dapat dimuat.')}</InlineError></div> : items.length === 0 ? (
         <div className="px-5 py-16 text-center"><Mail className="mx-auto h-10 w-10 text-slate-300" /><p className="mt-3 text-sm font-semibold text-slate-600">Belum ada riwayat pengiriman.</p></div>
@@ -313,7 +392,7 @@ function HistorySection({ query, search, onSearch, targetType, onTargetType, pag
                 {items.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/70">
                     <td className="max-w-md px-6 py-4"><p className="font-semibold text-slate-800">{item.subject}</p><p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{item.message}</p></td>
-                    <td className="max-w-xs px-6 py-4 text-sm text-slate-600"><span className="mb-1 block text-xs font-semibold uppercase text-slate-400">{item.target_type === 'roles' ? 'Role' : 'User manual'}</span>{targetLabel(item)}</td>
+                    <td className="max-w-xs px-6 py-4 text-sm text-slate-600"><span className="mb-1 block text-xs font-semibold uppercase text-slate-400">{TARGET_TYPE_LABELS[item.target_type] || item.target_type}</span>{targetLabel(item)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{formatWIB(item.sent_at)}</td>
                     <td className="px-6 py-4"><p className="text-sm font-semibold text-slate-700">{item.sent_by?.name}</p><p className="text-xs text-slate-500">{item.sent_by?.role_display_name || item.sent_by?.role}</p></td>
                     <td className="px-6 py-4 text-right"><button type="button" onClick={() => onDetail(item.id)} className="rounded-lg p-2 text-slate-500 hover:bg-red-50 hover:text-red-600" title="Lihat detail"><Eye className="h-4 w-4" /></button></td>
@@ -341,12 +420,12 @@ function HistoryDetailDialog({ id, onClose }) {
     <ModalShell title="Detail Pengiriman" onClose={onClose} wide>
       {detailQuery.isLoading && !item ? <Loading text="Memuat detail..." large /> : detailQuery.isError ? <InlineError>{apiError(detailQuery.error, 'Detail pengiriman tidak dapat dimuat.')}</InlineError> : item ? (
         <div className="space-y-5">
-          <div className="grid gap-3 sm:grid-cols-2"><DetailField label="Subjek" value={item.subject} /><DetailField label="Tanggal pengiriman" value={formatWIB(item.sent_at)} /><DetailField label="Pengirim" value={`${item.sent_by?.name} (${item.sent_by?.role_display_name || item.sent_by?.role})`} /><DetailField label="Jenis target" value={item.target_type === 'roles' ? 'Berdasarkan role' : 'User manual'} /></div>
+          <div className="grid gap-3 sm:grid-cols-2"><DetailField label="Subjek" value={item.subject} /><DetailField label="Tanggal pengiriman" value={formatWIB(item.sent_at)} /><DetailField label="Pengirim" value={`${item.sent_by?.name} (${item.sent_by?.role_display_name || item.sent_by?.role})`} /><DetailField label="Jenis target" value={TARGET_TYPE_LABELS[item.target_type] || item.target_type} />{isEventTarget(item.target_type) && <DetailField label="Event Sirimau" value={item.porprov_event_name} />}{item.target_type === 'porprov_medal' && <DetailField label="Medali" value={medalNames(item.medal_ranks)} />}</div>
           <div><p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Pesan</p><div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">{item.message}</div></div>
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Tujuan</p>
             {item.target_type === 'roles' ? <div className="flex flex-wrap gap-2">{(item.target_roles || []).map((role) => <span key={role.role_id} className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{role.display_name}</span>)}</div> : (
-              <div className="overflow-hidden rounded-xl border border-slate-200"><div className="divide-y divide-slate-100">{(item.target_users || []).map((user) => <div key={user.user_id} className="px-4 py-3"><p className="text-sm font-semibold text-slate-800">{user.name}</p><p className="text-xs text-slate-500">{user.email} · {user.role_display_name}</p></div>)}</div>{pagination && <PaginationBar pagination={pagination} page={targetPage} onPage={setTargetPage} loading={detailQuery.isFetching} />}</div>
+              <div className="overflow-hidden rounded-xl border border-slate-200"><div className="divide-y divide-slate-100">{(item.target_users || []).map((user) => <div key={user.athlete_id ? `athlete-${user.athlete_id}` : user.user_id} className="px-4 py-3"><p className="text-sm font-semibold text-slate-800">{user.name}</p><p className="text-xs text-slate-500">{user.email} · {user.role_display_name}</p></div>)}</div>{pagination && <PaginationBar pagination={pagination} page={targetPage} onPage={setTargetPage} loading={detailQuery.isFetching} />}</div>
             )}
           </div>
         </div>
