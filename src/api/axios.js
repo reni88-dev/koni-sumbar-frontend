@@ -30,6 +30,11 @@ const publicEndpoints = new Set([
   '/api/account-email-recovery/verify',
 ]);
 
+// Rute tanpa login (verifikasi QR dan unduh sertifikat official): tanpa token, 401/403 tidak memicu logout.
+function isPublicPath(path) {
+  return publicEndpoints.has(path) || path.startsWith('/api/public/');
+}
+
 function getRequestPath(config) {
   try {
     return new URL(config?.url || '', 'http://axios.local').pathname;
@@ -45,7 +50,7 @@ api.interceptors.request.use((config) => {
 
   const token = localStorage.getItem('token');
   const path = getRequestPath(config);
-  const isPublic = publicEndpoints.has(path);
+  const isPublic = isPublicPath(path);
   config.authMeta = { hadToken: Boolean(token), token, isPublic, path };
 
   if (token && !isPublic) {
@@ -61,7 +66,7 @@ api.interceptors.response.use(
     const meta = error.config?.authMeta || {
       hadToken: Boolean(currentToken),
       token: currentToken,
-      isPublic: publicEndpoints.has(getRequestPath(error.config)),
+      isPublic: isPublicPath(getRequestPath(error.config)),
       path: getRequestPath(error.config),
     };
     const isLoginRequest = meta.path === '/api/login';

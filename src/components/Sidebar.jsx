@@ -36,7 +36,8 @@ import {
   Megaphone,
   ArrowLeftRight,
   BarChart3,
-  CreditCard
+  CreditCard,
+  Award
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 import { QUALITY_REPORTS } from '../features/data-quality-report/reportConfig.js';
@@ -163,6 +164,9 @@ function SidebarContent({ onNavigate }) {
       : []),
     ...(isCoach()
       ? [{ icon: LayoutDashboard, label: 'Dashboard', path: '/portal/pelatih' }]
+      : []),
+    ...(isAthlete() || isCoach()
+      ? [{ icon: Award, label: 'Sertifikat', path: '/portal/sertifikat', permission: 'portal.profile.view' }]
       : []),
     {
       icon: MessageSquareWarning,

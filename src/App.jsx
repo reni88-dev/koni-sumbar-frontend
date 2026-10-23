@@ -25,6 +25,9 @@ import { AthletesPage } from './pages/Athletes';
 import { AthleteTransfersPage } from './pages/AthleteTransfers';
 import { AthleteCardsPage } from './pages/AthleteCards';
 import { PublicAthleteCardPage } from './pages/PublicAthleteCard';
+import { PortalCertificatesPage } from './pages/PortalCertificates';
+import { CertificateVerifyPage } from './pages/CertificateVerify';
+import { CertificateOfficialLookupPage } from './pages/CertificateOfficialLookup';
 import { CoachTransfersPage } from './pages/CoachTransfers';
 import { CoachesPage } from './pages/Coaches';
 import { FormBuilderPage } from './pages/FormBuilder';
@@ -91,6 +94,8 @@ function App() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<PublicResetPassword />} />
       <Route path="/kartu/:token" element={<PublicAthleteCardPage />} />
+      <Route path="/sertifikat/verifikasi/:code" element={<CertificateVerifyPage />} />
+      <Route path="/sertifikat/official" element={<CertificateOfficialLookupPage />} />
       <Route path="/pemulihan-email" element={<AccountEmailRecovery />} />
       <Route path="/pemulihan-email/verifikasi" element={<AccountEmailRecoveryVerification />} />
       <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />      {/* Protected Routes */}
@@ -121,6 +126,17 @@ function App() {
         element={
           <ProtectedRoute>
             <PortalRoute role="coach"><CoachPortal /></PortalRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/portal/sertifikat"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="portal.profile.view">
+              <PortalCertificatesPage />
+            </PermissionRoute>
           </ProtectedRoute>
         }
       />
