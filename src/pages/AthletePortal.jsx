@@ -119,7 +119,7 @@ export function AthletePortal() {
     || athlete?.education_level_name
     || educationLevels.find((level) => String(level.id) === String(athlete?.education_level_id))?.name
     || '-';
-  const isPrintDataLoading = clustersLoading || fundsLoading || educationLevelsLoading;
+  const isPrintDataLoading = clustersLoading || fundsLoading || educationLevelsLoading || porprovAchievementsQuery.isLoading;
   const isPrintBusy = isPrinting || isPrintDataLoading;
 
   const tabs = [
@@ -182,6 +182,8 @@ export function AthletePortal() {
         fundsTotalAmount: fundsData?.total_amount,
         clusterError: clustersError,
         fundsError,
+        porprovEvents: porprovAchievementsQuery.data?.data,
+        porprovError: porprovAchievementsQuery.isError,
         photoUrl: athlete?.photo ? '/api/portal/profile/photo' : null,
       });
     } catch (error) {

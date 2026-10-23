@@ -319,10 +319,13 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
     }
 
     try {
-      const [clusterResult, fundResult] = await Promise.allSettled([
+      const [clusterResult, fundResult, porprovResult] = await Promise.allSettled([
         api.get(`/api/athletes/${athlete.id}/clusters`),
         api.get(`/api/athletes/${athlete.id}/development-funds`, { params: { page: 1, per_page: 9999 } }),
+        api.get(`/api/athletes/${athlete.id}/porprov-achievements`),
       ]);
+      const porprovError = porprovResult.status === 'rejected';
+      const porprovEvents = porprovResult.status === 'fulfilled' ? (porprovResult.value.data?.data || []) : [];
 
       const clusterError = clusterResult.status === 'rejected';
       const fundsError = fundResult.status === 'rejected';
@@ -343,6 +346,8 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
         funds,
         clusterError,
         fundsError,
+        porprovEvents,
+        porprovError,
         photoUrl: athlete.photo || null,
       });
     } catch (error) {
