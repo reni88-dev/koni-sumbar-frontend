@@ -76,7 +76,7 @@ function getInitials(name) {
 
 export function buildProfilePhotoMarkup({ photoDataUrl, name }) {
   const imageMarkup = photoDataUrl
-    ? `<img class="profile-photo" src="${escapePrintHtml(photoDataUrl)}" alt="Foto ${escapePrintHtml(name)}" onerror="this.style.display='none'">`
+    ? `<img class="profile-photo" src="${escapePrintHtml(photoDataUrl)}" alt="Foto ${escapePrintHtml(name)}">`
     : '';
 
   return `
@@ -188,6 +188,14 @@ export async function printProfileDocument(printWindow, html) {
 
   await waitForDocument(printWindow, html);
   if (printWindow.closed) return false;
+
+  // The popup inherits the app CSP, so inline onerror handlers are blocked;
+  // hide broken photos from here to keep the placeholder visible.
+  printWindow.document.querySelectorAll('img.profile-photo').forEach((image) => {
+    const hide = () => { image.style.display = 'none'; };
+    if (image.complete && image.naturalWidth === 0) hide();
+    else image.addEventListener('error', hide, { once: true });
+  });
 
   await Promise.all(Array.from(printWindow.document.images).map(waitForImage));
   await new Promise((resolve) => window.setTimeout(resolve, PRINT_DELAY_MS));

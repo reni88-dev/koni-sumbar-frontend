@@ -11,6 +11,17 @@
 </IfModule>
 
 <IfModule mod_headers.c>
+  # Security headers for every response, including the SPA fallback.
+  # HSTS covers this host only; HTTP already 301-redirects to HTTPS.
+  Header always set Strict-Transport-Security "max-age=15768000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "DENY"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  # Allowlist: shared API, Turnstile, Google Fonts (ID card), OpenStreetMap tiles,
+  # blob/data URLs for protected media and previews. Print popups inherit this
+  # policy and rely on inline <style>, hence 'unsafe-inline' for styles only.
+  Header always set Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://api.satudata.konisumbar.or.id https://tile.openstreetmap.org https://a.tile.openstreetmap.org https://b.tile.openstreetmap.org https://c.tile.openstreetmap.org; connect-src 'self' https://api.satudata.konisumbar.or.id; frame-src 'self' blob: https://challenges.cloudflare.com; worker-src 'self' blob:; manifest-src 'self'"
+
   # Never cache the HTML shell, including responses rewritten to index.html.
   <FilesMatch "\.html?$">
     Header always set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
