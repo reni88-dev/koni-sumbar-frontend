@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -186,6 +186,7 @@ export function RolesPage() {
   const [editingRole, setEditingRole] = useState(null);
   const [selectedPermissions, setSelectedPermissions] = useState([]);
   const [permissionError, setPermissionError] = useState('');
+  const [permissionSearch, setPermissionSearch] = useState('');
 
   // Form states
   const [formData, setFormData] = useState({ name: '', display_name: '', description: '' });
@@ -203,6 +204,24 @@ export function RolesPage() {
   const setRoleAccessMutation = useSetRoleAccess();
   const setRolesAccessMutation = useSetRolesAccess();
   const pendingSchedulesByRole = groupPendingSchedulesByRole(accessSchedules);
+
+  // Grup tanpa hasil disembunyikan; bila nama grup cocok, seluruh permission grup tampil.
+  const filteredPermissionGroups = useMemo(() => {
+    const keyword = permissionSearch.trim().toLowerCase();
+    return Object.entries(permissions)
+      .map(([group, groupPermissions]) => {
+        const groupMatches = group.toLowerCase().includes(keyword);
+        const visible = keyword && !groupMatches
+          ? groupPermissions.filter((permission) => (
+            `${permission.display_name || ''} ${permission.name || ''}`.toLowerCase().includes(keyword)
+          ))
+          : groupPermissions;
+        return [group, groupPermissions, visible];
+      })
+      .filter(([, , visible]) => visible.length > 0);
+  }, [permissions, permissionSearch]);
+  const visiblePermissionCount = filteredPermissionGroups.reduce((total, [, , visible]) => total + visible.length, 0);
+  const isPermissionFiltered = permissionSearch.trim() !== '';
 
   const filteredRoles = filterRolesBySearch(roles, search);
   const selectableVisibleRoles = getSelectableRoles(filteredRoles);
@@ -236,6 +255,7 @@ export function RolesPage() {
     setEditingRole(role);
     setSelectedPermissions(role.permissions?.map(p => p.id) || []);
     setPermissionError('');
+    setPermissionSearch('');
     setIsPermissionModalOpen(true);
   };
 
@@ -862,16 +882,55 @@ export function RolesPage() {
                     <X className="w-5 h-5 text-slate-500" />
                   </button>
                 </div>
-                
+
+                <div className="px-6 py-3 border-b border-slate-100 flex-shrink-0">
+                  <div className="relative">
+                    <Search className="w-5 h-5 text-slate-400 absolute left-3 top-3" />
+                    <input
+                      type="text"
+                      value={permissionSearch}
+                      onChange={(event) => setPermissionSearch(event.target.value)}
+                      placeholder="Cari permission, kode, atau kelompok..."
+                      aria-label="Cari permission"
+                      className="w-full pl-10 pr-10 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none"
+                    />
+                    {permissionSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setPermissionSearch('')}
+                        className="absolute right-2 top-2 p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                        aria-label="Bersihkan pencarian"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-2 text-xs text-slate-500">
+                    {visiblePermissionCount} permission {isPermissionFiltered ? 'cocok' : 'tersedia'} · {selectedPermissions.length} dipilih
+                  </p>
+                </div>
+
                 <div className="flex-1 overflow-y-auto p-6">
+                  {isPermissionFiltered && filteredPermissionGroups.length === 0 && (
+                    <p className="py-8 text-center text-sm text-slate-500">
+                      Tidak ada permission yang cocok dengan pencarian
+                    </p>
+                  )}
                   <div className="space-y-6">
-                    {Object.entries(permissions).map(([group, groupPermissions]) => (
+                    {filteredPermissionGroups.map(([group, allGroupPermissions, groupPermissions]) => (
                       <div key={group} className="border border-slate-100 rounded-xl overflow-hidden">
-                        <div 
+                        <div
                           className="bg-slate-50 px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-slate-100"
                           onClick={() => toggleGroup(groupPermissions)}
                         >
-                          <span className="font-semibold text-slate-700">{group}</span>
+                          <span className="font-semibold text-slate-700">
+                            {group}
+                            {groupPermissions.length !== allGroupPermissions.length && (
+                              <span className="ml-2 text-xs font-normal text-slate-500">
+                                {groupPermissions.length}/{allGroupPermissions.length}
+                              </span>
+                            )}
+                          </span>
                           <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                             groupPermissions.every(p => selectedPermissions.includes(p.id))
                               ? 'bg-red-600 border-red-600 text-white'
