@@ -74,6 +74,11 @@ function buildFilterDetails(data, filters) {
   const organizationId = filters?.organizationId ?? data?.filters?.organization_id ?? '';
   const caborId = filters?.caborId ?? data?.filters?.cabor_id ?? '';
   const status = filters?.status || data?.filters?.status || 'all';
+  const developmentLabels = { all: 'Semua', binaan: 'Binaan', non_binaan: 'Non binaan' };
+  const participationLabels = { all: 'Semua', participating: 'Ikut event', not_participating: 'Tidak ikut event' };
+  const development = filters?.development || data?.filters?.development || 'all';
+  const porprovEventId = filters?.porprovEventId ?? data?.filters?.porprov_event_id ?? '';
+  const participation = filters?.participation || data?.filters?.porprov_participation || 'all';
   const granularity = data?.filters?.trend_granularity || filters?.trendGranularity || 'monthly';
   const startDate = data?.filters?.trend_start_date || filters?.trendStartDate || '';
   const endDate = data?.filters?.trend_end_date || filters?.trendEndDate || '';
@@ -82,6 +87,9 @@ function buildFilterDetails(data, filters) {
     ['Organisasi', resolveOptionLabel(options.organizations, organizationId, 'Semua organisasi')],
     ['Cabang olahraga', resolveOptionLabel(options.cabors, caborId, 'Semua cabor')],
     ['Status data', statusLabels[status] || status],
+    ['Binaan', developmentLabels[development] || development],
+    ['Event Sirimau', resolveOptionLabel(options.porprov_events, porprovEventId, 'Semua event')],
+    ['Keikutsertaan event', participationLabels[participation] || participation],
     ['Granularitas tren', granularity === TREND_GRANULARITY_DAILY ? 'Harian' : 'Bulanan'],
     ['Rentang tren', formatTrendDateRange(startDate, endDate)],
   ];
