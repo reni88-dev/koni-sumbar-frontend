@@ -49,7 +49,7 @@ export function PorprovCertificatesPage() {
   };
 
   return (
-    <DashboardLayout title="Sertifikat Porprov" subtitle="Cari dan unduh sertifikat atlet dan official sesuai cakupan akun Anda">
+    <DashboardLayout title="Sertifikat" subtitle="Cari dan unduh sertifikat atlet dan official sesuai cakupan akun Anda">
       <div className="space-y-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="inline-flex self-start rounded-xl border border-slate-200 bg-white p-1" role="tablist">
