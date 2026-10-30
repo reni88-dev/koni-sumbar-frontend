@@ -26,6 +26,7 @@ import { AthleteTransfersPage } from './pages/AthleteTransfers';
 import { AthleteCardsPage } from './pages/AthleteCards';
 import { PublicAthleteCardPage } from './pages/PublicAthleteCard';
 import { PortalCertificatesPage } from './pages/PortalCertificates';
+import { PorprovCertificatesPage } from './pages/PorprovCertificates';
 import { CertificateVerifyPage } from './pages/CertificateVerify';
 import { CertificateOfficialLookupPage } from './pages/CertificateOfficialLookup';
 import { CoachTransfersPage } from './pages/CoachTransfers';
@@ -136,6 +137,17 @@ function App() {
           <ProtectedRoute>
             <PermissionRoute permission="portal.profile.view">
               <PortalCertificatesPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/sertifikat-porprov"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="porprov.certificates.read">
+              <PorprovCertificatesPage />
             </PermissionRoute>
           </ProtectedRoute>
         }

@@ -185,6 +185,7 @@ function SidebarContent({ onNavigate }) {
 
   const pembinaanItems = filterVisibleItems([
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
+    { icon: Award, label: 'Sertifikat Porprov', path: '/sertifikat-porprov', permission: 'porprov.certificates.read' },
     { icon: ArrowLeftRight, label: 'Transfer Atlet', path: '/transfer-atlet', permission: 'athlete_transfers.view', badge: transferSummary?.pending_action_count || 0 },
     { icon: CreditCard, label: 'ID Card', path: '/id-card-atlet', permission: 'athlete_cards.manage' },
     { icon: UserCheck, label: 'Data Pelatih', path: '/pelatih', permission: 'coaches.view' },
