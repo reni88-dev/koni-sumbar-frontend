@@ -681,6 +681,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                   <ProfileField label="Cabang Olahraga" value={caborName} />
                   <ProfileField label="Kelas Pertandingan" value={competitionClassName} />
                   <ProfileField label="Organisasi / Pengcab" value={organizationName} />
+                  <ProfileField label="Klub / Perguruan" value={athlete.club_name} />
                   <ProfileField label="Tahun Mulai Karir" value={athlete.career_start_year} />
                   <ProfileField label="Kluster Aktif" value={currentCluster} />
                   <ProfileField label="Sub-Kluster Aktif" value={currentSubCluster} />

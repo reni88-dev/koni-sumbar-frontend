@@ -149,6 +149,7 @@ export function buildAthleteProfilePrintHtml({
       ${renderPrintRow('Cabang Olahraga', caborName)}
       ${renderPrintRow('Kelas Pertandingan', competitionClassName)}
       ${renderPrintRow('Organisasi', organizationName)}
+      ${renderPrintRow('Klub/Perguruan', athlete.club_name)}
       ${renderPrintRow('Tahun Mulai Karir', athlete.career_start_year)}
       ${renderPrintRow('Kluster Aktif', currentCluster)}
       ${renderPrintRow('Sub-kluster Aktif', currentSubCluster)}

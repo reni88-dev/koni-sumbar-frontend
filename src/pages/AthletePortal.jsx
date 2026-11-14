@@ -356,7 +356,7 @@ function ProfileView({ athlete, educationLevels }) {
         ['Telepon', athlete?.phone], ['Email', athlete?.email], ['Tinggi', athlete?.height ? `${athlete.height} cm` : ''], ['Berat', athlete?.weight ? `${athlete.weight} kg` : ''], ['Pekerjaan', athlete?.occupation], ['Status Pernikahan', athlete?.marital_status], ['Hobi', athlete?.hobby], ['Mulai Karir', athlete?.career_start_year]
       ]} /></Section>
       <Section title="Pendidikan dan Organisasi" icon={GraduationCap}><InfoGrid items={[
-        ['Organisasi', athlete?.organization?.name], ['Pendidikan', educationLevelName], ['Riwayat Cedera/Penyakit', athlete?.injury_illness_history]
+        ['Organisasi', athlete?.organization?.name], ['Klub/Perguruan', athlete?.club_name], ['Pendidikan', educationLevelName], ['Riwayat Cedera/Penyakit', athlete?.injury_illness_history]
       ]} /></Section>
       <Section title="Orang Tua/Wali" icon={Users}><InfoGrid items={[
         ['Nama Ayah', athlete?.father_name], ['No. HP Ayah', athlete?.father_phone], ['Nama Ibu', athlete?.mother_name], ['No. HP Ibu', athlete?.mother_phone], ['Alamat Orang Tua/Wali', athlete?.parent_address]

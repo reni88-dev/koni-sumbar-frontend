@@ -151,6 +151,7 @@ export function buildCoachProfilePrintHtml({
       ${renderPrintRow('Spesialisasi', coach.specialization)}
       ${renderPrintRow('Tahun Mulai Melatih', coach.coaching_start_year)}
       ${renderPrintRow('Organisasi', organizationName)}
+      ${renderPrintRow('Klub/Perguruan', coach.club_name)}
       ${renderPrintRow('Kluster Aktif', currentCluster)}
       ${renderPrintRow('Sub-kluster Aktif', currentSubCluster)}
     </div>

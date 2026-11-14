@@ -68,6 +68,23 @@ export function AthleteAffiliationSection({ athlete, form, lookups, validation }
         {athlete && <p className="mt-1 text-xs text-slate-500">Pemindahan organisasi hanya melalui fitur Transfer Atlet.</p>}
         {errors.organization_id && <p id={getFieldErrorId('organization_id')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.organization_id)}</p>}
       </div>
+
+      <div>
+        <label htmlFor="club_name" className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+          Klub / Perguruan <span className="font-normal normal-case text-slate-400">(opsional)</span>
+        </label>
+        <input
+          id="club_name"
+          {...getFieldControlProps('club_name', errors)}
+          type="text"
+          value={formData.club_name}
+          onChange={(e) => updateField('club_name', e.target.value)}
+          maxLength={150}
+          className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-red-100 focus:border-red-500 outline-none text-sm"
+          placeholder="Contoh: PS Semen Padang"
+        />
+        {errors.club_name && <p id={getFieldErrorId('club_name')} className="text-red-500 text-xs mt-1">{firstFieldError(errors.club_name)}</p>}
+      </div>
     </FormSectionCard>
   );
 }
