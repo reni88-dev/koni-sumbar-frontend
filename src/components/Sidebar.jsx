@@ -110,8 +110,10 @@ function SidebarContent({ onNavigate }) {
   const hasCoachTransferPermission = hasSuperAdminAccess || user?.permissions?.includes('coach_transfers.view');
   const { data: coachTransferSummary } = useCoachTransferSummary(Boolean(hasCoachTransferPermission));
 
-  const isActive = (path) => location.pathname === path || (path === '/pengaduan' && location.pathname.startsWith('/pengaduan/'));
-  const isChildActive = (children) => children?.some(child => location.pathname === child.path);
+  // Detail pages keep their list menu highlighted.
+  const nestedMenuPaths = ['/pengaduan', '/master/organizations'];
+  const isActive = (path) => location.pathname === path || (nestedMenuPaths.includes(path) && location.pathname.startsWith(`${path}/`));
+  const isChildActive = (children) => children?.some(child => isActive(child.path));
   
   // Check if user has permission (Super Admin has all)
   const hasPermission = (permission) => {

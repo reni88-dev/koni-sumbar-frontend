@@ -17,6 +17,7 @@ import { EducationLevelsPage } from './pages/master/EducationLevels';
 import { CompetitionClassesPage } from './pages/master/CompetitionClasses';
 import { RegionsPage } from './pages/master/Regions';
 import { OrganizationsPage } from './pages/master/Organizations';
+import { OrganizationBoardPage } from './pages/master/OrganizationBoard';
 import { VenuesPage } from './pages/master/Venues';
 import { CoachAthletesPage } from './pages/CoachAthletes';
 import { EventsPage } from './pages/Events';
@@ -489,6 +490,14 @@ function App() {
         element={
           <ProtectedRoute>
             <OrganizationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/organizations/:id/kepengurusan"
+        element={
+          <ProtectedRoute>
+            <OrganizationBoardPage />
           </ProtectedRoute>
         }
       />
