@@ -72,7 +72,7 @@ function AchievementCard({ item, athleteId, canEdit, onEdit, onDelete }) {
       {item.notes && <p className="mt-1 text-xs text-slate-500 whitespace-pre-line">{item.notes}</p>}
       {item.evidence_url && (
         <a href={item.evidence_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline">
-          <ExternalLink className="h-3.5 w-3.5" />Link bukti
+          <ExternalLink className="h-3.5 w-3.5" />Link berita / hasil
         </a>
       )}
       {item.status === 'rejected' && item.rejection_reason && (
