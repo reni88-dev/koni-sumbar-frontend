@@ -33,6 +33,7 @@ import { AthleteClusterHistoryTab, AthleteDevelopmentFundsTab } from './athlete-
 import { AthleteTransferHistory } from './athlete-transfers/AthleteTransferHistory';
 import { PorprovAchievementsPanel } from './athletes/PorprovAchievementsPanel';
 import { useAthletePorprovAchievements } from '../hooks/queries/useAthletes';
+import { ExternalAchievementsPanel } from './athletes/external-achievements/ExternalAchievementsPanel';
 import { usePermission } from '../hooks/usePermission';
 import {
   fetchAndOpenStoredDocument,
@@ -608,6 +609,9 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
               <TabButton id="porprov" activeTab={activeTab} onSelect={setActiveTab} icon={Trophy}>
                 Event Sirimau
               </TabButton>
+              <TabButton id="achievements" activeTab={activeTab} onSelect={setActiveTab} icon={Award}>
+                Prestasi
+              </TabButton>
               {canViewTransfers && (
                 <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={HistoryIcon}>
                   Riwayat Transfer
@@ -791,6 +795,15 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
             {activeTab === 'funds' && <AthleteDevelopmentFundsTab athlete={athlete} onOpenClusterHistory={() => setActiveTab('clusters')} />}
 
             {activeTab === 'porprov' && <PorprovAchievementsPanel query={porprovAchievementsQuery} />}
+
+            {activeTab === 'achievements' && (
+              <ExternalAchievementsPanel
+                key={athlete.id}
+                athleteId={athlete.id}
+                defaultCaborId={athlete.cabor_id}
+                canEdit={can('athletes.edit')}
+              />
+            )}
 
             {activeTab === 'transfers' && canViewTransfers && <AthleteTransferHistory athleteId={athlete.id} />}
           </div>

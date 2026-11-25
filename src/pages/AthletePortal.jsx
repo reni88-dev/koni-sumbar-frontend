@@ -9,6 +9,8 @@ import { DashboardLayout } from '../components/DashboardLayout';
 import { BPJSDocumentReminderDialog } from '../components/BPJSDocumentReminderDialog';
 import { ProtectedImage } from '../components/ProtectedImage';
 import { PorprovAchievementsPanel } from '../components/athletes/PorprovAchievementsPanel';
+import { ExternalAchievementsPanel } from '../components/athletes/external-achievements/ExternalAchievementsPanel';
+import { usePermission } from '../hooks/usePermission';
 import { SuccessToast } from '../components/SuccessToast';
 import {
   openAthleteProfilePrintWindow,
@@ -104,6 +106,7 @@ export function AthletePortal() {
   const { data: educationLevels = [], isLoading: educationLevelsLoading } = useEducationLevelsAll();
 
   const athlete = useMemo(() => getAthlete(profile), [profile]);
+  const { can } = usePermission();
   const { isFetched: systemSettingsReady } = useSystemSettings();
   const documentsLocked = useDocumentEditLock(true);
 
@@ -128,6 +131,7 @@ export function AthletePortal() {
     { id: 'funds', label: 'Uang Pembinaan', icon: Wallet },
     { id: 'events', label: 'Event Saya', icon: Calendar },
     { id: 'porprov', label: 'Event Sirimau', icon: Trophy },
+    { id: 'achievements', label: 'Prestasi', icon: Award },
     { id: 'submissions', label: 'Form Submission', icon: FileText },
   ];
 
@@ -312,6 +316,9 @@ export function AthletePortal() {
           {activeTab === 'funds' && <FundsTab funds={funds} fundsData={fundsData} loading={fundsLoading} year={fundYear} setYear={setFundYear} />}
           {activeTab === 'events' && <EventsTab events={events} loading={eventsLoading} />}
           {activeTab === 'porprov' && <PorprovAchievementsPanel query={porprovAchievementsQuery} />}
+          {activeTab === 'achievements' && profileReady && (
+            <ExternalAchievementsPanel defaultCaborId={athlete?.cabor_id || athlete?.cabor?.id} canEdit={can('portal.profile.edit')} />
+          )}
           {activeTab === 'submissions' && <SubmissionsTab submissions={submissions} loading={submissionsLoading} />}
         </div>
       </div>
