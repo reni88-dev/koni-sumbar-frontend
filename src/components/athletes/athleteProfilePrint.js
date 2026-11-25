@@ -7,6 +7,7 @@ import {
   printProfileDocument,
 } from '../profilePrintUtils';
 import { MEDALS } from './porprovMedals';
+import { LEVEL_LABELS, formatPeriod, formatResult } from './external-achievements/externalAchievementUtils';
 
 const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 const maritalLabels = { single: 'Belum Menikah', married: 'Menikah', divorced: 'Cerai', widowed: 'Duda/Janda' };
@@ -68,11 +69,15 @@ export function buildAthleteProfilePrintHtml({
   fundsError = false,
   porprovEvents = [],
   porprovError = false,
+  externalAchievements = [],
+  externalError = false,
   photoDataUrl = null,
 }) {
   const safeHistories = Array.isArray(histories) ? histories : [];
   const safeFunds = Array.isArray(funds) ? funds : [];
   const safePorprovEvents = Array.isArray(porprovEvents) ? porprovEvents : [];
+  const verifiedAchievements = (Array.isArray(externalAchievements) ? externalAchievements : [])
+    .filter((item) => item.status === 'approved');
   const printedAt = new Date();
   const printedDate = printedAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const printedTime = printedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
@@ -184,7 +189,7 @@ export function buildAthleteProfilePrintHtml({
   <div class="section keep-together">
     <h3>Riwayat Prestasi dan Cedera</h3>
     <div class="grid">
-      <div class="full info-row"><div class="label">Prestasi Tertinggi</div><div class="value">${printAchievements.map((achievement) => escapePrintHtml(achievement)).join('<br>')}</div></div>
+      <div class="full info-row"><div class="label">Prestasi (Isian Mandiri)</div><div class="value">${printAchievements.map((achievement) => escapePrintHtml(achievement)).join('<br>')}</div></div>
       <div class="full info-row"><div class="label">Riwayat Cedera/Penyakit</div><div class="value">${escapePrintHtml(athlete.injury_illness_history)}</div></div>
     </div>
   </div>
@@ -240,6 +245,32 @@ export function buildAthleteProfilePrintHtml({
         </tbody>
       </table>
       <div class="total">Total Biaya Pembinaan: ${escapePrintHtml(formatCurrency(totalFunds))}</div>`}
+  </div>
+
+  <div class="section">
+    <h3>Prestasi Terverifikasi KONI Sumbar</h3>
+    ${externalError ? '<div class="warning">Data prestasi terverifikasi gagal dimuat.</div>' : verifiedAchievements.length === 0 ? '<div class="empty">Belum ada prestasi terverifikasi dari event di luar Sirimau.</div>' : `
+      <table>
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Tingkat</th>
+            <th>Tanggal</th>
+            <th>Cabor / Nomor</th>
+            <th>Hasil</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${verifiedAchievements.map((item) => `
+            <tr>
+              <td>${escapePrintHtml(item.event_name)}</td>
+              <td>${escapePrintHtml(LEVEL_LABELS[item.level])}</td>
+              <td>${escapePrintHtml(formatPeriod(item))}</td>
+              <td>${escapePrintHtml([item.cabor_name, item.competition_class].filter(Boolean).join(' - '))}</td>
+              <td>${escapePrintHtml(formatResult(item))}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`}
   </div>
 
   <div class="section">

@@ -11,6 +11,8 @@ import { ProtectedImage } from '../components/ProtectedImage';
 import { PorprovAchievementsPanel } from '../components/athletes/PorprovAchievementsPanel';
 import { ExternalAchievementsPanel } from '../components/athletes/external-achievements/ExternalAchievementsPanel';
 import { usePermission } from '../hooks/usePermission';
+import { summarizeAchievement } from '../components/athletes/external-achievements/externalAchievementUtils';
+import { useExternalAchievements } from '../hooks/queries/useExternalAchievements';
 import { SuccessToast } from '../components/SuccessToast';
 import {
   openAthleteProfilePrintWindow,
@@ -88,6 +90,7 @@ export function AthletePortal() {
   const profileReady = profile?.type === 'athlete';
   const { data: events, isLoading: eventsLoading } = usePortalEvents({ enabled: profileReady });
   const porprovAchievementsQuery = usePortalPorprovAchievements({ enabled: profileReady });
+  const externalAchievementsQuery = useExternalAchievements(null, { enabled: profileReady });
   const { data: submissions, isLoading: submissionsLoading } = usePortalSubmissions({ enabled: profileReady });
   const { data: dashboard, isLoading: dashboardLoading } = usePortalDashboard({ enabled: profileReady });
   const {
@@ -122,7 +125,7 @@ export function AthletePortal() {
     || athlete?.education_level_name
     || educationLevels.find((level) => String(level.id) === String(athlete?.education_level_id))?.name
     || '-';
-  const isPrintDataLoading = clustersLoading || fundsLoading || educationLevelsLoading || porprovAchievementsQuery.isLoading;
+  const isPrintDataLoading = clustersLoading || fundsLoading || educationLevelsLoading || porprovAchievementsQuery.isLoading || externalAchievementsQuery.isLoading;
   const isPrintBusy = isPrinting || isPrintDataLoading;
 
   const tabs = [
@@ -188,6 +191,8 @@ export function AthletePortal() {
         fundsError,
         porprovEvents: porprovAchievementsQuery.data?.data,
         porprovError: porprovAchievementsQuery.isError,
+        externalAchievements: externalAchievementsQuery.data,
+        externalError: externalAchievementsQuery.isError,
         photoUrl: athlete?.photo ? '/api/portal/profile/photo' : null,
       });
     } catch (error) {
@@ -299,7 +304,7 @@ export function AthletePortal() {
               </div>
 
               {!isEditing ? (
-                <ProfileView athlete={athlete} educationLevels={educationLevels} />
+                <ProfileView athlete={athlete} educationLevels={educationLevels} achievements={externalAchievementsQuery.data} />
               ) : (
                 <AthleteProfileEditor
                   athlete={athlete}
@@ -338,7 +343,9 @@ function StatCard({ color, label, value, icon, delay = 0, small = false }) {
   );
 }
 
-function ProfileView({ athlete, educationLevels }) {
+function ProfileView({ athlete, educationLevels, achievements = [] }) {
+  const verified = achievements.filter((item) => item.status === 'approved');
+  const selfReported = athlete?.top_achievements || [];
   const educationLevelName = educationLevels.find((level) => String(level.id) === String(athlete?.education_level_id))?.name;
 
   return (
@@ -368,7 +375,21 @@ function ProfileView({ athlete, educationLevels }) {
       <Section title="Orang Tua/Wali" icon={Users}><InfoGrid items={[
         ['Nama Ayah', athlete?.father_name], ['No. HP Ayah', athlete?.father_phone], ['Nama Ibu', athlete?.mother_name], ['No. HP Ibu', athlete?.mother_phone], ['Alamat Orang Tua/Wali', athlete?.parent_address]
       ]} /></Section>
-      <Section title="Prestasi Terbaik" icon={Award}>{athlete?.top_achievements?.length ? <ul className="list-disc pl-5 text-slate-700 space-y-1">{athlete.top_achievements.map((item, index) => <li key={index}>{item}</li>)}</ul> : <p className="text-slate-500">Belum ada data prestasi.</p>}</Section>
+      <Section title="Prestasi Terbaik" icon={Award}>
+        {verified.length > 0 && (
+          <div className="mb-3">
+            <p className="text-xs font-semibold text-green-700">Terverifikasi KONI Sumbar</p>
+            <ul className="list-disc pl-5 text-slate-700 space-y-1">{verified.map((item) => <li key={item.id}>{summarizeAchievement(item)}</li>)}</ul>
+          </div>
+        )}
+        {selfReported.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-slate-500">Isian mandiri (belum diverifikasi)</p>
+            <ul className="list-disc pl-5 text-slate-700 space-y-1">{selfReported.map((item, index) => <li key={index}>{item}</li>)}</ul>
+          </div>
+        )}
+        {verified.length === 0 && selfReported.length === 0 && <p className="text-slate-500">Belum ada data prestasi.</p>}
+      </Section>
     </div>
   );
 }

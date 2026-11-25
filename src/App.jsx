@@ -25,6 +25,7 @@ import { EventDetailPage } from './pages/EventDetail';
 import { AthletesPage } from './pages/Athletes';
 import { AthleteTransfersPage } from './pages/AthleteTransfers';
 import { AthleteCardsPage } from './pages/AthleteCards';
+import { ExternalAchievementVerificationPage } from './pages/ExternalAchievementVerification';
 import { PublicAthleteCardPage } from './pages/PublicAthleteCard';
 import { PortalCertificatesPage } from './pages/PortalCertificates';
 import { PorprovCertificatesPage } from './pages/PorprovCertificates';
@@ -204,6 +205,16 @@ function App() {
           <ProtectedRoute>
             <PermissionRoute permission="athlete_transfers.view">
               <AthleteTransfersPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/verifikasi-prestasi"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="athlete_achievements.verify">
+              <ExternalAchievementVerificationPage />
             </PermissionRoute>
           </ProtectedRoute>
         }

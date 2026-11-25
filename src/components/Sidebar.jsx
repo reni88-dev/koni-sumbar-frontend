@@ -6,6 +6,7 @@ import { useComplaintSummary } from '../hooks/queries/useComplaints';
 import { useAccountEmailRecoverySummary } from '../hooks/queries/useAccountEmailRecovery';
 import { useAthleteTransferSummary } from '../hooks/queries/useAthleteTransfers';
 import { useCoachTransferSummary } from '../hooks/queries/useCoachTransfers';
+import { useExternalAchievementSummary } from '../hooks/queries/useExternalAchievements';
 import { 
   LayoutDashboard, 
   Users, 
@@ -37,7 +38,8 @@ import {
   ArrowLeftRight,
   BarChart3,
   CreditCard,
-  Award
+  Award,
+  BadgeCheck
 } from 'lucide-react';
 import koniLogo from '../assets/koni-sumbar.jpg';
 import { QUALITY_REPORTS } from '../features/data-quality-report/reportConfig.js';
@@ -109,6 +111,8 @@ function SidebarContent({ onNavigate }) {
   const { data: transferSummary } = useAthleteTransferSummary(Boolean(hasTransferPermission));
   const hasCoachTransferPermission = hasSuperAdminAccess || user?.permissions?.includes('coach_transfers.view');
   const { data: coachTransferSummary } = useCoachTransferSummary(Boolean(hasCoachTransferPermission));
+  const hasAchievementVerifyPermission = hasSuperAdminAccess || user?.permissions?.includes('athlete_achievements.verify');
+  const { data: achievementSummary } = useExternalAchievementSummary(Boolean(hasAchievementVerifyPermission));
 
   // Detail pages keep their list menu highlighted.
   const nestedMenuPaths = ['/pengaduan', '/master/organizations'];
@@ -187,6 +191,7 @@ function SidebarContent({ onNavigate }) {
 
   const pembinaanItems = filterVisibleItems([
     { icon: Users, label: 'Data Atlet', path: '/atlet', permission: 'athletes.view' },
+    { icon: BadgeCheck, label: 'Verifikasi Prestasi', path: '/verifikasi-prestasi', permission: 'athlete_achievements.verify', badge: achievementSummary?.pending_count || 0 },
     { icon: Award, label: 'Sertifikat', path: '/sertifikat-porprov', permission: 'porprov.certificates.read' },
     { icon: ArrowLeftRight, label: 'Transfer Atlet', path: '/transfer-atlet', permission: 'athlete_transfers.view', badge: transferSummary?.pending_action_count || 0 },
     { icon: CreditCard, label: 'ID Card', path: '/id-card-atlet', permission: 'athlete_cards.manage' },
