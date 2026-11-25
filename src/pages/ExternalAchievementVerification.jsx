@@ -36,7 +36,7 @@ function Detail({ label, value }) {
   );
 }
 
-function VerificationModal({ item, onClose }) {
+function VerificationModal({ item, onClose, onStale }) {
   const [reasonAction, setReasonAction] = useState('');
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
@@ -51,9 +51,15 @@ function VerificationModal({ item, onClose }) {
     }
     setError('');
     try {
-      await decide.mutateAsync({ id: item.id, action, reason: reason.trim() });
+      await decide.mutateAsync({ id: item.id, action, reason: reason.trim(), submittedAt: item.submitted_at });
       onClose();
     } catch (decideError) {
+      // 409: the athlete withdrew or resubmitted meanwhile. Close so the verifier never
+      // decides on the stale content shown here; the list is already being reloaded.
+      if (decideError?.response?.status === 409) {
+        onStale(getExternalAchievementError(decideError, 'Prestasi sudah berubah sejak dibuka. Periksa ulang datanya.'));
+        return;
+      }
       setError(getExternalAchievementError(decideError, 'Gagal memproses verifikasi'));
     }
   };
@@ -147,6 +153,7 @@ export function ExternalAchievementVerificationPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(null);
+  const [staleNotice, setStaleNotice] = useState('');
   const { data: cabors = [] } = useCaborsAll();
 
   useEffect(() => {
@@ -172,13 +179,19 @@ export function ExternalAchievementVerificationPage() {
   };
 
   const viewButton = (item) => (
-    <button type="button" onClick={() => setSelected(item)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+    <button type="button" onClick={() => { setStaleNotice(''); setSelected(item); }} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
       <Eye className="h-3.5 w-3.5" />{status === 'submitted' ? 'Periksa' : 'Detail'}
     </button>
   );
 
   return (
     <DashboardLayout title="Verifikasi Prestasi" subtitle="Prestasi atlet dari event di luar Sirimau (PON, POPDA, Kejurnas, dan lainnya)">
+      {staleNotice && (
+        <div role="alert" className="mb-4 flex items-start justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <span>{staleNotice}</span>
+          <button type="button" onClick={() => setStaleNotice('')} aria-label="Tutup pemberitahuan" className="shrink-0 rounded p-0.5 hover:bg-amber-100"><X className="h-4 w-4" /></button>
+        </div>
+      )}
       <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
         <div className="flex overflow-x-auto border-b border-slate-100">
           {tabs.map((tab) => (
@@ -273,7 +286,17 @@ export function ExternalAchievementVerificationPage() {
         )}
       </div>
 
-      {selected && <VerificationModal key={selected.id} item={selected} onClose={() => setSelected(null)} />}
+      {selected && (
+        <VerificationModal
+          key={selected.id}
+          item={selected}
+          onClose={() => setSelected(null)}
+          onStale={(message) => {
+            setSelected(null);
+            setStaleNotice(message);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

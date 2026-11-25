@@ -100,9 +100,10 @@ export function useExternalAchievementSummary(enabled = true) {
   });
 }
 
-// action is 'approve', 'reject' or 'revoke'.
+// action is 'approve', 'reject' or 'revoke'. submittedAt is the reviewed version and
+// must be the raw API string: converting it through Date drops microseconds.
 export function useDecideExternalAchievement() {
-  return useAchievementMutation(async ({ id, action, reason }) => (
-    (await api.post(`/api/external-achievements/${id}/${action}`, { reason })).data
+  return useAchievementMutation(async ({ id, action, reason, submittedAt }) => (
+    (await api.post(`/api/external-achievements/${id}/${action}`, { reason, submitted_at: submittedAt })).data
   ));
 }
