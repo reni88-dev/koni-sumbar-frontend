@@ -409,6 +409,7 @@ function CoachProfileView({ coach }) {
           <InfoItem label="Nama Lengkap" value={coach?.name} />
           <InfoItem label="Cabang Olahraga" value={caborLabel(coach)} />
           <InfoItem label="Organisasi / Pengcab" value={organizationLabel(coach)} />
+          <InfoItem label="Klub / Perguruan" value={coach?.club_name} />
           <InfoItem label="Kluster Aktif (Read-only)" value={activeCluster} />
           <div>
             <label className="text-xs text-slate-500 uppercase tracking-wider">Status (Read-only)</label>

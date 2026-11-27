@@ -8,6 +8,7 @@ export const emailBroadcastKeys = {
   details: () => [...emailBroadcastKeys.all, 'detail'],
   detail: (id, targetPage, targetPerPage) => [...emailBroadcastKeys.details(), String(id), { targetPage, targetPerPage }],
   roles: () => [...emailBroadcastKeys.all, 'roles'],
+  porprovEvents: () => [...emailBroadcastKeys.all, 'porprov-events'],
   users: (filters) => [...emailBroadcastKeys.all, 'users', filters],
 };
 
@@ -53,6 +54,18 @@ export function useEmailBroadcastRoles(enabled = true) {
     },
     enabled,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useEmailBroadcastPorprovEvents(enabled = true) {
+  return useQuery({
+    queryKey: emailBroadcastKeys.porprovEvents(),
+    queryFn: async () => {
+      const response = await api.get('/api/admin/email-broadcasts/porprov-events');
+      return response.data.data || [];
+    },
+    enabled,
+    staleTime: 60 * 1000,
   });
 }
 

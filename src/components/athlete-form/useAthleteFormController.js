@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import api from '../../api/axios';
+import { athleteKeys } from '../../hooks/queries/useAthletes';
 import { normalizeValidationErrors } from '../form-modal/formUtils';
 import {
   filterValidationErrorsByStep,
@@ -44,7 +47,9 @@ export function useAthleteFormController({
   mode = 'admin',
   useAdminBPJSRules = mode === 'admin',
   submitRequest,
+  autoSaveDocuments = false,
 }) {
+  const queryClient = useQueryClient();
   const formContainerRef = useRef(null);
   const validationSummaryRef = useRef(null);
   const lastValidAgeGroupRef = useRef(null);
@@ -88,7 +93,54 @@ export function useAthleteFormController({
   }, []);
 
   const lookups = useAthleteLookups();
-  const media = useAthleteMedia({ athlete, setErrors, setErrorMessage });
+  // Documents saved right away in edit mode; they override the stale `athlete` prop snapshot.
+  const [savedDocuments, setSavedDocuments] = useState({});
+  const currentAthlete = useMemo(
+    () => (athlete ? { ...athlete, ...savedDocuments } : athlete),
+    [athlete, savedDocuments],
+  );
+  const formDataRef = useRef(formData);
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+  const saveDocument = useCallback(async (kind, file) => {
+    const data = new FormData();
+    if (kind === 'identity') {
+      const identityType = formDataRef.current.identity_document_type;
+      if (!identityType) {
+        throw Object.assign(new Error('Jenis dokumen identitas belum dipilih'), {
+          userMessage: 'Pilih jenis dokumen identitas terlebih dahulu.',
+        });
+      }
+      data.append('identity_document_type', identityType);
+      data.append('identity_document', file);
+    } else {
+      const bpjsNumber = String(formDataRef.current.bpjs_number || '').trim();
+      if (!bpjsNumber) {
+        throw Object.assign(new Error('Nomor BPJS belum diisi'), {
+          userMessage: 'Isi nomor BPJS terlebih dahulu sebelum memilih dokumen BPJS.',
+        });
+      }
+      data.append('bpjs_number', bpjsNumber);
+      data.append('bpjs_document', file);
+    }
+    const response = await api.post(`/api/athletes/${athlete.id}/documents`, data);
+    const saved = response.data?.athlete || {};
+    setSavedDocuments((previous) => ({
+      ...previous,
+      identity_document: saved.identity_document ?? previous.identity_document,
+      identity_document_type: saved.identity_document_type ?? previous.identity_document_type,
+      bpjs_document: saved.bpjs_document ?? previous.bpjs_document,
+      bpjs_number: saved.bpjs_number ?? previous.bpjs_number,
+    }));
+    queryClient.invalidateQueries({ queryKey: athleteKeys.all });
+  }, [athlete?.id, queryClient]);
+  const media = useAthleteMedia({
+    athlete: currentAthlete,
+    setErrors,
+    setErrorMessage,
+    saveDocument: autoSaveDocuments && athlete?.id && !submitRequest ? saveDocument : undefined,
+  });
   const phoneValidation = useValidatedPhoneField({
     value: formData.phone,
     isOpen,
@@ -120,7 +172,7 @@ export function useAthleteFormController({
     useAdminRules: useAdminBPJSRules,
     bpjsNumber: formData.bpjs_number,
     bpjsDocumentFile: media.bpjsDocumentFile,
-    storedBPJSDocument: athlete?.bpjs_document,
+    storedBPJSDocument: currentAthlete?.bpjs_document,
     deferredAcknowledged: bpjsDeferredAcknowledged,
     requireMatchingPair: true,
   });
@@ -132,7 +184,7 @@ export function useAthleteFormController({
   });
 
   const validateProfile = useCallback(() => validateAthleteProfile(formData, {
-    athlete,
+    athlete: currentAthlete,
     documentsLocked,
     identityDocumentFile: media.identityDocumentFile,
     documentErrors: media.documentErrors,
@@ -149,7 +201,7 @@ export function useAthleteFormController({
     emailStatus: emailValidation.status,
     emailMessage: emailValidation.message,
   }), [
-    athlete,
+    currentAthlete,
     bpjsDeferredAcknowledged,
     bpjsRequirements.deferredAcknowledgementRequired,
     bpjsRequirements.documentRequired,
@@ -216,6 +268,7 @@ export function useAthleteFormController({
 
   useEffect(() => {
     resetMedia(isOpen && athlete ? athlete.photo || null : null);
+    setSavedDocuments({});
     setLoading(false);
     setErrors({});
     setErrorMessage('');
@@ -362,9 +415,9 @@ export function useAthleteFormController({
   }, []);
 
   const ageGroup = getAthleteAgeGroup(formData.birth_date);
-  const storedIdentityType = athlete?.identity_document_type || '';
-  const canReuseStoredIdentity = canReuseAthleteStoredIdentity({ athlete, formData });
-  const canReuseStoredBPJS = Boolean(athlete?.bpjs_document);
+  const storedIdentityType = currentAthlete?.identity_document_type || '';
+  const canReuseStoredIdentity = canReuseAthleteStoredIdentity({ athlete: currentAthlete, formData });
+  const canReuseStoredBPJS = Boolean(currentAthlete?.bpjs_document);
 
   const isStepValid = () => Object.keys(
     filterValidationErrorsByStep(validateProfile(), ATHLETE_PROFILE_FIELDS, step),
@@ -399,6 +452,7 @@ export function useAthleteFormController({
   };
 
   return {
+    athlete: currentAthlete,
     formContainerRef,
     validationSummaryRef,
     form: {

@@ -64,6 +64,7 @@ export const ATHLETE_PROFILE_FIELDS = [
   { name: 'bpjs_deferred_acknowledged', label: 'Pernyataan Penundaan BPJS', step: 1, target: target('bpjs_deferred_acknowledged') },
   { name: 'cabor_id', label: 'Cabang Olahraga', step: 1, target: target('cabor_id') },
   { name: 'organization_id', label: 'Organisasi/Pengcab', step: 1, target: target('organization_id') },
+  { name: 'club_name', label: 'Klub/Perguruan', step: 1, target: target('club_name') },
   { name: 'competition_class_id', label: 'Kelas Pertandingan', step: 1, target: target('competition_class_id') },
   { name: 'competition_class', label: 'Kelas Pertandingan', step: 1, target: target('competition_class_id') },
   { name: 'height', label: 'Tinggi Badan', step: 2, target: target('height') },

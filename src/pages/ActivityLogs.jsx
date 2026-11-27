@@ -130,6 +130,7 @@ const FIELD_LABELS = {
   religion: 'Agama',
   occupation: 'Pekerjaan',
   hobby: 'Hobi',
+  club_name: 'Klub/Perguruan',
   marital_status: 'Status Pernikahan',
   photo: 'Foto',
   cabor_id: 'Cabang Olahraga',

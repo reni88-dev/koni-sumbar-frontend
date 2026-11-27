@@ -182,7 +182,6 @@ export function AthleteDocumentsSection({
             <input
               {...getFieldControlProps('bpjs_number', errors)}
               type="text"
-              inputMode="numeric"
               required={bpjsNumberRequired}
               aria-required={bpjsNumberRequired}
               value={formData.bpjs_number}
@@ -192,7 +191,7 @@ export function AthleteDocumentsSection({
                 errors.bpjs_number ? 'border-red-400 bg-red-50' : 'border-slate-200'
               }`}
               placeholder="Masukkan nomor kepesertaan BPJS"
-              maxLength={30}
+              maxLength={20}
             />
             {errors.bpjs_number && (
               <p id={getFieldErrorId('bpjs_number')} className="mt-1 text-xs text-red-500">

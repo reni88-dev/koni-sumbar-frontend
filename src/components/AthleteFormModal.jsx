@@ -15,10 +15,11 @@ const STEPS = [
 ];
 
 export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
-  const controller = useAthleteFormController({ isOpen, athlete, onSuccess });
+  const controller = useAthleteFormController({ isOpen, athlete, onSuccess, autoSaveDocuments: true });
   if (!isOpen) return null;
 
   const {
+    athlete: currentAthlete,
     formContainerRef,
     validationSummaryRef,
     form,
@@ -72,7 +73,7 @@ export function AthleteFormModal({ isOpen, onClose, athlete, onSuccess }) {
     >
       {navigation.step === 1 && (
         <AthletePersonalStep
-          athlete={athlete}
+          athlete={currentAthlete}
           form={form}
           lookups={lookups}
           files={files}

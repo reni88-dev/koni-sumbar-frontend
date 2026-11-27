@@ -555,6 +555,9 @@ export function DataSummaryPage() {
   const [organizationId, setOrganizationId] = useState('');
   const [caborId, setCaborId] = useState('');
   const [status, setStatus] = useState('all');
+  const [development, setDevelopment] = useState('all');
+  const [porprovEventId, setPorprovEventId] = useState('');
+  const [participation, setParticipation] = useState('all');
   const [trendState, setTrendState] = useState(() => {
     const applied = buildTrendPreset(DEFAULT_TREND_PRESET);
     return {
@@ -575,11 +578,14 @@ export function DataSummaryPage() {
     organizationId,
     caborId,
     status,
+    development,
+    porprovEventId,
+    participation: porprovEventId ? participation : 'all',
     trendGranularity: trendState.applied.granularity,
     trendStartDate: trendState.applied.startDate,
     trendEndDate: trendState.applied.endDate,
     periodMonths: trendState.applied.periodMonths,
-  }), [caborId, organizationId, status, trendState.applied]);
+  }), [caborId, development, organizationId, participation, porprovEventId, status, trendState.applied]);
   const query = useDataSummary(filters);
   const data = query.data;
   const athletes = data?.overview?.athletes || {};
@@ -696,6 +702,49 @@ export function DataSummaryPage() {
                     {trendState.applied.granularity === TREND_GRANULARITY_DAILY ? 'Harian' : 'Bulanan'} — Rentang kustom
                   </option>
                 )}
+              </select>
+            </label>
+          </div>
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-500">Binaan (atlet dan pelatih)</span>
+              <select
+                value={development}
+                onChange={(event) => setDevelopment(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+              >
+                <option value="all">Semua</option>
+                <option value="binaan">Binaan</option>
+                <option value="non_binaan">Non binaan</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-500">Event Sirimau</span>
+              <select
+                value={porprovEventId}
+                onChange={(event) => {
+                  setPorprovEventId(event.target.value);
+                  if (!event.target.value) setParticipation('all');
+                }}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+              >
+                <option value="">Pilih event</option>
+                {data?.filter_options?.porprov_events?.map((option) => (
+                  <option key={option.id} value={option.id}>{option.name}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-slate-500">Keikutsertaan pada event</span>
+              <select
+                value={participation}
+                onChange={(event) => setParticipation(event.target.value)}
+                disabled={!porprovEventId}
+                className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+              >
+                <option value="all">Semua</option>
+                <option value="participating">Ikut event</option>
+                <option value="not_participating">Tidak ikut event</option>
               </select>
             </label>
           </div>

@@ -17,12 +17,20 @@ import { EducationLevelsPage } from './pages/master/EducationLevels';
 import { CompetitionClassesPage } from './pages/master/CompetitionClasses';
 import { RegionsPage } from './pages/master/Regions';
 import { OrganizationsPage } from './pages/master/Organizations';
+import { OrganizationBoardPage } from './pages/master/OrganizationBoard';
 import { VenuesPage } from './pages/master/Venues';
 import { CoachAthletesPage } from './pages/CoachAthletes';
 import { EventsPage } from './pages/Events';
 import { EventDetailPage } from './pages/EventDetail';
 import { AthletesPage } from './pages/Athletes';
 import { AthleteTransfersPage } from './pages/AthleteTransfers';
+import { AthleteCardsPage } from './pages/AthleteCards';
+import { ExternalAchievementVerificationPage } from './pages/ExternalAchievementVerification';
+import { PublicAthleteCardPage } from './pages/PublicAthleteCard';
+import { PortalCertificatesPage } from './pages/PortalCertificates';
+import { PorprovCertificatesPage } from './pages/PorprovCertificates';
+import { CertificateVerifyPage } from './pages/CertificateVerify';
+import { CertificateOfficialLookupPage } from './pages/CertificateOfficialLookup';
 import { CoachTransfersPage } from './pages/CoachTransfers';
 import { CoachesPage } from './pages/Coaches';
 import { FormBuilderPage } from './pages/FormBuilder';
@@ -88,6 +96,9 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password/:token" element={<PublicResetPassword />} />
+      <Route path="/kartu/:token" element={<PublicAthleteCardPage />} />
+      <Route path="/sertifikat/verifikasi/:code" element={<CertificateVerifyPage />} />
+      <Route path="/sertifikat/official" element={<CertificateOfficialLookupPage />} />
       <Route path="/pemulihan-email" element={<AccountEmailRecovery />} />
       <Route path="/pemulihan-email/verifikasi" element={<AccountEmailRecoveryVerification />} />
       <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />      {/* Protected Routes */}
@@ -118,6 +129,28 @@ function App() {
         element={
           <ProtectedRoute>
             <PortalRoute role="coach"><CoachPortal /></PortalRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/portal/sertifikat"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="portal.profile.view">
+              <PortalCertificatesPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/sertifikat-porprov"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="porprov.certificates.read">
+              <PorprovCertificatesPage />
+            </PermissionRoute>
           </ProtectedRoute>
         }
       />
@@ -172,6 +205,26 @@ function App() {
           <ProtectedRoute>
             <PermissionRoute permission="athlete_transfers.view">
               <AthleteTransfersPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/verifikasi-prestasi"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="athlete_achievements.verify">
+              <ExternalAchievementVerificationPage />
+            </PermissionRoute>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/id-card-atlet"
+        element={
+          <ProtectedRoute>
+            <PermissionRoute permission="athlete_cards.manage">
+              <AthleteCardsPage />
             </PermissionRoute>
           </ProtectedRoute>
         }
@@ -448,6 +501,14 @@ function App() {
         element={
           <ProtectedRoute>
             <OrganizationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/master/organizations/:id/kepengurusan"
+        element={
+          <ProtectedRoute>
+            <OrganizationBoardPage />
           </ProtectedRoute>
         }
       />

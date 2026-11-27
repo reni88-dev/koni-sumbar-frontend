@@ -17,6 +17,7 @@ export function createInitialCoachFormData() {
     nik: '',
     cabor_id: '',
     organization_id: '',
+    club_name: '',
     birth_place: '',
     birth_date: '',
     gender: '',
@@ -75,6 +76,7 @@ export function mapCoachToForm(coach) {
       nik: coach.nik || '',
       cabor_id: coach.cabor_id?.toString() || coach.cabor?.id?.toString() || '',
       organization_id: coach.organization_id?.toString() || '',
+      club_name: coach.club_name || '',
       birth_place: coach.birth_place || '',
       birth_date: formatDateForInput(coach.birth_date, { allowDateFallback: true }),
       gender: coach.gender || '',
@@ -131,7 +133,7 @@ export function buildCoachFormData(
 }
 
 export function getCoachErrorStep(errorFields) {
-  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'province', 'city', 'district', 'village', 'photo', 'identity_document', 'bpjs_number', 'bpjs_document'];
+  const step1Fields = ['name', 'nik', 'cabor_id', 'organization_id', 'club_name', 'birth_place', 'birth_date', 'gender', 'religion', 'address', 'province', 'city', 'district', 'village', 'photo', 'identity_document', 'bpjs_number', 'bpjs_document'];
   const step2Fields = ['phone', 'email'];
   if (errorFields.some((field) => step1Fields.includes(field))) return 1;
   if (errorFields.some((field) => step2Fields.includes(field))) return 2;

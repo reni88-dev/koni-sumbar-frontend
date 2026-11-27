@@ -10,9 +10,11 @@ export const portalKeys = {
   dashboard: () => [...portalKeys.all, 'dashboard'],
   athletes: () => [...portalKeys.all, 'athletes'],
   clusters: () => [...portalKeys.all, 'profile', 'clusters'],
+  porprovAchievements: () => [...portalKeys.all, 'porprov-achievements'],
   funds: (filters) => [...portalKeys.all, 'profile', 'development-funds', filters],
   coachClusters: () => [...portalKeys.all, 'profile', 'coach-clusters'],
   coachFunds: (filters) => [...portalKeys.all, 'profile', 'coach-development-funds', filters],
+  certificates: () => [...portalKeys.all, 'certificates'],
 };
 
 // Fetch user's portal profile
@@ -41,6 +43,18 @@ export function useUpdatePortalProfile() {
       queryClient.invalidateQueries({ queryKey: portalKeys.dashboard() });
       queryClient.invalidateQueries({ queryKey: portalKeys.events() });
       queryClient.invalidateQueries({ queryKey: portalKeys.athletes() });
+    },
+  });
+}
+
+// Fetch Sirimau events and medals of the logged-in athlete (self-service only)
+export function usePortalPorprovAchievements(options = {}) {
+  return useQuery({
+    queryKey: portalKeys.porprovAchievements(),
+    enabled: options.enabled ?? true,
+    queryFn: async () => {
+      const response = await api.get('/api/portal/porprov-achievements');
+      return response.data;
     },
   });
 }
@@ -151,4 +165,39 @@ export function usePortalAthletes(options = {}) {
       return response.data;
     },
   });
+}
+
+// Sertifikat digital Porprov milik akun portal (atlet per kelas; pelatih per data official)
+export function usePortalCertificates(options = {}) {
+  return useQuery({
+    queryKey: portalKeys.certificates(),
+    enabled: options.enabled ?? true,
+    queryFn: async () => {
+      const response = await api.get('/api/portal/certificates');
+      return response.data?.data ?? [];
+    },
+  });
+}
+
+// kind: 'athlete' | 'official'
+export async function fetchPortalCertificatePdf(kind, id) {
+  const response = await api.get(`/api/portal/certificates/${kind}/${id}/pdf`, { responseType: 'blob' });
+  return response.data;
+}
+
+// Halaman publik (tanpa login): verifikasi QR
+export async function fetchCertificateVerification(code) {
+  const response = await api.get(`/api/public/certificates/verify/${encodeURIComponent(code)}`);
+  return response.data;
+}
+
+// Official non-Satudata: nama dan nomor HP harus cocok dengan data terdaftar di Sirimau
+export async function lookupOfficialCertificates(name, phone) {
+  const response = await api.post('/api/public/certificates/official/lookup', { name, phone });
+  return response.data?.data ?? [];
+}
+
+export async function fetchOfficialCertificatePdf(token) {
+  const response = await api.get(`/api/public/certificates/official/pdf/${encodeURIComponent(token)}`, { responseType: 'blob' });
+  return response.data;
 }

@@ -8,7 +8,20 @@ export const organizationKeys = {
   list: (filters) => [...organizationKeys.lists(), filters],
   allDropdown: () => [...organizationKeys.all, 'dropdown'],
   children: (parentId) => [...organizationKeys.all, 'children', parentId],
+  detail: (id) => [...organizationKeys.all, 'detail', id],
 };
+
+// Fetch one organization
+export function useOrganization(id) {
+  return useQuery({
+    queryKey: organizationKeys.detail(id),
+    queryFn: async () => {
+      const response = await api.get(`/api/master/organizations/${id}`);
+      return response.data;
+    },
+    enabled: Boolean(id),
+  });
+}
 
 // Fetch organizations with pagination
 export function useOrganizations({ page = 1, search = '', perPage = 15, type = '' } = {}) {

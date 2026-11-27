@@ -24,6 +24,7 @@ export const COACH_PROFILE_FIELDS = [
   { name: 'bpjs_deferred_acknowledgement', label: 'Pernyataan Penundaan BPJS', step: 1, target: target('bpjs_deferred_acknowledgement') },
   { name: 'cabor_id', label: 'Cabang Olahraga', step: 1, target: target('cabor_id') },
   { name: 'organization_id', label: 'Organisasi/Pengcab', step: 1, target: target('organization_id') },
+  { name: 'club_name', label: 'Klub/Perguruan', step: 1, target: target('club_name') },
   { name: 'address', label: 'Alamat Domisili', step: 1, target: target('address') },
   { name: 'province', label: 'Provinsi', step: 1, target: target('province') },
   { name: 'city', label: 'Kota/Kabupaten', step: 1, target: target('city') },

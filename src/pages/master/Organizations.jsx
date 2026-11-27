@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import { Link } from 'react-router-dom';
+import {
   Plus, Search, Edit2, Trash2, Building2, X, Loader2, AlertCircle,
-  MapPin, Link2, Unlink, ChevronDown
+  MapPin, Link2, Unlink, ChevronDown, ScrollText
 } from 'lucide-react';
 import { DashboardLayout } from '../../components/DashboardLayout';
 import { 
@@ -330,6 +331,14 @@ export function OrganizationsPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-end gap-1">
+                        <Link
+                          to={`/master/organizations/${org.id}/kepengurusan`}
+                          className="p-2 hover:bg-amber-50 rounded-lg text-slate-500 hover:text-amber-600 transition-colors"
+                          title="SK & Kepengurusan"
+                          aria-label={`SK & Kepengurusan ${org.name}`}
+                        >
+                          <ScrollText className="w-4 h-4" />
+                        </Link>
                         <button
                           onClick={() => { setCaborOrg(org); setIsCaborModalOpen(true); }}
                           className="p-2 hover:bg-blue-50 rounded-lg text-slate-500 hover:text-blue-600 transition-colors"

@@ -1,5 +1,8 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import api from '../../api/axios';
+import { coachKeys } from '../../hooks/queries/useCoaches';
 import { getCoachPhotoUrl } from '../../lib/coachPhoto';
 import { normalizeValidationErrors } from '../form-modal/formUtils';
 import {
@@ -39,7 +42,9 @@ export function useCoachFormController({
   onSuccess,
   mode = 'admin',
   submitRequest,
+  autoSaveDocuments = false,
 }) {
+  const queryClient = useQueryClient();
   const formContainerRef = useRef(null);
   const validationSummaryRef = useRef(null);
   const [step, setStep] = useState(1);
@@ -67,7 +72,46 @@ export function useCoachFormController({
   }, []);
 
   const lookups = useCoachLookups();
-  const media = useCoachMedia({ coach, setErrors, setErrorMessage });
+  // Documents saved right away in edit mode; they override the stale `coach` prop snapshot.
+  const [savedDocuments, setSavedDocuments] = useState({});
+  const currentCoach = useMemo(
+    () => (coach ? { ...coach, ...savedDocuments } : coach),
+    [coach, savedDocuments],
+  );
+  const formDataRef = useRef(formData);
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
+  const coachId = coach?.id;
+  const saveDocument = useCallback(async (kind, file) => {
+    const data = new FormData();
+    if (kind === 'identity') {
+      data.append('identity_document', file);
+    } else {
+      const bpjsNumber = String(formDataRef.current.bpjs_number || '').trim();
+      if (!bpjsNumber) {
+        throw Object.assign(new Error('Nomor BPJS belum diisi'), {
+          userMessage: 'Isi nomor BPJS terlebih dahulu sebelum memilih dokumen BPJS.',
+        });
+      }
+      data.append('bpjs_number', bpjsNumber);
+      data.append('bpjs_document', file);
+    }
+    const response = await api.post(`/api/coaches/${coachId}/documents`, data);
+    const saved = response.data?.coach || {};
+    setSavedDocuments((previous) => ({
+      ...previous,
+      identity_document: saved.identity_document ?? previous.identity_document,
+      bpjs_document: saved.bpjs_document ?? previous.bpjs_document,
+    }));
+    queryClient.invalidateQueries({ queryKey: coachKeys.all });
+  }, [coachId, queryClient]);
+  const media = useCoachMedia({
+    coach: currentCoach,
+    setErrors,
+    setErrorMessage,
+    saveDocument: autoSaveDocuments && coach?.id && !submitRequest ? saveDocument : undefined,
+  });
   const { locked: documentsLocked, revisionPending: documentsUnlockedForRevision } = useDocumentEditAccess('coaches', coach?.id);
   const documentsLockedRef = useRef(documentsLocked);
   useEffect(() => {
@@ -76,7 +120,7 @@ export function useCoachFormController({
   const bpjsRequirements = documentsLocked ? LOCKED_BPJS_REQUIREMENTS : getBPJSRequirements({
     mode,
     bpjsDocumentFile: media.bpjsDocumentFile,
-    storedBPJSDocument: coach?.bpjs_document,
+    storedBPJSDocument: currentCoach?.bpjs_document,
     deferredAcknowledged: bpjsDeferredAcknowledged,
   });
   const phoneValidation = useValidatedPhoneField({
@@ -156,6 +200,7 @@ export function useCoachFormController({
   useEffect(() => {
     resetMedia(isOpen && coach ? getCoachPhotoUrl(coach) : null);
     resetSubmission();
+    setSavedDocuments({});
     setErrors({});
     setErrorMessage('');
     setInitialIncompleteCount(0);

@@ -31,6 +31,11 @@ import { useEducationLevelsAll } from '../hooks/queries/useMasterData';
 import { ProtectedImage } from './ProtectedImage';
 import { AthleteClusterHistoryTab, AthleteDevelopmentFundsTab } from './athlete-clusters';
 import { AthleteTransferHistory } from './athlete-transfers/AthleteTransferHistory';
+import { PorprovAchievementsPanel } from './athletes/PorprovAchievementsPanel';
+import { useAthletePorprovAchievements } from '../hooks/queries/useAthletes';
+import { ExternalAchievementsPanel } from './athletes/external-achievements/ExternalAchievementsPanel';
+import { summarizeAchievement } from './athletes/external-achievements/externalAchievementUtils';
+import { useExternalAchievements } from '../hooks/queries/useExternalAchievements';
 import { usePermission } from '../hooks/usePermission';
 import {
   fetchAndOpenStoredDocument,
@@ -171,6 +176,8 @@ function TabButton(props) {
 
 export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive = false, onTransfer }) {
   const [activeTab, setActiveTab] = useState('profile');
+  const porprovAchievementsQuery = useAthletePorprovAchievements(isOpen && activeTab === 'porprov' ? athlete?.id : null);
+  const externalAchievementsQuery = useExternalAchievements(athlete?.id, { enabled: Boolean(isOpen && athlete?.id) });
   const [isPrinting, setIsPrinting] = useState(false);
   const [documentOpening, setDocumentOpening] = useState({ identity: false, bpjs: false });
   const [documentErrors, setDocumentErrors] = useState({ identity: '', bpjs: '' });
@@ -299,6 +306,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
   const activeStatus = athlete.is_active ? 'Aktif' : 'Nonaktif';
   const identityDocumentLabel = identityDocumentLabels[athlete.identity_document_type] || 'Dokumen Identitas';
   const topAchievements = (athlete.top_achievements || []).filter(Boolean);
+  const verifiedAchievements = (externalAchievementsQuery.data || []).filter((item) => item.status === 'approved');
   const clusterBadgeText = currentSubCluster ? `${currentCluster} - ${currentSubCluster}` : currentCluster;
   const athleteEverEdited = Boolean(athlete.created_at && athlete.updated_at && athlete.created_at !== athlete.updated_at);
 
@@ -316,10 +324,16 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
     }
 
     try {
-      const [clusterResult, fundResult] = await Promise.allSettled([
+      const [clusterResult, fundResult, porprovResult, externalResult] = await Promise.allSettled([
         api.get(`/api/athletes/${athlete.id}/clusters`),
         api.get(`/api/athletes/${athlete.id}/development-funds`, { params: { page: 1, per_page: 9999 } }),
+        api.get(`/api/athletes/${athlete.id}/porprov-achievements`),
+        api.get(`/api/athletes/${athlete.id}/external-achievements`),
       ]);
+      const externalError = externalResult.status === 'rejected';
+      const externalAchievements = externalResult.status === 'fulfilled' ? (externalResult.value.data?.data || []) : [];
+      const porprovError = porprovResult.status === 'rejected';
+      const porprovEvents = porprovResult.status === 'fulfilled' ? (porprovResult.value.data?.data || []) : [];
 
       const clusterError = clusterResult.status === 'rejected';
       const fundsError = fundResult.status === 'rejected';
@@ -340,6 +354,10 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
         funds,
         clusterError,
         fundsError,
+        porprovEvents,
+        porprovError,
+        externalAchievements,
+        externalError,
         photoUrl: athlete.photo || null,
       });
     } catch (error) {
@@ -597,6 +615,12 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
               <TabButton id="funds" activeTab={activeTab} onSelect={setActiveTab} icon={Wallet}>
                 Biaya Pembinaan
               </TabButton>
+              <TabButton id="porprov" activeTab={activeTab} onSelect={setActiveTab} icon={Trophy}>
+                Event Sirimau
+              </TabButton>
+              <TabButton id="achievements" activeTab={activeTab} onSelect={setActiveTab} icon={Award}>
+                Prestasi
+              </TabButton>
               {canViewTransfers && (
                 <TabButton id="transfers" activeTab={activeTab} onSelect={setActiveTab} icon={HistoryIcon}>
                   Riwayat Transfer
@@ -670,6 +694,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                   <ProfileField label="Cabang Olahraga" value={caborName} />
                   <ProfileField label="Kelas Pertandingan" value={competitionClassName} />
                   <ProfileField label="Organisasi / Pengcab" value={organizationName} />
+                  <ProfileField label="Klub / Perguruan" value={athlete.club_name} />
                   <ProfileField label="Tahun Mulai Karir" value={athlete.career_start_year} />
                   <ProfileField label="Kluster Aktif" value={currentCluster} />
                   <ProfileField label="Sub-Kluster Aktif" value={currentSubCluster} />
@@ -720,6 +745,25 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                       </span>
                       <span>Prestasi Tertinggi</span>
                     </h3>
+                    {externalAchievementsQuery.isError && (
+                      <p className="mb-2 text-xs text-red-600">Prestasi terverifikasi gagal dimuat.</p>
+                    )}
+                    {verifiedAchievements.length > 0 && (
+                      <ul className="mb-3 space-y-2">
+                        {verifiedAchievements.map((item) => (
+                          <li
+                            key={item.id}
+                            className="flex items-start gap-2 rounded-xl border border-green-200 bg-white/90 px-3 py-2 text-xs font-semibold text-slate-800 shadow-2xs"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-green-600 shrink-0 mt-0.5" />
+                            <span>{summarizeAchievement(item)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {topAchievements.length > 0 && (
+                      <p className="mb-1.5 text-[11px] font-semibold text-amber-800">Isian mandiri (belum diverifikasi)</p>
+                    )}
                     {topAchievements.length > 0 ? (
                       <ul className="space-y-2">
                         {topAchievements.map((achievement, i) => (
@@ -732,7 +776,7 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
                           </li>
                         ))}
                       </ul>
-                    ) : (
+                    ) : verifiedAchievements.length === 0 && (
                       <p className="text-xs text-slate-500 italic">Belum ada riwayat prestasi yang dicatat.</p>
                     )}
                   </div>
@@ -777,6 +821,17 @@ export function AthleteDetailModal({ isOpen, onClose, athlete, canViewSensitive 
 
             {/* Tab 3: Biaya Pembinaan */}
             {activeTab === 'funds' && <AthleteDevelopmentFundsTab athlete={athlete} onOpenClusterHistory={() => setActiveTab('clusters')} />}
+
+            {activeTab === 'porprov' && <PorprovAchievementsPanel query={porprovAchievementsQuery} />}
+
+            {activeTab === 'achievements' && (
+              <ExternalAchievementsPanel
+                key={athlete.id}
+                athleteId={athlete.id}
+                defaultCaborId={athlete.cabor_id}
+                canEdit={can('athletes.edit')}
+              />
+            )}
 
             {activeTab === 'transfers' && canViewTransfers && <AthleteTransferHistory athleteId={athlete.id} />}
           </div>

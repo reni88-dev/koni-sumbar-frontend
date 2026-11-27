@@ -6,6 +6,8 @@ import {
   openProfilePrintWindow,
   printProfileDocument,
 } from '../profilePrintUtils';
+import { MEDALS } from './porprovMedals';
+import { LEVEL_LABELS, formatPeriod, formatResult } from './external-achievements/externalAchievementUtils';
 
 const genderLabels = { male: 'Laki-laki', female: 'Perempuan' };
 const maritalLabels = { single: 'Belum Menikah', married: 'Menikah', divorced: 'Cerai', widowed: 'Duda/Janda' };
@@ -37,6 +39,18 @@ function formatPrintDate(dateStr) {
   return escapePrintHtml(formatDate(dateStr));
 }
 
+function formatPorprovNumber(item) {
+  return item.class_name ? `${item.cabor_name} - ${item.class_name}` : item.cabor_name;
+}
+
+function formatPorprovAchievements(event) {
+  const achievements = event.achievements || [];
+  if (achievements.length === 0) return escapePrintHtml(event.results_published ? '-' : 'Hasil belum dipublikasikan');
+  return achievements
+    .map((item) => `${escapePrintHtml(MEDALS[item.medal]?.label || item.medal)}: ${escapePrintHtml(formatPorprovNumber(item))}`)
+    .join('<br>');
+}
+
 function renderIdentityItem(label, value) {
   return `
     <div class="identity-meta-item">
@@ -53,10 +67,17 @@ export function buildAthleteProfilePrintHtml({
   fundsTotalAmount,
   clusterError = false,
   fundsError = false,
+  porprovEvents = [],
+  porprovError = false,
+  externalAchievements = [],
+  externalError = false,
   photoDataUrl = null,
 }) {
   const safeHistories = Array.isArray(histories) ? histories : [];
   const safeFunds = Array.isArray(funds) ? funds : [];
+  const safePorprovEvents = Array.isArray(porprovEvents) ? porprovEvents : [];
+  const verifiedAchievements = (Array.isArray(externalAchievements) ? externalAchievements : [])
+    .filter((item) => item.status === 'approved');
   const printedAt = new Date();
   const printedDate = printedAt.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
   const printedTime = printedAt.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
@@ -133,6 +154,7 @@ export function buildAthleteProfilePrintHtml({
       ${renderPrintRow('Cabang Olahraga', caborName)}
       ${renderPrintRow('Kelas Pertandingan', competitionClassName)}
       ${renderPrintRow('Organisasi', organizationName)}
+      ${renderPrintRow('Klub/Perguruan', athlete.club_name)}
       ${renderPrintRow('Tahun Mulai Karir', athlete.career_start_year)}
       ${renderPrintRow('Kluster Aktif', currentCluster)}
       ${renderPrintRow('Sub-kluster Aktif', currentSubCluster)}
@@ -167,7 +189,7 @@ export function buildAthleteProfilePrintHtml({
   <div class="section keep-together">
     <h3>Riwayat Prestasi dan Cedera</h3>
     <div class="grid">
-      <div class="full info-row"><div class="label">Prestasi Tertinggi</div><div class="value">${printAchievements.map((achievement) => escapePrintHtml(achievement)).join('<br>')}</div></div>
+      <div class="full info-row"><div class="label">Prestasi (Isian Mandiri)</div><div class="value">${printAchievements.map((achievement) => escapePrintHtml(achievement)).join('<br>')}</div></div>
       <div class="full info-row"><div class="label">Riwayat Cedera/Penyakit</div><div class="value">${escapePrintHtml(athlete.injury_illness_history)}</div></div>
     </div>
   </div>
@@ -223,6 +245,56 @@ export function buildAthleteProfilePrintHtml({
         </tbody>
       </table>
       <div class="total">Total Biaya Pembinaan: ${escapePrintHtml(formatCurrency(totalFunds))}</div>`}
+  </div>
+
+  <div class="section">
+    <h3>Prestasi Terverifikasi KONI Sumbar</h3>
+    ${externalError ? '<div class="warning">Data prestasi terverifikasi gagal dimuat.</div>' : verifiedAchievements.length === 0 ? '<div class="empty">Belum ada prestasi terverifikasi dari event di luar Sirimau.</div>' : `
+      <table>
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Tingkat</th>
+            <th>Tanggal</th>
+            <th>Cabor / Nomor</th>
+            <th>Hasil</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${verifiedAchievements.map((item) => `
+            <tr>
+              <td>${escapePrintHtml(item.event_name)}</td>
+              <td>${escapePrintHtml(LEVEL_LABELS[item.level])}</td>
+              <td>${escapePrintHtml(formatPeriod(item))}</td>
+              <td>${escapePrintHtml([item.cabor_name, item.competition_class].filter(Boolean).join(' - '))}</td>
+              <td>${escapePrintHtml(formatResult(item))}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`}
+  </div>
+
+  <div class="section">
+    <h3>Event Sirimau dan Prestasi</h3>
+    ${porprovError ? '<div class="warning">Data event Sirimau gagal dimuat.</div>' : safePorprovEvents.length === 0 ? '<div class="empty">Belum ada event Sirimau yang diikuti.</div>' : `
+      <table>
+        <thead>
+          <tr>
+            <th>Event</th>
+            <th>Kontingen</th>
+            <th>Nomor yang Diikuti</th>
+            <th>Prestasi</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${safePorprovEvents.map((event) => `
+            <tr>
+              <td>${escapePrintHtml(event.event_name)}${event.year ? ` (${escapePrintHtml(event.year)})` : ''}</td>
+              <td>${escapePrintHtml(event.contingent_name)}</td>
+              <td>${(event.registrations || []).map((item) => escapePrintHtml(formatPorprovNumber(item))).join('<br>') || '-'}</td>
+              <td>${formatPorprovAchievements(event)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`}
   </div>
 
   <div class="footer">Dicetak oleh : KONI Sumbar pada tanggal ${escapePrintHtml(printedDate)} jam ${escapePrintHtml(printedTime)}</div>

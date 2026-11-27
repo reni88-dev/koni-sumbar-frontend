@@ -31,6 +31,7 @@ export function createInitialAthleteFormData() {
   return {
     cabor_id: '',
     organization_id: '',
+    club_name: '',
     education_level_id: '',
     competition_class_id: '',
     name: '',
@@ -84,6 +85,7 @@ export function mapAthleteToForm(athlete) {
     formData: {
       cabor_id: athlete.cabor_id?.toString() || '',
       organization_id: athlete.organization_id?.toString() || '',
+      club_name: athlete.club_name || '',
       education_level_id: athlete.education_level_id?.toString() || '',
       competition_class_id: athlete.competition_class_id?.toString() || '',
       name: athlete.name || '',
@@ -187,7 +189,7 @@ export function buildAthleteFormData(submissionData, files, { excludedFields = [
 }
 
 export function getAthleteErrorStep(errorFields) {
-  const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'competition_class', 'address', 'province', 'city', 'district', 'village', 'identity_document_type', 'identity_document', 'bpjs_number', 'bpjs_document', 'bpjs_deferred_acknowledged'];
+  const step1Fields = ['name', 'nik', 'no_kk', 'birth_place', 'birth_date', 'gender', 'religion', 'cabor_id', 'club_name', 'competition_class', 'address', 'province', 'city', 'district', 'village', 'identity_document_type', 'identity_document', 'bpjs_number', 'bpjs_document', 'bpjs_deferred_acknowledged'];
   const step2Fields = ['height', 'weight', 'blood_type', 'education_level_id', 'occupation', 'marital_status', 'phone', 'email'];
   const step4Fields = ['father_name', 'mother_name', 'parent_address', 'father_phone', 'mother_phone'];
   if (errorFields.some((field) => step1Fields.includes(field))) return 1;

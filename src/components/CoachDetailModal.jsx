@@ -629,6 +629,7 @@ export function CoachDetailModal({ isOpen, onClose, coach, canViewSensitive = fa
                   <ProfileField label="Spesialisasi" value={coach.specialization} />
                   <ProfileField label="Tahun Mulai Melatih" value={coach.coaching_start_year} />
                   <ProfileField label="Organisasi / Pengcab" value={organizationName} />
+                  <ProfileField label="Klub / Perguruan" value={coach.club_name} />
                   <ProfileField label="Kluster Aktif" value={currentCluster} />
                   <ProfileField label="Sub-Kluster Aktif" value={currentSubCluster} />
                   {canViewSensitive && coach.certificate_document && (
